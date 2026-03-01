@@ -9,6 +9,16 @@ Types: FEATURE, FIX, REFACTOR, CHORE.
 
 ## 2026-03-01
 
+FIX: Add postinstall script to force deterministic prisma generate on Vercel CI (fixes CardState not exported from @prisma/client)
+FIX: Remove duplicate CardState enum declaration in prisma/schema.prisma (lines 455-459)
+CHORE: Delete orphaned floating-dock.tsx component (replaced by Dock.tsx, zero imports)
+CHORE: Add .env and .env.* to .gitignore and remove .env from git tracking
+
+---
+
+## 2026-03-01
+
+FIX: onboarding — Prevent UI race condition showing completion banner simultaneously with unanswered question by deferring step=COMPLETE on server when hasPendingChoices
 FIX: applyLLMResponse — server-side auto-confirmation of currentQuestion when user gives substantive answer (>= 8 chars, not "je sais pas")
 FIX: KAEL onboarding reasoning — LLM stateBlock now shows confirmed aspect VALUES so KAEL never re-poses an already-answered question
 FIX: invokeChefDeProjet — mandatory acknowledgement rule + stronger progression rules added to system prompt
