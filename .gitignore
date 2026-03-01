@@ -36,3 +36,10 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# AI/agent artifacts (do not commit)
+.claude/debug/
+.claude/**/debug/
+.verdent/
+.mcp.json
+.claude/debug/
