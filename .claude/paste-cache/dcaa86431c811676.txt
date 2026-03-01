@@ -1,0 +1,143 @@
+<prompt>
+  <meta>
+    <project>Wind Boost</project>
+    <mode>Claude Code</mode>
+    <intent>Implémentation Brand Design + Design System k3rn.labs</intent>
+    <commit_strategy>atomic_per_feature</commit_strategy>
+  </meta>
+
+  <task_context>
+    <role>Senior Frontend Architect</role>
+    <objective>
+      Implémenter intégralement le brand design k3rn.labs (tokens, layout shell, primitives UI)
+      dans l’application existante Wind Boost (Next.js 15 + Tailwind),
+      sans modifier la logique métier (TicketPack, Skills, API).
+    </objective>
+
+    <definition_of_done>
+      <item>Tokens canoniques intégrés globalement et utilisés par défaut.</item>
+      <item>Background premium implémenté (subtil, performant, CSS-only).</item>
+      <item>Layout shell cohérent (topbar blur, container, spacing).</item>
+      <item>Primitives UI brand-safe créées (Button, Input, Badge, Card, Typography).</item>
+      <item>Reskin Skills + TicketPack avec primitives (sans changement fonctionnel).</item>
+      <item>Aucune couleur/typo hardcodée hors tokens.</item>
+      <item>Build passe.</item>
+      <item>Commits atomiques respectés.</item>
+    </definition_of_done>
+  </task_context>
+
+  <brand_sources>
+    <note>Source de vérité dans le repo. Si un fichier manque, STOP et demande le chemin. Ne pas inventer.</note>
+    <files>
+      <file>Doc/brand/k3rn/brand_book.html</file>
+      <file>Doc/brand/k3rn/canonical_brand_design.html</file>
+      <file>Doc/brand/k3rn/color_system.md</file>
+      <file>Doc/brand/k3rn/typography.md</file>
+      <file>Doc/brand/k3rn/tokens.css</file>
+    </files>
+  </brand_sources>
+
+  <strict_rules>
+    <rule id="1">Vérifie l’existence des fichiers brand ci-dessus avant toute modif. Si absent: STOP.</rule>
+    <rule id="2">Lis tous les fichiers brand avant d’écrire du CSS/composants.</rule>
+    <rule id="3">Utilise uniquement les CSS variables définies dans tokens.css.</rule>
+    <rule id="4">Green réservé exclusivement aux CTA primaires.</rule>
+    <rule id="5">Aucune refactorisation logique (API/DB/services). UI uniquement.</rule>
+    <rule id="6">Ne pas ajouter de librairie UI externe.</rule>
+    <rule id="7">Commits atomiques obligatoires (1 bloc = 1 commit).</rule>
+  </strict_rules>
+
+  <atomic_commit_policy>
+    <description>
+      Chaque bloc ci-dessous = 1 commit séparé.
+      Format message:
+      feat(brand): ...
+      refactor(ui): ...
+    </description>
+    <blocks>
+      <block id="1">Intégration design tokens globaux</block>
+      <block id="2">Implémentation background premium</block>
+      <block id="3">Mise en place layout shell global</block>
+      <block id="4">Création primitives UI brand-safe</block>
+      <block id="5">Reskin page Skills</block>
+      <block id="6">Reskin page TicketPack</block>
+    </blocks>
+  </atomic_commit_policy>
+
+  <implementation_steps>
+    <step id="0">
+      Explore et confirme:
+      - où est le global CSS (globals.css)
+      - comment Tailwind est configuré
+      - où vit la navigation/layout
+      Puis liste les fichiers brand lus et ce que tu en retiens (tokens, typo, color rules).
+    </step>
+
+    <step id="1">
+      Intégrer tokens.css globalement (import unique dans globals.css ou équivalent).
+      Basculer styles globaux (bg, text, font) vers tokens.
+      Commit: feat(brand): integrate design tokens
+    </step>
+
+    <step id="2">
+      Implémenter le background premium (radial + grid + noise) selon canonical_brand_design.
+      Injecter dans layout global.
+      Commit: feat(brand): add premium background
+    </step>
+
+    <step id="3">
+      Implémenter layout shell:
+      - topbar sticky + backdrop blur
+      - hairline border
+      - container max-width + spacing scale
+      - nav Skills | TicketPack
+      Commit: feat(brand): add global shell layout
+    </step>
+
+    <step id="4">
+      Créer primitives UI (sans lib externe):
+      - Button (primary/dark/secondary/ghost)
+      - Input/Textarea
+      - Badge
+      - Card
+      - Typography helpers/classes
+      Tous basés sur tokens.css.
+      Commit: feat(brand): add ui primitives
+    </step>
+
+    <step id="5">
+      Reskin Skills:
+      remplacer inputs/buttons/cards existants par primitives.
+      Aucun changement de logique.
+      Commit: refactor(ui): reskin skills page
+    </step>
+
+    <step id="6">
+      Reskin TicketPack:
+      remplacer UI components par primitives.
+      Aucun changement de logique.
+      Commit: refactor(ui): reskin ticketpack page
+    </step>
+
+    <step id="7">
+      Vérification:
+      - npm run build
+      - smoke test pages /, /skills/[id], /ticketpack
+      - focus keyboard visible
+    </step>
+  </implementation_steps>
+
+  <output_format>
+    <response>
+      <section name="plan"/>
+      <section name="brand_findings"/>
+      <section name="changes"/>
+      <section name="commits"/>
+      <section name="verification"/>
+    </response>
+  </output_format>
+
+  <prefill_assistant>
+    <response><section name="plan">
+  </prefill_assistant>
+</prompt>

@@ -1,0 +1,155 @@
+"use client";
+
+import { useEffect, useState, useMemo } from "react";
+import { useLanguageStore } from "@/store/language-store";
+import { useRouter } from "next/navigation";
+import { SiteHeader } from "@/components/layout/site-header";
+import { ProCard } from "@/components/workspace/pro-card";
+import { FloatingDock } from "@/components/workspace/floating-dock";
+import { cn } from "@/lib/utils";
+
+interface Project {
+    id: string;
+    title?: string;
+    text: string;
+    description?: string;
+    color?: string;
+    globalScore?: number;
+    recommendation?: string;
+    confidenceLevel?: string;
+    viabilityScore?: number;
+    classification?: string;
+    timestamp: string;
+    isDemo?: boolean;
+    analysis?: any;
+}
+
+function getProjectDecision(p: Project): string {
+    return p.recommendation ?? p.classification ?? "DRAFT";
+}
+
+function getProjectTitle(p: Project): string {
+    return p.title ?? p.text;
+}
+
+export default function WorkspacePage() {
+    const { t } = useLanguageStore();
+    const router = useRouter();
+
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+    const [searchQuery, setSearchQuery] = useState("");
+    const [activeFilter, setActiveFilter] = useState<string>("ALL");
+
+    // Initial Load Logic
+    useEffect(() => {
+        const currentIdea = localStorage.getItem("k3rn_active_project");
+        const storedProjects = JSON.parse(localStorage.getItem("k3rn_projects") || "[]");
+
+        if (currentIdea) {
+            const idea = JSON.parse(currentIdea);
+            const exists = storedProjects.some((p: any) => p.timestamp === idea.timestamp);
+            if (!exists) {
+                const newProject: Project = {
+                    id: idea.id || crypto.randomUUID(),
+                    title: idea.title,
+                    text: idea.text || "",
+                    globalScore: idea.globalScore ?? idea.analysis?.viabilityScore,
+                    recommendation: idea.recommendation ?? idea.analysis?.classification,
+                    confidenceLevel: idea.confidenceLevel,
+                    viabilityScore: idea.viabilityScore ?? idea.analysis?.viabilityScore,
+                    classification: idea.classification ?? idea.analysis?.classification,
+                    timestamp: idea.timestamp,
+                    isDemo: idea.isDemo,
+                    analysis: idea.analysis,
+                };
+                storedProjects.unshift(newProject);
+                localStorage.setItem("k3rn_projects", JSON.stringify(storedProjects));
+                localStorage.removeItem("k3rn_active_project");
+            }
+        }
+
+        if (storedProjects.length === 0) {
+            const mocks: Project[] = [
+                { id: "1", title: "Drone Fleet SaaS Platform", text: "Plateforme SaaS de gestion de flottes de drones autonomes", globalScore: 92, recommendation: "GO", timestamp: new Date().toISOString(), isDemo: true, description: "A comprehensive solution for autonomous drone logistics, featuring real-time telemetry, AI-driven pathfinding, and predictive maintenance." },
+                { id: "2", title: "NFT Patent Marketplace", text: "Marketplace NFT pour brevets industriels", globalScore: 38, recommendation: "KILL", timestamp: new Date(Date.now() - 86400000).toISOString(), isDemo: true, description: "Attempting to tokenize IP rights on the blockchain. Initial market validation suggests low demand." },
+                { id: "3", title: "AI Film Script Generator", text: "IA générative pour scripts de films", globalScore: 78, recommendation: "EXPLORE", timestamp: new Date(Date.now() - 172800000).toISOString(), isDemo: true, description: "Leveraging LLMs for creative writing assistance. The prototype shows promise but lacks structure." },
+                { id: "4", title: "MeowNet - Social Network for Cats", text: "Réseau social pour chats (MeowNet)", globalScore: 22, recommendation: "PARK", timestamp: new Date(Date.now() - 432000000).toISOString(), isDemo: true, description: "Niche social network. Market size is questionable despite high engagement potential." },
+                { id: "5", title: "Quantum Encryption Key", text: "Clé de chiffrement quantique", globalScore: 88, recommendation: "GO", timestamp: new Date(Date.now() - 500000000).toISOString(), isDemo: true, description: "Next-gen security infrastructure for fintech. Critical need in the post-quantum era." },
+            ];
+            setProjects(mocks);
+        } else {
+            setProjects(storedProjects);
+        }
+    }, []);
+
+    const filteredProjects = useMemo(() => {
+        return projects.filter((p) => {
+            const q = searchQuery.toLowerCase();
+            const matchesSearch =
+                getProjectTitle(p).toLowerCase().includes(q) ||
+                p.text.toLowerCase().includes(q) ||
+                getProjectDecision(p).toLowerCase().includes(q);
+
+            const matchesFilter = activeFilter === "ALL" || getProjectDecision(p) === activeFilter;
+
+            return matchesSearch && matchesFilter;
+        });
+    }, [projects, searchQuery, activeFilter]);
+
+    return (
+        <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-brand-primary/30 flex flex-col overflow-x-hidden">
+            <SiteHeader variant="app" className="bg-[#050505] border-b border-[#222]" />
+
+            <div className="relative z-10 flex-1 pt-24 pb-40 px-6 md:px-12 w-full max-w-[1600px] mx-auto">
+
+                {/* Header Actions - Simpler */}
+                <div className="flex justify-between items-end mb-12">
+                    <div>
+                        <h1 className="text-3xl font-medium tracking-tight text-white mb-2">
+                            Workspace
+                        </h1>
+                        <p className="text-[#666] text-sm font-medium">
+                            {filteredProjects.length} projets actifs
+                        </p>
+                    </div>
+                </div>
+
+                {/* The Pro Grid */}
+                <div className={cn(
+                    "grid gap-6 animate-in fade-in zoom-in-95 duration-500",
+                    viewMode === "grid"
+                        ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                        : "grid-cols-1" // List view placeholder can just stack for now
+                )}>
+
+                    {/* New Project */}
+                    <ProCard
+                        isNew
+                        onClick={() => router.push('/capture')}
+                    />
+
+                    {/* Projects */}
+                    {filteredProjects.map((project) => (
+                        <ProCard
+                            key={project.id}
+                            project={project}
+                            onClick={() => router.push(`/workspace/${project.id}`)}
+                        />
+                    ))}
+                </div>
+            </div>
+
+            {/* The Floating Command Center */}
+            <FloatingDock
+                viewMode={viewMode}
+                setViewMode={setViewMode}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                activeFilter={activeFilter}
+                setActiveFilter={setActiveFilter}
+                onNewProject={() => router.push('/capture')}
+            />
+        </div>
+    );
+}

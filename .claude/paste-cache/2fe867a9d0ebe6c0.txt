@@ -1,0 +1,64 @@
+Plan d’exécution (étapes, dépendances, done, métriques)
+1) Contrat d’état serveur (authoritative)
+
+Action : définir un objet canonique OnboardingState renvoyé par le serveur à chaque étape.
+
+status: IN_PROGRESS|COMPLETE
+
+confirmedAspects: { problem?:true, target?:true, outcome?:true, constraint?:true }
+
+currentQuestionId
+
+recommendedLab (server-computed)
+
+Done : UI rend uniquement depuis OnboardingState.
+
+Métrique : plus aucune divergence UI/serveur sur “complete”.
+
+2) Invariants (tests)
+
+Action : tests unitaires serveur :
+
+impossible COMPLETE si un des 4 aspects manque
+
+impossible de produire un recommendedLab hors enum
+
+impossible d’évoquer “solution/tech” tant que 4 aspects pas confirmés (si tu as un guard côté serveur de génération)
+
+Done : CI passe, scénarios couverts.
+
+Métrique : 0 régression sur les 3 bugs initiaux.
+
+3) E2E scénarios casse-gueule
+
+Cas : skip, refresh en plein milieu, double clic rapide, latence, changement d’onglet, retour arrière.
+
+Done : 5 scénarios E2E verts.
+
+4) ConfirmedAspects : mécanisme explicite
+
+Action : préciser si confirmation = user action (“✅ confirmer”) ou extraction auto + user approve.
+
+Done : on sait pourquoi une barre devient verte (audit trail).
+
+Top 3 risques + mitigations
+
+Régression par divergence UI vs serveur
+
+Mitigation : serveur autoritatif + UI stateless + tests invariants.
+
+Progression “trop rigide” perçue comme frustrante
+
+Mitigation : chips non contraignantes + possibilité de répondre librement + “on te guide, pas on t’enferme”.
+
+LLM contourne la règle “pas de solution”
+
+Mitigation : guard serveur (post-processing) : si output contient patterns solution avant 4 aspects → reformulation forcée.
+
+Questions minimales (≤3)
+
+confirmedAspects est-il persisté en DB par projet/session, ou seulement calculé à la volée ?
+
+Qui calcule recommendedLab au final : LLM ou serveur (règles) ?
+
+Comment un aspect passe “confirmé” : auto-extraction ou validation explicite user ?

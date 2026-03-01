@@ -1,0 +1,5 @@
+OK, ce qu'on va faire, c'est que on va vraiment s'attarder sur le laboratoire 1 et 2 afin qu'ils correspondent parfaitement à une infrastructure de pages et une structure, un agencement, une organisation parfaite, vraiment réfléchie pour le développement d'idées avec tout le contexte qui a déjà été figé dans la documentation.
+
+Je vais envoyer ici une capture d'écran que tu vas pouvoir retrouver dans le dossier "prod" à la racine du projet. Dans le dossier "prod", il y a une capture d'écran. C'est l'état actuel de la page laboratoire. Tu vas pouvoir vraiment l'analyser et me faire un compte rendu sur ce qui va, ce qui va pas, en termes d'agencement, de configuration de production, par rapport à ce qui est censé être via la documentation, et par rapport à ce qui devrait être optimale.
+
+Si, bien sûr, on s'appuie sur des fonctionnalités intelligentes, c'est-à-dire, quitte à revoir, repenser de manière intelligente, en mode architecte senior, afin que le produit puisse être optimalement utilisé avec une grande intuition. Donc, faut que ce soit intuitif, faut que ce soit simple, mais ultra fonctionnel, et que tout soit pensé. 

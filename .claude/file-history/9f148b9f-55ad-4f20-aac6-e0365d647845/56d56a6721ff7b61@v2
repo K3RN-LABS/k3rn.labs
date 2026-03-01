@@ -1,0 +1,148 @@
+/**
+ * Language Detector
+ * Deterministic language detection from package.json and file structure
+ */
+
+import type { PackageJson, GitHubTreeItem, DetectionSignal } from '../types';
+
+/**
+ * Detect primary language
+ */
+export function detectLanguage(
+  packageJson: PackageJson | null,
+  tree: GitHubTreeItem[],
+  githubLanguage: string | null
+): DetectionSignal | null {
+  // Priority 1: TypeScript if typescript in devDeps
+  if (packageJson?.devDependencies?.typescript || packageJson?.dependencies?.typescript) {
+    return {
+      confidence: 'high',
+      evidence: 'Dependency: typescript',
+      value: 'TypeScript',
+    };
+  }
+
+  // Priority 2: Check file extensions
+  const tsFiles = tree.filter((f) => f.path.endsWith('.ts') || f.path.endsWith('.tsx')).length;
+  const jsFiles = tree.filter((f) => f.path.endsWith('.js') || f.path.endsWith('.jsx')).length;
+
+  if (tsFiles > jsFiles && tsFiles > 0) {
+    return {
+      confidence: 'high',
+      evidence: `${tsFiles} TypeScript files detected`,
+      value: 'TypeScript',
+    };
+  }
+
+  if (jsFiles > 0) {
+    return {
+      confidence: 'medium',
+      evidence: `${jsFiles} JavaScript files detected`,
+      value: 'JavaScript',
+    };
+  }
+
+  // Priority 3: GitHub detected language
+  if (githubLanguage) {
+    return {
+      confidence: 'medium',
+      evidence: `GitHub detected language`,
+      value: githubLanguage,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Detect runtime environment
+ */
+export function detectRuntime(packageJson: PackageJson | null): DetectionSignal | null {
+  if (!packageJson) {
+    return null;
+  }
+
+  const allDeps = {
+    ...packageJson.dependencies,
+    ...packageJson.devDependencies,
+  };
+
+  // Bun
+  if (allDeps.bun) {
+    return {
+      confidence: 'high',
+      evidence: 'Dependency: bun',
+      value: 'Bun',
+    };
+  }
+
+  // Deno
+  if (allDeps.deno) {
+    return {
+      confidence: 'high',
+      evidence: 'Dependency: deno',
+      value: 'Deno',
+    };
+  }
+
+  // Node.js (default)
+  if (packageJson.engines?.node) {
+    return {
+      confidence: 'high',
+      evidence: `engines.node: ${packageJson.engines.node}`,
+      value: 'Node.js',
+    };
+  }
+
+  // Assume Node.js if package.json exists
+  return {
+    confidence: 'medium',
+    evidence: 'package.json exists',
+    value: 'Node.js',
+  };
+}
+
+/**
+ * Detect package manager
+ */
+export function detectPackageManager(tree: GitHubTreeItem[]): DetectionSignal | null {
+  const lockFiles = tree.filter((f) => f.type === 'blob').map((f) => f.path);
+
+  if (lockFiles.includes('bun.lockb')) {
+    return {
+      confidence: 'high',
+      evidence: 'Lock file: bun.lockb',
+      value: 'bun',
+    };
+  }
+
+  if (lockFiles.includes('pnpm-lock.yaml')) {
+    return {
+      confidence: 'high',
+      evidence: 'Lock file: pnpm-lock.yaml',
+      value: 'pnpm',
+    };
+  }
+
+  if (lockFiles.includes('yarn.lock')) {
+    return {
+      confidence: 'high',
+      evidence: 'Lock file: yarn.lock',
+      value: 'yarn',
+    };
+  }
+
+  if (lockFiles.includes('package-lock.json')) {
+    return {
+      confidence: 'high',
+      evidence: 'Lock file: package-lock.json',
+      value: 'npm',
+    };
+  }
+
+  return {
+    confidence: 'low',
+    evidence: 'No lock file detected',
+    value: 'npm',
+  };
+}

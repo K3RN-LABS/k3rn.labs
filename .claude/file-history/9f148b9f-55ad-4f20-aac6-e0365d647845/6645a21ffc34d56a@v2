@@ -1,0 +1,40 @@
+import { NextResponse } from 'next/server';
+import { getDb } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET() {
+  const db = getDb();
+
+  try {
+    // Get distinct categories
+    const categories = db.prepare(`
+      SELECT DISTINCT category, COUNT(*) as count
+      FROM skills
+      GROUP BY category
+      ORDER BY category
+    `).all() as { category: string; count: number }[];
+
+    // Get all tags (flatten and count)
+    const skillsWithTags = db.prepare(`
+      SELECT tags_json FROM skills WHERE tags_json IS NOT NULL AND tags_json != '[]'
+    `).all() as { tags_json: string }[];
+
+    const tagCounts: Record<string, number> = {};
+    skillsWithTags.forEach((row) => {
+      const tags = JSON.parse(row.tags_json);
+      tags.forEach((tag: string) => {
+        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+      });
+    });
+
+    const tags = Object.entries(tagCounts)
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count);
+
+    return NextResponse.json({ categories, tags });
+  } catch (error) {
+    console.error('Metadata fetch error:', error);
+    return NextResponse.json({ error: 'Failed to fetch metadata' }, { status: 500 });
+  }
+}

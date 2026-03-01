@@ -1,0 +1,46 @@
+<prompt>
+  <task_context>
+    <role>Senior Full-Stack Engineer</role>
+    <mission>
+      Refactor Project Context Analyzer v1 to produce structured context
+      and integrate it into Workspace + TicketPack generator.
+    </mission>
+  </task_context>
+
+  <requirements>
+
+    1. Modify analyzer output:
+       Replace free-form notes with:
+
+       interface StructuredProjectContext {
+         framework?: string
+         language: string
+         runtime: "node" | "edge" | "browser"
+         packageManager?: string
+         testing?: string
+         architecture?: string
+         confidenceScore: number
+         detectionSources: string[]
+       }
+
+    2. Store structured object in workspace.stack_snapshot
+
+    3. Derive markdown notes from structured object
+       (do not treat markdown as source of truth)
+
+    4. Update generator.ts:
+       If workspace.project_context exists and confidenceScore ≥ 60:
+         Inject context into global prompt
+         Pass context to SkillMatcherEngine
+
+    5. Do not modify existing TicketPack output format
+
+  </requirements>
+
+  <constraints>
+    - Atomic commit
+    - No regression
+    - No breaking changes
+  </constraints>
+
+</prompt>

@@ -1,0 +1,55 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getDb } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
+
+/**
+ * Fetch skill details by IDs for TicketPack handoff
+ * Returns id, name, and derived slug
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { ids } = body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ skills: [] });
+    }
+
+    const db = getDb();
+
+    // Fetch skills by IDs
+    const placeholders = ids.map(() => '?').join(',');
+    const query = `SELECT id, name, category FROM skills WHERE id IN (${placeholders})`;
+    const skills = db.prepare(query).all(...ids) as Array<{
+      id: number;
+      name: string;
+      category: string;
+    }>;
+
+    // Derive slug from name (kebab-case)
+    const skillsWithSlugs = skills.map((skill) => ({
+      id: skill.id,
+      name: skill.name,
+      slug: nameToSlug(skill.name),
+      category: skill.category,
+    }));
+
+    return NextResponse.json({ skills: skillsWithSlugs });
+  } catch (error) {
+    console.error('Fetch skills by IDs error:', error);
+    return NextResponse.json({ error: 'Failed to fetch skills', skills: [] }, { status: 500 });
+  }
+}
+
+/**
+ * Convert skill name to slug (kebab-case)
+ */
+function nameToSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}

@@ -1,0 +1,131 @@
+<prompt>
+  <task_context>
+    <role>Tu es Claude Code (agent de développement) exécuté dans le terminal de mon IDE.</role>
+    <project>Repo: Wind Boost</project>
+    <objective>
+      Implémenter une nouvelle fonctionnalité "TicketPack Generator" (page + backend + modèle de données + export)
+      qui transforme une entrée non-tech (FR, bruitée) + documents en un pack livrable (PRD, ADR, tickets chronologiques,
+      prompts Claude Code par ticket, runbook), et qui se connecte à la base existante de compétences (dossier Skills, page existante).
+    </objective>
+    <definition_of_done>
+      <item>Une nouvelle page UI accessible depuis la navigation permet: saisir une idée (texte long), ajouter docs (texte + fichiers si supportés), configurer des options simples, générer un "pack".</item>
+      <item>Le pack est visualisable dans l’UI (roadmap + tickets ordonnés) et exportable (zip ou équivalent adapté au repo).</item>
+      <item>Le moteur recommande automatiquement un stack technique + un stack de skills à partir de la DB existante.</item>
+      <item>Chaque ticket inclut: titre, description, ordre chronologique, dépendances, critères d’acceptation, risques, et un prompt Claude Code prêt à coller.</item>
+      <item>Documentation interne mise à jour (Doc/README si applicable) + changelog.</item>
+      <item>Tests/validation minimale: au moins des tests unitaires sur la génération (ou harness existant), plus une vérification lint/build si déjà en place.</item>
+    </definition_of_done>
+  </task_context>
+
+  <tone_context>
+    Réponds de façon concise, orientée exécution. Ne fais pas de blabla. Si une information manque, pose des questions ciblées uniquement après avoir exploré le repo.
+  </tone_context>
+
+  <repo_background>
+    <important>Commence par explorer et comprendre le repo avant toute modification.</important>
+    <paths_to_review priority="high">
+      <path>.agent/</path>
+      <path>README*</path>
+      <path>package.json</path>
+      <path>package-lock.json</path>
+      <path>Doc/</path>
+      <path>Skills/</path>
+      <path>Data/</path>
+      <path>Scripts/</path>
+      <path>Lib/</path>
+      <path>.github/</path>
+      <path>SECURITY*</path>
+      <path>CHANGELOG*</path>
+      <path>catalogue*</path>
+      <path>Assets/</path>
+      <path>Bin/</path>
+    </paths_to_review>
+    <notes>
+      L'app est déjà partiellement fonctionnelle: elle permet recherche de compétences et création de stack (page existante).
+      Tu dois réutiliser cette base et faire communiquer la nouvelle page avec la page/feature skills.
+    </notes>
+  </repo_background>
+
+  <detailed_instructions>
+    <rules>
+      <rule id="1">Ne pas inventer la stack technique (framework, routing, state, backend). Détecte-la via le code existant (package.json, structure, conventions).</rule>
+      <rule id="2">Ne pas refactorer massivement. Changements minimaux mais propres, cohérents avec l’architecture actuelle.</rule>
+      <rule id="3">Prioriser l’implémentation “vertical slice”: UI → API/service → génération → export, avant d’ajouter des options avancées.</rule>
+      <rule id="4">Tout contenu généré (PRD/ADR/Tickets/Prompts) doit être deterministic-friendly: même input -> format stable (à tolérance raisonnable).</rule>
+      <rule id="5">Séparer strictement: (a) extraction/synthèse (ProjectSpec), (b) recommendation skills/stack, (c) génération tickets/pack, (d) export.</rule>
+      <rule id="6">Garder une UX non-tech (FR): labels simples, presets, pas de jargon exposé. Le jargon (ADR/PRD/etc.) reste dans le pack généré.</rule>
+      <rule id="7">Respecter sécurité: pas de fuite de secrets, ne pas logger d’API keys, suivre le fichier SECURITY si présent.</rule>
+    </rules>
+
+    <steps>
+      <step id="1">Explorer le repo: identifier framework UI, routes/pages existantes, pattern de composants, services, stockage, et comment la page "skills" est implémentée.</step>
+      <step id="2">Lire et appliquer les instructions de .agent/ (conventions, workflows, outils, scripts, style, commits, structure tickets, etc.).</step>
+      <step id="3">Proposer un plan d’implémentation (liste de fichiers à créer/modifier, modules, flux de données) + risques + estimation de complexité relative. Attendre validation implicite uniquement si aucune question bloquante.</step>
+      <step id="4">Définir et implémenter un modèle interne v1:
+        <substep>a) ProjectSpec: représentation normalisée de l’entrée utilisateur + docs</substep>
+        <substep>b) RecommendationSpec: stack + skills recommandés (en s’appuyant sur la DB Skills existante)</substep>
+        <substep>c) TicketPack: structure du pack (PRD, ADR, tickets, prompts)</substep>
+      </step>
+      <step id="5">Créer la nouvelle page "TicketPack Generator" (nom exact selon conventions du repo):
+        <substep>a) champ “Idée / Brief” multi-lignes</substep>
+        <substep>b) zone “Sources” (coller texte + ajouter liens; upload fichiers seulement si déjà supporté)</substep>
+        <substep>c) sélection simple du livrable (SaaS / App / Landing / Feature / Bugfix)</substep>
+        <substep>d) bouton “Générer”</substep>
+        <substep>e) affichage: roadmap + tickets ordonnés + skills/stack recommandés + actions export/copy prompts</substep>
+      </step>
+      <step id="6">Implémenter le moteur de génération:
+        <substep>a) extraction: nettoyer bruit, structurer (objectifs, exigences, contraintes, questions ouvertes)</substep>
+        <substep>b) skills retrieval: appeler/reutiliser la recherche existante sur Skills pour obtenir top-K + justification</substep>
+        <substep>c) stack recommendation: heuristiques basées sur le repo actuel + type de livrable; générer un ADR “Stack decision”</substep>
+        <substep>d) ticketing: créer phases chronologiques + dépendances + critères d’acceptation</substep>
+        <substep>e) prompts Claude Code par ticket: prompts XML “explore→plan→implement→verify” adaptés au repo</substep>
+      </step>
+      <step id="7">Exporter le pack:
+        <substep>a) format: dossier virtuel + zip (si déjà une lib zip est présente) ou téléchargement multiple (si zip absent)</substep>
+        <substep>b) contenu: PRD.md, ROADMAP.md, TICKETS/*.md, ADR/*.md, PROMPTS/*.md, RUNBOOK.md, RISK_REGISTER.md, STACK_RECOMMENDATION.md</substep>
+      </step>
+      <step id="8">Mettre à jour Doc/README/CHANGELOG selon conventions. Ajouter tests minimum sur la génération (snapshot ou asserts sur structure).</step>
+      <step id="9">Vérifier build/lint/tests via scripts existants. Corriger.</step>
+    </steps>
+  </detailed_instructions>
+
+  <examples>
+    <example id="1">
+      <input>
+        Idée: "Je veux une page qui transforme une description en tickets dev et exporte un pack."
+        Livrable: "SaaS"
+        Sources: "Doc collée + liens"
+      </input>
+      <output>
+        TicketPack avec:
+        - PRD: objectifs + scope + non-scope + critères acceptation
+        - Roadmap: phases ordonnées
+        - Tickets: Epic/Story/Task avec dépendances
+        - ADR: stack decision
+        - Prompts: un prompt Claude Code par ticket
+      </output>
+    </example>
+  </examples>
+
+  <output_formatting>
+    <response>
+      <section name="repo_findings">
+        Résume ce que tu as découvert (stack, routing, patterns, conventions .agent).
+      </section>
+      <section name="implementation_plan">
+        Liste chronologique des étapes + fichiers à toucher/créer.
+      </section>
+      <section name="questions_blockers">
+        Uniquement si nécessaire, questions bloquantes (max 5).
+      </section>
+      <section name="execution">
+        Ensuite seulement, commence l’implémentation et fais des commits/logs locaux si ton environnement le supporte.
+      </section>
+    </response>
+  </output_formatting>
+
+  <prefill_assistant>
+    <response>
+      <section name="repo_findings">
+  </prefill_assistant>
+</prompt>

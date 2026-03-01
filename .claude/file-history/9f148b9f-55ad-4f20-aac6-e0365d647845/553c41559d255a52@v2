@@ -1,0 +1,126 @@
+# Cache Management Guide
+
+## Problème: Cache .next corrompu
+
+Le cache `.next` de Next.js peut se corrompre et causer des erreurs comme:
+- `Cannot find module './331.js'`
+- `Internal Server Error`
+- `Page blanche avec erreur 500`
+
+## Solutions rapides
+
+### 1. Nettoyage manuel
+```bash
+npm run clean:next
+npm run dev
+```
+
+### 2. Redémarrage propre
+```bash
+npm run dev:clean
+```
+
+### 3. Build propre
+```bash
+npm run build:clean
+```
+
+## Prévention
+
+### Quand nettoyer le cache ?
+
+**TOUJOURS nettoyer après:**
+- ✅ Modifications importantes de composants
+- ✅ Ajout/suppression de pages
+- ✅ Changements dans layout.tsx
+- ✅ Modifications de la structure des imports
+- ✅ Pull de nouvelles branches avec beaucoup de changements
+- ✅ Erreurs inexpliquées au runtime
+
+**Commande automatique:**
+```bash
+# Au lieu de: npm run dev
+# Utilisez:   npm run dev:clean
+```
+
+### Workflow recommandé pour développement
+
+1. **Avant de démarrer:**
+   ```bash
+   npm run clean:next
+   npm run dev
+   ```
+
+2. **Après chaque série de commits importants:**
+   ```bash
+   pkill -f "next dev"
+   npm run clean:next
+   npm run dev
+   ```
+
+3. **Si erreur bizarre apparaît:**
+   ```bash
+   npm run dev:clean
+   ```
+
+## Scripts disponibles
+
+| Script | Description |
+|--------|-------------|
+| `npm run clean:next` | Nettoie uniquement le cache .next |
+| `npm run clean` | Nettoie .next + node_modules/.cache + .turbo |
+| `npm run dev:clean` | Nettoie le cache puis démarre dev server |
+| `npm run build:clean` | Nettoie le cache puis build production |
+
+## Debugging
+
+Si le problème persiste après nettoyage:
+
+1. **Vérifier les processus Node:**
+   ```bash
+   ps aux | grep "next dev"
+   pkill -f "next dev"
+   ```
+
+2. **Nettoyage complet:**
+   ```bash
+   pkill -f "next dev"
+   rm -rf .next
+   rm -rf node_modules/.cache
+   rm -rf .turbo
+   npm run dev
+   ```
+
+3. **Réinstallation (dernier recours):**
+   ```bash
+   rm -rf node_modules package-lock.json
+   npm install
+   npm run dev:clean
+   ```
+
+## Pour Claude Code / AI Agents
+
+Lors de modifications importantes du code:
+1. Toujours nettoyer le cache avant de tester
+2. Utiliser `npm run dev:clean` plutôt que `npm run dev`
+3. Si erreur de module manquant → immédiatement nettoyer le cache
+4. Ne jamais ignorer les erreurs de cache, elles empirent
+
+## Automation
+
+Le script `scripts/clean-next-cache.sh` peut être appelé automatiquement:
+
+```bash
+# Example: Git hook pre-commit
+#!/bin/bash
+if [[ $(git diff --cached --name-only | grep -E "(page\.tsx|layout\.tsx)") ]]; then
+  echo "⚠️  Fichiers critiques modifiés, nettoyage recommandé après commit"
+fi
+```
+
+## Notes
+
+- Le cache `.next` est TOUJOURS safe à supprimer en développement
+- Next.js le reconstruit automatiquement au prochain `npm run dev`
+- La suppression du cache n'affecte PAS les données de l'application
+- En production, le cache est géré différemment (statique après build)

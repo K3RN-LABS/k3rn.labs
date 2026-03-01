@@ -1,0 +1,32 @@
+Server Error
+Error: Cannot find module './1682.js'
+Require stack:
+- /Users/user/Desktop/k3rn/.next/server/webpack-runtime.js
+- /Users/user/Desktop/k3rn/.next/server/pages/_document.js
+- /Users/user/Desktop/k3rn/node_modules/next/dist/server/require.js
+- /Users/user/Desktop/k3rn/node_modules/next/dist/server/load-components.js
+- /Users/user/Desktop/k3rn/node_modules/next/dist/build/utils.js
+- /Users/user/Desktop/k3rn/node_modules/next/dist/server/dev/hot-middleware.js
+- /Users/user/Desktop/k3rn/node_modules/next/dist/server/dev/hot-reloader-webpack.js
+- /Users/user/Desktop/k3rn/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js
+- /Users/user/Desktop/k3rn/node_modules/next/dist/server/lib/router-server.js
+- /Users/user/Desktop/k3rn/node_modules/next/dist/server/lib/start-server.js
+
+This error happened while generating the page. Any console logs will be displayed in the terminal window.
+Call Stack
+Next.js
+TracingChannel.traceSync
+node:diagnostics_channel (328:14)
+Next.js
+Array.reduce
+<anonymous>
+Next.js
+Array.map
+<anonymous>
+Next.js
+<unknown>
+file:///Users/user/Desktop/k3rn/.next/server/pages/_document.js (1:340)
+Object.<anonymous>
+file:///Users/user/Desktop/k3rn/.next/server/pages/_document.js (1:383)
+TracingChannel.traceSync
+node:diagnostics_channel (328:14)

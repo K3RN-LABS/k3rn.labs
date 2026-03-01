@@ -1,0 +1,45 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { fadeInUp } from "@/lib/animations";
+
+interface FeatureCardProps {
+  icon: string;
+  title: string;
+  description: string;
+  index?: number;
+}
+
+export default function FeatureCard({
+  icon,
+  title,
+  description,
+  index = 0,
+}: FeatureCardProps) {
+  return (
+    <motion.div
+      variants={fadeInUp}
+      initial="initial"
+      whileInView="animate"
+      viewport={{ once: true, margin: "-50px" }}
+      transition={{ delay: index * 0.1 }}
+      className="group relative p-6 bg-neutral-900 border border-neutral-800 rounded-xl hover:border-neutral-700 transition-all duration-300 hover:shadow-lg"
+    >
+      {/* Icon */}
+      <div className="mb-4 text-5xl">{icon}</div>
+
+      {/* Title */}
+      <h3 className="text-xl font-semibold text-fg-primary mb-2 group-hover:text-orange-500 transition-colors duration-300">
+        {title}
+      </h3>
+
+      {/* Description */}
+      <p className="text-sm text-fg-secondary leading-relaxed">
+        {description}
+      </p>
+
+      {/* Hover gradient effect */}
+      <div className="absolute inset-0 bg-gradient-to-br from-orange-500/0 via-orange-500/0 to-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl pointer-events-none" />
+    </motion.div>
+  );
+}

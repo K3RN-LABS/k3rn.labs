@@ -1,0 +1,245 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useLanguageStore } from "@/store/language-store";
+import { Folder, FileBox, Plus, Search, LayoutGrid, List as ListIcon, Clock, ChevronRight, MoreVertical } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import Link from "next/link";
+import { SiteHeader } from "@/components/layout/site-header";
+import { DecisionBadge } from "@/components/ui/decision-badge";
+
+interface Project {
+    id: string;
+    title?: string;
+    text: string;
+    globalScore?: number;
+    recommendation?: string;
+    confidenceLevel?: string;
+    viabilityScore?: number;
+    classification?: string;
+    timestamp: string;
+    isDemo?: boolean;
+    analysis?: any;
+}
+
+function getProjectScore(p: Project): number | undefined {
+    return p.globalScore ?? p.viabilityScore;
+}
+
+function getProjectDecision(p: Project): string {
+    return p.recommendation ?? p.classification ?? "DRAFT";
+}
+
+function getProjectTitle(p: Project): string {
+    return p.title ?? p.text;
+}
+
+export default function WorkspacePage() {
+    const { t } = useLanguageStore();
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+    const [searchQuery, setSearchQuery] = useState("");
+
+    useEffect(() => {
+        const currentIdea = localStorage.getItem("k3rn_active_project");
+        const storedProjects = JSON.parse(localStorage.getItem("k3rn_projects") || "[]");
+
+        if (currentIdea) {
+            const idea = JSON.parse(currentIdea);
+            const exists = storedProjects.some((p: any) => p.timestamp === idea.timestamp);
+            if (!exists) {
+                const newProject: Project = {
+                    id: idea.id || crypto.randomUUID(),
+                    title: idea.title,
+                    text: idea.text || "",
+                    globalScore: idea.globalScore ?? idea.analysis?.viabilityScore,
+                    recommendation: idea.recommendation ?? idea.analysis?.classification,
+                    confidenceLevel: idea.confidenceLevel,
+                    viabilityScore: idea.viabilityScore ?? idea.analysis?.viabilityScore,
+                    classification: idea.classification ?? idea.analysis?.classification,
+                    timestamp: idea.timestamp,
+                    isDemo: idea.isDemo,
+                    analysis: idea.analysis,
+                };
+                storedProjects.unshift(newProject);
+                localStorage.setItem("k3rn_projects", JSON.stringify(storedProjects));
+                localStorage.removeItem("k3rn_active_project");
+            }
+        }
+
+        if (storedProjects.length === 0) {
+            const mocks: Project[] = [
+                { id: "1", title: "Drone Fleet SaaS Platform", text: "Plateforme SaaS de gestion de flottes de drones autonomes", globalScore: 82, recommendation: "GO", confidenceLevel: "HIGH", timestamp: new Date().toISOString(), isDemo: true },
+                { id: "2", title: "NFT Patent Marketplace", text: "Marketplace NFT pour brevets industriels", globalScore: 38, recommendation: "KILL", confidenceLevel: "HIGH", timestamp: new Date(Date.now() - 86400000).toISOString(), isDemo: true },
+                { id: "3", title: "AI Film Script Generator", text: "IA générative pour scripts de films", globalScore: 65, recommendation: "EXPLORE", confidenceLevel: "MEDIUM", timestamp: new Date(Date.now() - 172800000).toISOString(), isDemo: true },
+                { id: "4", title: "MeowNet - Social Network for Cats", text: "Réseau social pour chats (MeowNet)", globalScore: 22, recommendation: "PARK", confidenceLevel: "LOW", timestamp: new Date(Date.now() - 432000000).toISOString(), isDemo: true },
+            ];
+            setProjects(mocks);
+        } else {
+            setProjects(storedProjects);
+        }
+    }, []);
+
+    const filteredProjects = projects.filter(p => {
+        const q = searchQuery.toLowerCase();
+        return getProjectTitle(p).toLowerCase().includes(q) ||
+            p.text.toLowerCase().includes(q) ||
+            getProjectDecision(p).toLowerCase().includes(q);
+    });
+
+    return (
+        <div className="min-h-screen bg-background text-foreground font-sans selection:bg-[#F75105]/30">
+            <SiteHeader variant="app" />
+
+            <main className="pt-28 pb-20 px-6 max-w-[1400px] mx-auto">
+
+                {/* Page Title & Actions */}
+                <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-8 mb-16">
+                    <div>
+                        <h1 className="text-[3rem] font-light tracking-[0.05em] leading-none text-white mb-4">
+                            Dossiers
+                        </h1>
+                        <p className="text-[#D2D3D4] font-light text-lg">
+                            {projects.length} projets actifs dans votre espace
+                        </p>
+                    </div>
+
+                    <div className="flex items-center gap-4 w-full md:w-auto">
+                        <div className="relative flex-1 md:w-80">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#5D5C5B]" />
+                            <Input
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Rechercher..."
+                                className="h-12 pl-12 bg-[--color-bg-card] border-transparent focus:border-[#F75105]/50 focus:ring-[#F75105]/20 rounded-lg text-base text-white placeholder:text-[#5D5C5B] transition-all shadow-sm"
+                            />
+                        </div>
+
+                        <div className="flex items-center p-1.5 bg-[--color-bg-card] rounded-lg border border-white/5 h-12">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className={cn("h-9 w-9 rounded-md transition-all", viewMode === "grid" ? "bg-[--color-surface-1] text-white shadow-sm" : "text-[#5D5C5B] hover:text-white")}
+                                onClick={() => setViewMode("grid")}
+                            >
+                                <LayoutGrid className="w-5 h-5" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className={cn("h-9 w-9 rounded-md transition-all", viewMode === "list" ? "bg-[--color-surface-1] text-white shadow-sm" : "text-[#5D5C5B] hover:text-white")}
+                                onClick={() => setViewMode("list")}
+                            >
+                                <ListIcon className="w-5 h-5" />
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Grid View */}
+                {viewMode === "grid" ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {/* New Project Card */}
+                        <Link href="/capture" className="group relative flex flex-col items-center justify-center gap-6 aspect-[4/3] rounded-[24px] border-2 border-dashed border-[--border-default] hover:border-[#F75105]/50 hover:bg-[--color-bg-card]/30 transition-all cursor-pointer">
+                            <div className="h-16 w-16 rounded-full bg-[--color-bg-card] flex items-center justify-center group-hover:scale-110 transition-transform group-hover:bg-[#F75105] shadow-lg">
+                                <Plus className="w-8 h-8 text-[#D2D3D4] group-hover:text-white transition-colors" />
+                            </div>
+                            <span className="font-medium text-lg text-[#D2D3D4] group-hover:text-white transition-colors">Nouveau Dossier</span>
+                        </Link>
+
+                        {/* Project Cards */}
+                        {filteredProjects.map((project) => {
+                            const score = getProjectScore(project);
+                            const decision = getProjectDecision(project);
+                            const title = getProjectTitle(project);
+                            return (
+                                <Link href={`/workspace/${project.id}`} key={project.id} className="group relative bg-[--color-bg-card] rounded-[24px] border border-[--border-default] hover:border-[#F75105]/30 shadow-card hover:shadow-[0_0_30px_rgba(247,81,5,0.15)] hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col aspect-[4/3] cursor-pointer">
+
+                                    {project.isDemo && (
+                                        <div className="absolute top-6 right-6 px-3 py-1 rounded-full text-[10px] font-bold bg-[#F75105]/10 text-[#F75105] border border-[#F75105]/20 uppercase tracking-widest z-10">
+                                            Simulated
+                                        </div>
+                                    )}
+
+                                    <div className="p-8 flex-1 flex flex-col">
+                                        <div className="flex justify-between items-start mb-8">
+                                            <div className="p-4 bg-background text-[#D2D3D4] rounded-xl group-hover:text-[#F75105] transition-colors border border-white/5">
+                                                <Folder className="w-8 h-8" />
+                                            </div>
+                                            {score !== undefined && (
+                                                <div className="flex flex-col items-end pt-2">
+                                                    <span className={cn(
+                                                        "text-4xl font-light tracking-tighter",
+                                                        score >= 70 ? "text-white" : "text-[#5D5C5B]"
+                                                    )}>
+                                                        {score}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <h3 className="text-xl font-medium text-white line-clamp-3 leading-relaxed mb-auto group-hover:text-[#F75105] transition-colors">
+                                            {title}
+                                        </h3>
+
+                                        <div className="mt-8 flex items-center justify-between pt-6 border-t border-[--border-default]">
+                                            <span className="flex items-center gap-2 text-sm text-[#5D5C5B]">
+                                                <Clock className="w-4 h-4" />
+                                                {new Date(project.timestamp).toLocaleDateString()}
+                                            </span>
+                                            <DecisionBadge decision={decision} className="text-[10px] px-3 py-1" />
+                                        </div>
+                                    </div>
+                                </Link>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    /* List View */
+                    <div className="bg-[--color-bg-card] rounded-[24px] border border-[--border-default] overflow-hidden animate-in fade-in shadow-card">
+                        {filteredProjects.map((project) => {
+                            const score = getProjectScore(project);
+                            const decision = getProjectDecision(project);
+                            const title = getProjectTitle(project);
+                            return (
+                                <Link href={`/workspace/${project.id}`} key={project.id} className="flex items-center gap-6 p-6 border-b last:border-0 border-[--border-default] hover:bg-[#2F323A] transition-colors cursor-pointer group">
+                                    <div className="p-4 bg-background rounded-xl text-[#D2D3D4] group-hover:text-[#F75105] transition-colors border border-white/5">
+                                        <FileBox className="w-6 h-6" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="text-lg font-medium text-white truncate group-hover:text-[#F75105] transition-colors mb-2">
+                                            {title}
+                                        </h4>
+                                        <p className="text-sm text-[#5D5C5B] flex items-center gap-3">
+                                            {project.isDemo && <span className="text-[#F75105] font-bold text-[10px] uppercase tracking-wider">[Simulated]</span>}
+                                            <span className="font-mono text-[#5D5C5B]">ID: {project.id.substring(0, 8)}</span>
+                                            <span className="opacity-30">&bull;</span>
+                                            <span>{new Date(project.timestamp).toLocaleDateString()}</span>
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-8 pr-4">
+                                        {score !== undefined && (
+                                            <div className="text-right">
+                                                <span className={cn(
+                                                    "block text-2xl font-light",
+                                                    score >= 70 ? "text-white" : "text-[#5D5C5B]"
+                                                )}>{score}</span>
+                                            </div>
+                                        )}
+                                        <DecisionBadge decision={decision} className="min-w-[100px] text-center" />
+                                        <Button variant="ghost" size="icon" className="h-10 w-10 text-[#5D5C5B] hover:text-white rounded-full">
+                                            <MoreVertical className="w-5 h-5" />
+                                        </Button>
+                                        <ChevronRight className="w-6 h-6 text-[#5D5C5B] group-hover:text-white transition-colors" />
+                                    </div>
+                                </Link>
+                            );
+                        })}
+                    </div>
+                )}
+            </main>
+        </div>
+    );
+}

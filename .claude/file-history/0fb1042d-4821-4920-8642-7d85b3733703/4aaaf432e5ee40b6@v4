@@ -1,0 +1,201 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { SiteHeader } from "@/components/layout/site-header";
+import { useProfile } from "@/hooks/use-profile";
+import { useAuth } from "@/providers/auth-provider";
+import { useLanguageStore } from "@/store/language-store";
+import { useRouter } from "next/navigation";
+import { Loader2, User, FlaskConical } from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+export default function SettingsPage() {
+    const router = useRouter();
+    const { user, isLoading: authLoading } = useAuth();
+    const { t } = useLanguageStore();
+    const { profile, isLoading: profileLoading, updateProfile, createProfile } = useProfile();
+
+    const [displayName, setDisplayName] = useState("");
+    const [entityType, setEntityType] = useState<"individual" | "company">("individual");
+    const [labName, setLabName] = useState("");
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Redirect if not authenticated
+    useEffect(() => {
+        if (!authLoading && !user) router.push("/");
+    }, [user, authLoading, router]);
+
+    // Populate form when profile loads
+    useEffect(() => {
+        if (profile) {
+            setDisplayName(profile.display_name || "");
+            setEntityType(profile.entity_type || "individual");
+            setLabName(profile.lab_name || "");
+        }
+    }, [profile]);
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSaving(true);
+        try {
+            const data = {
+                display_name: displayName,
+                entity_type: entityType,
+                lab_name: labName,
+            };
+            if (profile) {
+                await updateProfile(data);
+            } else {
+                await createProfile(data);
+            }
+            toast.success(t.settings.saved);
+        } catch (error: any) {
+            toast.error(t.settings.error, { description: error.message });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-background text-foreground font-sans">
+                <SiteHeader variant="app" />
+                <main className="pt-12 pb-40 px-8 w-full max-w-[800px] mx-auto flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 animate-spin text-[--color-text-muted]" />
+                </main>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-background text-foreground font-sans selection:bg-[--color-brand-primary]/30 flex flex-col overflow-x-hidden">
+            <SiteHeader variant="app" />
+
+            <main className="relative z-[1] flex-1 pt-12 pb-40 px-8 w-full max-w-[800px] mx-auto">
+
+                {/* Page heading */}
+                <div className="mb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <h1 className="text-[3rem] font-light text-white tracking-[0.05em] leading-[1] mb-4">
+                        {t.settings.title}
+                    </h1>
+                    <p className="text-lg text-[--color-text-secondary] font-light leading-relaxed">
+                        {t.settings.subtitle}
+                    </p>
+                </div>
+
+                {/* Settings card */}
+                <div
+                    className="rounded-[24px] p-8 animate-in fade-in slide-in-from-bottom-4 duration-500 transition-all duration-300 hover:border-[--color-border-strong]"
+                    style={{
+                        background: "var(--color-bg-card)",
+                        border: "1px solid var(--color-border-default)",
+                    }}
+                >
+                    {/* Section label */}
+                    <p className="text-xs font-bold tracking-[0.1em] uppercase text-[--color-brand-primary] mb-3">
+                        {t.settings.profileSection}
+                    </p>
+                    <h2 className="text-xl font-semibold text-white mb-8">
+                        {t.auth.displayName}
+                    </h2>
+
+                    <form onSubmit={handleSave} className="space-y-8">
+
+                        {/* Display Name */}
+                        <div className="space-y-3">
+                            <label htmlFor="settings-display-name" className="text-xs font-bold tracking-[0.1em] uppercase text-[--color-text-muted]">
+                                {t.auth.displayName}
+                            </label>
+                            <div className="relative group">
+                                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[--color-text-muted] group-focus-within:text-[--color-brand-primary] transition-colors" />
+                                <input
+                                    id="settings-display-name"
+                                    type="text"
+                                    placeholder={t.settings.displayNamePlaceholder}
+                                    value={displayName}
+                                    onChange={(e) => setDisplayName(e.target.value)}
+                                    className="w-full pl-11 pr-4 h-12 bg-[--color-bg-secondary] border border-[--color-border-default] rounded-[var(--radius-md)] text-white placeholder:text-[--color-text-muted] font-light outline-none focus:border-[--color-brand-primary] transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Entity Type */}
+                        <div className="space-y-3">
+                            <label className="text-xs font-bold tracking-[0.1em] uppercase text-[--color-text-muted]">
+                                {t.auth.entityType}
+                            </label>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setEntityType("individual")}
+                                    className={cn(
+                                        "h-12 rounded-[var(--radius-md)] text-sm font-medium transition-all duration-300 border",
+                                        entityType === "individual"
+                                            ? "bg-[--color-brand-primary] text-white border-[--color-brand-primary] shadow-[0_0_20px_rgba(247,81,5,0.3)]"
+                                            : "bg-[--color-bg-secondary] text-[--color-text-secondary] border-[--color-border-default] hover:text-white hover:border-[--color-border-strong]"
+                                    )}
+                                >
+                                    {t.auth.entityIndividual}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setEntityType("company")}
+                                    className={cn(
+                                        "h-12 rounded-[var(--radius-md)] text-sm font-medium transition-all duration-300 border",
+                                        entityType === "company"
+                                            ? "bg-[--color-brand-primary] text-white border-[--color-brand-primary] shadow-[0_0_20px_rgba(247,81,5,0.3)]"
+                                            : "bg-[--color-bg-secondary] text-[--color-text-secondary] border-[--color-border-default] hover:text-white hover:border-[--color-border-strong]"
+                                    )}
+                                >
+                                    {t.auth.entityCompany}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Lab Name */}
+                        <div className="space-y-3">
+                            <label htmlFor="settings-lab-name" className="text-xs font-bold tracking-[0.1em] uppercase text-[--color-text-muted]">
+                                {t.auth.labName}
+                            </label>
+                            <div className="relative group">
+                                <FlaskConical className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[--color-text-muted] group-focus-within:text-[--color-brand-primary] transition-colors" />
+                                <input
+                                    id="settings-lab-name"
+                                    type="text"
+                                    placeholder={t.settings.labNamePlaceholder}
+                                    value={labName}
+                                    onChange={(e) => setLabName(e.target.value)}
+                                    className="w-full pl-11 pr-4 h-12 bg-[--color-bg-secondary] border border-[--color-border-default] rounded-[var(--radius-md)] text-white placeholder:text-[--color-text-muted] font-light outline-none focus:border-[--color-brand-primary] transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Save Button */}
+                        <div className="pt-4">
+                            <button
+                                type="submit"
+                                disabled={isSaving}
+                                className={cn(
+                                    "h-12 px-8 rounded-[var(--radius-md)] text-sm font-medium transition-all duration-300",
+                                    isSaving
+                                        ? "bg-[--color-brand-primary]/50 text-white/50 cursor-not-allowed"
+                                        : "bg-[--color-brand-primary] text-white hover:shadow-[0_0_30px_rgba(247,81,5,0.4)] hover:-translate-y-[1px] active:translate-y-0"
+                                )}
+                            >
+                                {isSaving ? (
+                                    <span className="flex items-center gap-2">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        {t.settings.saving}
+                                    </span>
+                                ) : (
+                                    t.settings.save
+                                )}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </main>
+        </div>
+    );
+}

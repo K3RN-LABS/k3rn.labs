@@ -1,0 +1,93 @@
+/**
+ * K3RN.LABS — Prompt Registry
+ * Gestion versionnée des prompts d'analyse
+ */
+
+import { SYSTEM_PROMPT } from './v1.0/system';
+import { ORCHESTRATOR_PROMPT } from './v1.0/orchestrator';
+import { EXPERTS_PROMPT } from './v1.0/experts';
+import { OUTPUT_CONSTRAINTS_PROMPT } from './v1.0/output-constraints';
+
+export interface PromptSet {
+  system: string;
+  orchestrator: string;
+  experts: string;
+  outputConstraints: string;
+}
+
+const PROMPT_VERSIONS: Record<string, PromptSet> = {
+  'v1.0': {
+    system: SYSTEM_PROMPT,
+    orchestrator: ORCHESTRATOR_PROMPT,
+    experts: EXPERTS_PROMPT,
+    outputConstraints: OUTPUT_CONSTRAINTS_PROMPT,
+  },
+};
+
+const CURRENT_VERSION = 'v1.0';
+
+/**
+ * Retourne le jeu de prompts pour la version spécifiée.
+ */
+export function getPrompts(version: string = CURRENT_VERSION): PromptSet {
+  const prompts = PROMPT_VERSIONS[version];
+  if (!prompts) {
+    throw new Error(`Prompt version "${version}" not found. Available: ${Object.keys(PROMPT_VERSIONS).join(', ')}`);
+  }
+  return prompts;
+}
+
+/**
+ * Assemble le prompt système complet (system + orchestrator + experts + constraints).
+ */
+export function assembleSystemPrompt(version: string = CURRENT_VERSION): string {
+  const prompts = getPrompts(version);
+  return [
+    prompts.system,
+    prompts.orchestrator,
+    prompts.experts,
+    prompts.outputConstraints,
+  ].join('\n\n---\n\n');
+}
+
+/**
+ * Construit le message utilisateur à partir des données d'entrée.
+ */
+export function buildUserMessage(input: {
+  text?: string;
+  links?: Array<{ url: string; type: string }>;
+  files?: Array<{ file_id: string; type: string; size_kb: number }>;
+  experienceLevel?: string;
+}): string {
+  let message = '## IDÉE À ANALYSER\n\n';
+
+  if (input.text) {
+    message += `### Description\n${input.text}\n\n`;
+  }
+
+  if (input.links && input.links.length > 0) {
+    message += `### Liens fournis\n`;
+    for (const link of input.links) {
+      message += `- [${link.type}] ${link.url}\n`;
+    }
+    message += '\n';
+  }
+
+  if (input.files && input.files.length > 0) {
+    message += `### Fichiers joints\n`;
+    for (const file of input.files) {
+      message += `- ${file.type} (${file.size_kb} KB)\n`;
+    }
+    message += '\n';
+  }
+
+  if (input.experienceLevel) {
+    message += `### Contexte fondateur\nNiveau d'expérience déclaré : ${input.experienceLevel}\n\n`;
+  }
+
+  message += `Analyse cette idée selon les 6 axes canoniques et retourne le JSON structuré.`;
+
+  return message;
+}
+
+export { CURRENT_VERSION };

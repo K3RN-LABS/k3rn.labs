@@ -1,0 +1,99 @@
+/**
+ * Extraction et normalisation du brief utilisateur
+ */
+
+export interface ExtractedRequirements {
+  objectives: string[];
+  constraints: string[];
+  features: string[];
+  openQuestions: string[];
+}
+
+/**
+ * Nettoie et structure le brief utilisateur
+ */
+export function extractRequirements(brief: string, sources: Array<{ type: string; content: string }>): ExtractedRequirements {
+  const text = [brief, ...sources.map(s => s.content)].join('\n\n');
+
+  const objectives: string[] = [];
+  const constraints: string[] = [];
+  const features: string[] = [];
+  const openQuestions: string[] = [];
+
+  // Patterns de détection
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+
+    // Objectifs
+    if (
+      lower.includes('je veux') ||
+      lower.includes('objectif') ||
+      lower.includes('but') ||
+      lower.includes('goal') ||
+      lower.startsWith('créer') ||
+      lower.startsWith('développer')
+    ) {
+      objectives.push(cleanSentence(line));
+    }
+
+    // Contraintes
+    else if (
+      lower.includes('contrainte') ||
+      lower.includes('obligatoire') ||
+      lower.includes('doit') ||
+      lower.includes('ne pas') ||
+      lower.includes('constraint') ||
+      lower.includes('required')
+    ) {
+      constraints.push(cleanSentence(line));
+    }
+
+    // Features
+    else if (
+      lower.includes('fonctionnalité') ||
+      lower.includes('feature') ||
+      lower.includes('permet') ||
+      lower.includes('possibilité') ||
+      line.startsWith('-') ||
+      line.startsWith('*') ||
+      line.startsWith('•')
+    ) {
+      features.push(cleanSentence(line));
+    }
+
+    // Questions
+    else if (line.includes('?')) {
+      openQuestions.push(cleanSentence(line));
+    }
+  }
+
+  // Fallback: si rien détecté, tout va dans objectives
+  if (objectives.length === 0 && features.length === 0) {
+    objectives.push(cleanSentence(text.slice(0, 200)));
+  }
+
+  return {
+    objectives: objectives.length > 0 ? objectives : ['Développer la solution décrite'],
+    constraints: constraints.length > 0 ? constraints : [],
+    features: features.length > 0 ? features : [],
+    openQuestions,
+  };
+}
+
+function cleanSentence(text: string): string {
+  return text
+    .replace(/^[-*•]\s*/, '') // Remove list markers
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Génère un résumé du brief
+ */
+export function generateSourceSummary(brief: string, sources: Array<{ type: string; content: string }>): string {
+  const briefPreview = brief.slice(0, 100);
+  const sourcesCount = sources.length;
+  return `Brief: "${briefPreview}${brief.length > 100 ? '...' : ''}" (${sourcesCount} source${sourcesCount > 1 ? 's' : ''})`;
+}

@@ -1,0 +1,98 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getDb } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
+
+/**
+ * Fetch skill details by IDs for TicketPack handoff
+ * Returns id, name, and derived slug
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { ids } = body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ skills: [] });
+    }
+
+    const db = getDb();
+
+    const allSkills: any[] = [];
+
+    // Separate local and external IDs (external IDs are prefixed with "ext-")
+    const localIds: number[] = [];
+    const externalIds: number[] = [];
+
+    for (const id of ids) {
+      if (typeof id === 'string' && id.startsWith('ext-')) {
+        externalIds.push(parseInt(id.replace('ext-', ''), 10));
+      } else {
+        localIds.push(typeof id === 'number' ? id : parseInt(id, 10));
+      }
+    }
+
+    // Fetch local skills
+    if (localIds.length > 0) {
+      const placeholders = localIds.map(() => '?').join(',');
+      const query = `SELECT id, name, category FROM skills WHERE id IN (${placeholders})`;
+      const localSkills = db.prepare(query).all(...localIds) as Array<{
+        id: number;
+        name: string;
+        category: string;
+      }>;
+
+      allSkills.push(
+        ...localSkills.map((skill) => ({
+          id: skill.id,
+          name: skill.name,
+          slug: nameToSlug(skill.name),
+          category: skill.category,
+          source_type: 'local' as const,
+        }))
+      );
+    }
+
+    // Fetch external skills
+    if (externalIds.length > 0) {
+      const placeholders = externalIds.map(() => '?').join(',');
+      const query = `SELECT id, slug, name, repo_url, license FROM external_skill_refs WHERE id IN (${placeholders})`;
+      const externalSkills = db.prepare(query).all(...externalIds) as Array<{
+        id: number;
+        slug: string;
+        name: string;
+        repo_url: string;
+        license: string | null;
+      }>;
+
+      allSkills.push(
+        ...externalSkills.map((skill) => ({
+          id: skill.id,
+          name: skill.name,
+          slug: skill.slug,
+          category: 'external',
+          source_type: 'external' as const,
+          repo_url: skill.repo_url,
+          license: skill.license,
+        }))
+      );
+    }
+
+    return NextResponse.json({ skills: allSkills });
+  } catch (error) {
+    console.error('Fetch skills by IDs error:', error);
+    return NextResponse.json({ error: 'Failed to fetch skills', skills: [] }, { status: 500 });
+  }
+}
+
+/**
+ * Convert skill name to slug (kebab-case)
+ */
+function nameToSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}

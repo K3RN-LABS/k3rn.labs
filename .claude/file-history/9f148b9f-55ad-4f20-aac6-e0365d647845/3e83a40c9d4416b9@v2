@@ -1,0 +1,29 @@
+import React from 'react';
+
+export interface BadgeProps {
+  children: React.ReactNode;
+  variant?: 'default' | 'success';
+  className?: string;
+}
+
+/**
+ * k3rn.labs Badge Component
+ *
+ * Variants:
+ * - default: Neutral pill
+ * - success: Subtle green accent (--primary-700)
+ */
+export default function Badge({
+  children,
+  variant = 'default',
+  className = ''
+}: BadgeProps) {
+  const baseClass = 'pill';
+  const variantClass = variant === 'success' ? 'pill-success' : '';
+
+  return (
+    <span className={`${baseClass} ${variantClass} ${className}`.trim()}>
+      {children}
+    </span>
+  );
+}

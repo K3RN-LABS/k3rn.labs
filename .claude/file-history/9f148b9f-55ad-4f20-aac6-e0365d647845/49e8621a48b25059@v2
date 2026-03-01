@@ -1,0 +1,122 @@
+/**
+ * GitHub API Client
+ * Minimal client for fetching repository metadata
+ */
+
+import type { GitHubRepoInfo, GitHubTreeItem, PackageJson } from './types';
+
+export class GitHubClient {
+  private token?: string;
+  private baseUrl = 'https://api.github.com';
+
+  constructor(token?: string) {
+    this.token = token;
+  }
+
+  private async fetch(url: string): Promise<Response> {
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github.v3+json',
+    };
+
+    if (this.token) {
+      headers.Authorization = `token ${this.token}`;
+    }
+
+    const response = await fetch(url, { headers });
+
+    if (!response.ok) {
+      throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+    }
+
+    return response;
+  }
+
+  /**
+   * Get repository information
+   */
+  async getRepoInfo(owner: string, repo: string): Promise<GitHubRepoInfo> {
+    const url = `${this.baseUrl}/repos/${owner}/${repo}`;
+    const response = await this.fetch(url);
+    const data = await response.json();
+
+    return {
+      owner,
+      repo,
+      branch: data.default_branch || 'main',
+      default_branch: data.default_branch || 'main',
+      size: data.size || 0,
+      language: data.language || null,
+    };
+  }
+
+  /**
+   * Get repository tree (file structure)
+   * @param recursive - If true, fetch entire tree recursively
+   */
+  async getTree(
+    owner: string,
+    repo: string,
+    branch: string,
+    recursive: boolean = true
+  ): Promise<GitHubTreeItem[]> {
+    // First, get the commit SHA for the branch
+    const refUrl = `${this.baseUrl}/repos/${owner}/${repo}/git/ref/heads/${branch}`;
+    const refResponse = await this.fetch(refUrl);
+    const refData = await refResponse.json();
+    const commitSha = refData.object.sha;
+
+    // Get the commit to find tree SHA
+    const commitUrl = `${this.baseUrl}/repos/${owner}/${repo}/git/commits/${commitSha}`;
+    const commitResponse = await this.fetch(commitUrl);
+    const commitData = await commitResponse.json();
+    const treeSha = commitData.tree.sha;
+
+    // Get the tree
+    const treeUrl = `${this.baseUrl}/repos/${owner}/${repo}/git/trees/${treeSha}${
+      recursive ? '?recursive=1' : ''
+    }`;
+    const treeResponse = await this.fetch(treeUrl);
+    const treeData = await treeResponse.json();
+
+    return treeData.tree as GitHubTreeItem[];
+  }
+
+  /**
+   * Get file content
+   */
+  async getFileContent(owner: string, repo: string, path: string, branch: string): Promise<string> {
+    const url = `${this.baseUrl}/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
+    const response = await this.fetch(url);
+    const data = await response.json();
+
+    if (data.encoding === 'base64' && data.content) {
+      return Buffer.from(data.content, 'base64').toString('utf-8');
+    }
+
+    throw new Error('Unsupported file encoding');
+  }
+
+  /**
+   * Get package.json content
+   */
+  async getPackageJson(owner: string, repo: string, branch: string): Promise<PackageJson | null> {
+    try {
+      const content = await this.getFileContent(owner, repo, 'package.json', branch);
+      return JSON.parse(content);
+    } catch (error) {
+      // package.json not found or invalid
+      return null;
+    }
+  }
+
+  /**
+   * Parse GitHub URL to extract owner and repo
+   */
+  static parseGitHubUrl(url: string): { owner: string; repo: string } | null {
+    const match = url.match(/github\.com\/([^\/]+)\/([^\/\.]+)/);
+    if (!match) {
+      return null;
+    }
+    return { owner: match[1], repo: match[2] };
+  }
+}

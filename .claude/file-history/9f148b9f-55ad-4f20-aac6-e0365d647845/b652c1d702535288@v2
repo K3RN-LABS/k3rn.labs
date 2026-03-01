@@ -1,0 +1,192 @@
+/**
+ * Skill Layout Auto-Detection
+ * Scans repository structures and detects SKILL.md files across multiple patterns
+ */
+
+import type { DetectedSkill } from './types';
+
+interface ScanOptions {
+  maxDepth?: number; // Default: 10
+  maxFiles?: number; // Default: 1000
+  caseSensitive?: boolean; // Default: false
+}
+
+/**
+ * Common skill layout patterns to auto-detect
+ */
+export const COMMON_PATTERNS = [
+  'skills/*/SKILL.md', // skills/react/SKILL.md
+  'skills/*/skill.md', // skills/vue/skill.md
+  '.agent/skills/*/SKILL.md', // .agent/skills/nextjs/SKILL.md
+  '**/SKILL.md', // Any depth
+  'SKILL.md', // Root level
+];
+
+/**
+ * Auto-detect skill files from a list of paths
+ * Returns detected skills with slugs extracted
+ */
+export function detectSkillFiles(
+  paths: string[],
+  customPatterns?: string[],
+  options: ScanOptions = {}
+): DetectedSkill[] {
+  const { maxFiles = 1000, caseSensitive = false } = options;
+
+  const patterns = customPatterns || COMMON_PATTERNS;
+  const detected: DetectedSkill[] = [];
+  let scanned = 0;
+
+  for (const path of paths) {
+    if (scanned >= maxFiles) {
+      console.warn(`[Scanner] Reached max files limit (${maxFiles}), stopping scan`);
+      break;
+    }
+
+    scanned++;
+
+    // Check if path matches any pattern
+    if (matchesAnyPattern(path, patterns, caseSensitive)) {
+      const slug = extractSlugFromPath(path);
+      detected.push({ path, slug });
+    }
+  }
+
+  console.log(`[Scanner] Scanned ${scanned} paths, detected ${detected.length} skills`);
+  return detected;
+}
+
+/**
+ * Check if path matches any of the given patterns
+ */
+function matchesAnyPattern(
+  path: string,
+  patterns: string[],
+  caseSensitive: boolean
+): boolean {
+  return patterns.some((pattern) => {
+    // Convert glob pattern to regex
+    // ** → .*  (any depth)
+    // * → [^/]* (single segment)
+    const regexPattern = pattern
+      .replace(/\*\*/g, '§§DOUBLE§§') // Temporary placeholder
+      .replace(/\*/g, '[^/]*')
+      .replace(/§§DOUBLE§§/g, '.*')
+      .replace(/\//g, '\\/');
+
+    const flags = caseSensitive ? '' : 'i';
+    const regex = new RegExp(`^${regexPattern}$`, flags);
+
+    return regex.test(path);
+  });
+}
+
+/**
+ * Extract skill slug from file path
+ * Examples:
+ *   skills/react/SKILL.md → react
+ *   .agent/skills/nextjs/SKILL.md → nextjs
+ *   ui/components/SKILL.md → components
+ */
+export function extractSlugFromPath(path: string): string {
+  const parts = path.split('/');
+  const lastPart = parts[parts.length - 1];
+
+  // If last part is SKILL.md (case-insensitive), use parent folder as slug
+  if (lastPart.toLowerCase() === 'skill.md' && parts.length >= 2) {
+    return parts[parts.length - 2];
+  }
+
+  // If SKILL.md is at root, use repo name or "root"
+  if (lastPart.toLowerCase() === 'skill.md') {
+    return 'root';
+  }
+
+  // Fallback: sanitize full path
+  return path
+    .replace(/\.md$/i, '')
+    .replace(/\//g, '-')
+    .toLowerCase();
+}
+
+/**
+ * Validate detected skills (check for duplicates, invalid slugs)
+ */
+export function validateDetected(detected: DetectedSkill[]): {
+  valid: DetectedSkill[];
+  duplicates: string[];
+  invalidSlugs: string[];
+} {
+  const valid: DetectedSkill[] = [];
+  const duplicates: string[] = [];
+  const invalidSlugs: string[] = [];
+  const seenSlugs = new Set<string>();
+
+  for (const skill of detected) {
+    // Check for duplicate slugs
+    if (seenSlugs.has(skill.slug)) {
+      duplicates.push(skill.slug);
+      continue;
+    }
+
+    // Check for invalid slug (empty, contains special chars)
+    if (!skill.slug || !/^[a-z0-9-]+$/.test(skill.slug)) {
+      invalidSlugs.push(skill.slug);
+      continue;
+    }
+
+    seenSlugs.add(skill.slug);
+    valid.push(skill);
+  }
+
+  return { valid, duplicates, invalidSlugs };
+}
+
+/**
+ * Scan local filesystem directory recursively
+ * (Node.js only - not for browser)
+ */
+export async function scanLocalDirectory(
+  basePath: string,
+  options: ScanOptions = {}
+): Promise<DetectedSkill[]> {
+  const { maxDepth = 10, maxFiles = 1000 } = options;
+
+  // Import fs only when needed (server-side)
+  const fs = await import('fs/promises');
+  const path = await import('path');
+
+  const paths: string[] = [];
+  let scanned = 0;
+
+  async function walk(dir: string, depth: number) {
+    if (depth > maxDepth || scanned >= maxFiles) return;
+
+    try {
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        if (scanned >= maxFiles) break;
+
+        const fullPath = path.join(dir, entry.name);
+        const relativePath = fullPath.replace(basePath + '/', '');
+
+        if (entry.isDirectory()) {
+          // Skip common ignore directories
+          if (!['node_modules', '.git', '.next', 'dist', 'build'].includes(entry.name)) {
+            await walk(fullPath, depth + 1);
+          }
+        } else if (entry.isFile()) {
+          paths.push(relativePath);
+          scanned++;
+        }
+      }
+    } catch (error) {
+      console.error(`[Scanner] Error scanning ${dir}:`, error);
+    }
+  }
+
+  await walk(basePath, 0);
+
+  return detectSkillFiles(paths, undefined, options);
+}

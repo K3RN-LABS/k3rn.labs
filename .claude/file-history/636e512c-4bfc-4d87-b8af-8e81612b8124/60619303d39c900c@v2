@@ -1,0 +1,74 @@
+/**
+ * LAB 1 DISCOVERY - GATE CHECK
+ *
+ * Exigences minimales pour sortir du Lab 1 (Contract v0):
+ * 1. Problem Statement existe et est rempli
+ * 2. Au moins 1 Target Actor identifié
+ * 3. Au moins 1 Constraint documentée
+ */
+
+export interface GateCheckResult {
+    canProceed: boolean;
+    missingRequirements: string[];
+    blockingMessage?: string;
+}
+
+export async function checkLab1GateRequirements(projectId: string): Promise<GateCheckResult> {
+    const missingRequirements: string[] = [];
+
+    try {
+        // Check Problem Statement
+        const problemStatementRes = await fetch(
+            `/api/projects/${projectId}/cards?type=PROBLEM_STATEMENT&phase=IDEATION`
+        );
+        if (problemStatementRes.ok) {
+            const data = await problemStatementRes.json();
+            const cards = data.data || [];
+            if (cards.length === 0 || !cards[0]?.label?.trim()) {
+                missingRequirements.push("Énoncé du problème principal");
+            }
+        }
+
+        // Check Target Actors
+        const targetActorsRes = await fetch(
+            `/api/projects/${projectId}/cards?type=TARGET_ACTOR&phase=IDEATION`
+        );
+        if (targetActorsRes.ok) {
+            const data = await targetActorsRes.json();
+            const cards = data.data || [];
+            if (cards.length === 0) {
+                missingRequirements.push("Au moins 1 acteur cible identifié");
+            }
+        }
+
+        // Check Constraints
+        const constraintsRes = await fetch(
+            `/api/projects/${projectId}/cards?type=CONSTRAINT&phase=IDEATION`
+        );
+        if (constraintsRes.ok) {
+            const data = await constraintsRes.json();
+            const cards = data.data || [];
+            if (cards.length === 0) {
+                missingRequirements.push("Au moins 1 contrainte documentée");
+            }
+        }
+    } catch (error) {
+        console.error("Error checking Lab 1 gate requirements:", error);
+        // En cas d'erreur, on bloque par sécurité
+        return {
+            canProceed: false,
+            missingRequirements: ["Erreur lors de la vérification des exigences"],
+            blockingMessage: "Une erreur s'est produite lors de la vérification. Veuillez réessayer."
+        };
+    }
+
+    const canProceed = missingRequirements.length === 0;
+
+    return {
+        canProceed,
+        missingRequirements,
+        blockingMessage: canProceed
+            ? undefined
+            : `Pour continuer vers Lab 2, vous devez compléter : ${missingRequirements.join(", ")}.`
+    };
+}

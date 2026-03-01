@@ -1,0 +1,127 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
+import Button from "@/components/ui/Button";
+
+const navLinks = [
+  { name: "Templates", href: "#templates" },
+  { name: "Features", href: "#features" },
+  { name: "Pricing", href: "#pricing" },
+  { name: "Docs", href: "#docs" },
+];
+
+export default function Header() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  return (
+    <header className="sticky top-0 z-50 w-full border-b border-neutral-800 bg-bg-base/80 backdrop-blur-xl">
+      <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2 group">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 via-orange-600 to-orange-700 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+              <span className="text-white font-bold text-sm">k3</span>
+            </div>
+            <span className="text-lg font-semibold text-fg-primary">
+              k3rn
+            </span>
+          </Link>
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-8">
+            {navLinks.map((link) => (
+              <Link
+                key={link.name}
+                href={link.href}
+                className="text-sm text-fg-secondary hover:text-fg-primary transition-colors duration-200"
+              >
+                {link.name}
+              </Link>
+            ))}
+          </div>
+
+          {/* Desktop CTA Buttons */}
+          <div className="hidden md:flex items-center gap-3">
+            <Link href="/login">
+              <Button variant="ghost" size="sm">
+                Connexion
+              </Button>
+            </Link>
+            <Link href="/signup">
+              <Button variant="primary" size="sm">
+                Démarrer
+              </Button>
+            </Link>
+          </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 text-fg-secondary hover:text-fg-primary transition-colors duration-200"
+            aria-label="Toggle menu"
+          >
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              {mobileMenuOpen ? (
+                <path d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
+        </div>
+      </nav>
+
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="md:hidden border-t border-neutral-800 bg-bg-base"
+          >
+            <div className="container mx-auto px-4 py-4 space-y-4">
+              {/* Mobile Nav Links */}
+              {navLinks.map((link) => (
+                <Link
+                  key={link.name}
+                  href={link.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-2 text-fg-secondary hover:text-fg-primary transition-colors duration-200"
+                >
+                  {link.name}
+                </Link>
+              ))}
+
+              {/* Mobile CTA Buttons */}
+              <div className="flex flex-col gap-2 pt-4 border-t border-neutral-800">
+                <Link href="/login">
+                  <Button variant="ghost" size="md" className="w-full">
+                    Connexion
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <Button variant="primary" size="md" className="w-full">
+                    Démarrer
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </header>
+  );
+}

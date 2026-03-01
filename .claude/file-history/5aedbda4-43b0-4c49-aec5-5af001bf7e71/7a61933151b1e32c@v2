@@ -1,0 +1,148 @@
+"""Modèles de données pour kern.labs Phase 2 - M1 Storage & Artifacts."""
+
+from datetime import datetime, timezone
+from enum import Enum
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
+
+from app.database import Base
+
+
+class ProjectStatus(str, Enum):
+    """Statuts possibles d'un projet."""
+
+    ACTIVE = "ACTIVE"
+    ARCHIVED = "ARCHIVED"
+
+
+class RunStatus(str, Enum):
+    """Statuts possibles d'un run."""
+
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class StepState(str, Enum):
+    """États possibles d'une step execution."""
+
+    NOT_STARTED = "NOT_STARTED"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class ArtifactType(str, Enum):
+    """Types d'artefacts supportés."""
+
+    BRAINSTORM_LOG = "BRAINSTORM_LOG"
+    DISTILLATION_MD = "DISTILLATION_MD"
+    BLUEPRINT_MD = "BLUEPRINT_MD"
+    TRUTH_PACK_BUILD_PLAN_JSON = "TRUTH_PACK_BUILD_PLAN_JSON"
+    TRUTH_PACK_ZIP = "TRUTH_PACK_ZIP"
+    OTHER = "OTHER"
+
+
+class Project(Base):
+    """Projet kern.labs (conteneur principal)."""
+
+    __tablename__ = "projects"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    status = Column(String(50), nullable=False, default=ProjectStatus.ACTIVE)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    # Relations
+    artifacts = relationship("Artifact", back_populates="project", cascade="all, delete-orphan")
+    step_executions = relationship(
+        "StepExecution", back_populates="project", cascade="all, delete-orphan"
+    )
+
+
+class Artifact(Base):
+    """Artefact immuable avec hash SHA-256."""
+
+    __tablename__ = "artifacts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    run_id = Column(Integer, ForeignKey("runs.id"), nullable=True, index=True)
+
+    # Métadonnées
+    artifact_type = Column(String(100), nullable=False, index=True)
+    filename = Column(String(500), nullable=False)
+    content_type = Column(String(100), nullable=False)
+    size_bytes = Column(Integer, nullable=False)
+
+    # Intégrité (immutabilité)
+    sha256 = Column(String(64), nullable=False, unique=True, index=True)
+
+    # Stockage
+    storage_key = Column(String(500), nullable=False, unique=True)
+
+    # Traçabilité
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    # Relations
+    project = relationship("Project", back_populates="artifacts")
+    run = relationship("Run", back_populates="artifacts")
+
+
+class Run(Base):
+    """Exécution d'un step (traçabilité, idempotence)."""
+
+    __tablename__ = "runs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    run_id = Column(String(100), nullable=False, unique=True, index=True)
+    step_code = Column(String(100), nullable=False, index=True)
+
+    # Métadonnées
+    provider = Column(String(100), nullable=True)  # claude, openai, etc.
+    status = Column(String(50), nullable=False, default=RunStatus.PENDING)
+
+    # Traçabilité
+    started_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    completed_at = Column(DateTime, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    # Relations
+    artifacts = relationship("Artifact", back_populates="run")
+    step_execution = relationship("StepExecution", back_populates="last_run", uselist=False)
+
+
+class StepExecution(Base):
+    """État actuel d'un step pour un projet (orchestration future)."""
+
+    __tablename__ = "step_executions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    step_code = Column(String(100), nullable=False, index=True)
+
+    # État
+    current_state = Column(String(50), nullable=False, default=StepState.NOT_STARTED)
+    last_run_id = Column(Integer, ForeignKey("runs.id"), nullable=True)
+
+    # Traçabilité
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    # Relations
+    project = relationship("Project", back_populates="step_executions")
+    last_run = relationship("Run", back_populates="step_execution")

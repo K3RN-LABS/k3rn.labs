@@ -1,0 +1,101 @@
+// src/lib/lab1/types.ts
+// Types de cartes autorisées en LAB 1 - Discovery Contract v0
+
+export type Lab1CardType =
+    | "PROBLEM_STATEMENT"
+    | "OBSERVED_PAIN"
+    | "TARGET_ACTOR"
+    | "CONSTRAINT"
+    | "ASSUMPTION";
+
+export interface ProblemStatement {
+    id: string;
+    statement: string; // Le problème formulé clairement
+    context: string; // Contexte dans lequel le problème existe
+    severity: "HIGH" | "MEDIUM" | "LOW"; // Sévérité du problème
+    frequency: "DAILY" | "WEEKLY" | "MONTHLY" | "RARELY"; // Fréquence d'occurrence
+    validated: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface ObservedPain {
+    id: string;
+    description: string; // Description de la douleur observée
+    affectedActors: string[]; // Qui souffre de cette douleur
+    currentWorkarounds: string; // Solutions de contournement actuelles
+    cost: string; // Coût (temps/argent) de cette douleur
+    validated: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface TargetActor {
+    id: string;
+    name: string; // Nom du segment/persona
+    role: string; // Rôle (ex: "CTO", "Marketeur", "Freelance")
+    description: string; // Description détaillée
+    problemRelevance: string; // Pourquoi ce problème le concerne
+    validated: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface Constraint {
+    id: string;
+    type: "TECHNICAL" | "BUSINESS" | "REGULATORY" | "RESOURCE" | "TIME";
+    description: string;
+    impact: "BLOCKING" | "MAJOR" | "MINOR";
+    mitigationIdeas: string; // Idées pour contourner/mitiger
+    validated: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface Assumption {
+    id: string;
+    statement: string; // L'hypothèse formulée
+    type: "PROBLEM" | "MARKET" | "USER" | "SOLUTION";
+    criticality: "HIGH" | "MEDIUM" | "LOW"; // Quelle importance si c'est faux
+    validationMethod: string; // Comment valider cette hypothèse
+    validated: boolean;
+    invalidated: boolean;
+    validationNotes?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+// Helper pour convertir une Card générique en type Lab 1
+export function isLab1CardType(type: string): type is Lab1CardType {
+    return [
+        "PROBLEM_STATEMENT",
+        "OBSERVED_PAIN",
+        "TARGET_ACTOR",
+        "CONSTRAINT",
+        "ASSUMPTION"
+    ].includes(type);
+}
+
+// Helper pour obtenir le label d'un type de carte
+export function getLab1CardTypeLabel(type: Lab1CardType): string {
+    const labels: Record<Lab1CardType, string> = {
+        PROBLEM_STATEMENT: "Énoncé du Problème",
+        OBSERVED_PAIN: "Douleur Observée",
+        TARGET_ACTOR: "Acteur Cible",
+        CONSTRAINT: "Contrainte",
+        ASSUMPTION: "Hypothèse"
+    };
+    return labels[type];
+}
+
+// Helper pour obtenir l'icône d'un type de carte
+export function getLab1CardTypeIcon(type: Lab1CardType): string {
+    const icons: Record<Lab1CardType, string> = {
+        PROBLEM_STATEMENT: "🎯",
+        OBSERVED_PAIN: "⚡",
+        TARGET_ACTOR: "👤",
+        CONSTRAINT: "🚧",
+        ASSUMPTION: "💭"
+    };
+    return icons[type];
+}

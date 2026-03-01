@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# Clean Next.js cache to prevent corruption
+echo "🧹 Nettoyage du cache Next.js..."
+
+# Kill any running dev servers
+pkill -f "next dev" 2>/dev/null || true
+sleep 1
+
+# Remove .next directory completely
+if [ -d ".next" ]; then
+  rm -rf .next
+  echo "✅ Cache .next supprimé"
+else
+  echo "ℹ️  Pas de cache .next à nettoyer"
+fi
+
+# Remove node_modules/.cache if exists
+if [ -d "node_modules/.cache" ]; then
+  rm -rf node_modules/.cache
+  echo "✅ Cache node_modules/.cache supprimé"
+fi
+
+echo "✨ Nettoyage terminé!"

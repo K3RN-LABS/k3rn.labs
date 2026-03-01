@@ -1,0 +1,224 @@
+/**
+ * Génération de prompts Claude Code au format XML canonique
+ */
+
+import type { Ticket, TicketPrompt, Project, SelectedSkill } from './types';
+
+/**
+ * Génère le prompt global pour tout le projet
+ */
+export function generateGlobalPrompt(
+  project: Project,
+  stack: string[],
+  selectedSkills?: SelectedSkill[]
+): string {
+  return `<prompt>
+  <task_context>
+    <role>Senior Full-Stack Engineer</role>
+    <project>${project.name}</project>
+    <repo>${project.repo.repo_name}</repo>
+    <deliverable_type>${project.deliverable_type}</deliverable_type>
+    <objective>
+      Implémenter ${project.name} en suivant les tickets chronologiques du TicketPack.
+      Chaque ticket inclut un prompt XML spécifique pour guider l'implémentation.
+    </objective>
+  </task_context>
+
+  <repo_background>
+    <stack>
+${stack.map((s) => `      <tech>${s}</tech>`).join('\n')}
+    </stack>
+    <important_paths>
+${project.repo.important_paths.map((p) => `      <path>${p}</path>`).join('\n')}
+    </important_paths>
+    ${project.repo.notes ? `<notes>${project.repo.notes}</notes>` : ''}
+  </repo_background>
+
+${selectedSkills && selectedSkills.length > 0 ? `
+  <skills_context mode="agent-resolved">
+    <skills>
+${selectedSkills.map((s) => `      <skill slug="${s.slug}" priority="${s.priority}"/>`).join('\n')}
+    </skills>
+
+    <resolution_protocol>
+      <step>For each skill, navigate to .agent/skills/skills/{slug}/</step>
+      <step>Read SKILL.md first.</step>
+      <step>If a reference/ folder exists, read only files that are directly required for the current ticket.</step>
+      <step>Extract: activation steps, constraints, stop conditions. Apply them while implementing.</step>
+      <step>Do not load unrelated skills or the full catalogue. Keep context minimal.</step>
+    </resolution_protocol>
+
+    <stop_conditions>
+      <stop>If the slug folder does not exist, STOP and report missing skill mapping.</stop>
+      <stop>If instructions conflict, STOP and ask for precedence (primary over support unless specified).</stop>
+    </stop_conditions>
+  </skills_context>
+` : ''}
+
+  <workflow>
+    <step id="1">Lire le TicketPack complet (PRD, ADRs, Roadmap, Tickets)</step>
+    <step id="2">Pour chaque ticket dans l'ordre chronologique:
+      <substep>a) Vérifier que les dépendances sont résolues</substep>
+      <substep>b) Utiliser le prompt XML spécifique du ticket (PROMPT-T-XXX)</substep>
+      <substep>c) Implémenter selon le workflow: explore → plan → implement → verify</substep>
+      <substep>d) Marquer le ticket comme terminé avant de passer au suivant</substep>
+    </step>
+    <step id="3">Vérifier les critères de sortie de chaque phase</step>
+    <step id="4">Exécuter le runbook de vérification finale</step>
+  </workflow>
+
+  <conventions>
+    <rule>Respecter strictement la stack technique définie dans les ADRs</rule>
+    <rule>Ne pas sauter de tickets ou modifier l'ordre sans validation</rule>
+    <rule>Commit après chaque ticket terminé avec message: "feat(T-XXX): [titre ticket]"</rule>
+    <rule>Exécuter les tests/lint après chaque changement</rule>
+    <rule>Documenter les décisions dans les commentaires de code si nécessaire</rule>
+  </conventions>
+
+  <output_format>
+    Pour chaque ticket, fournir:
+    <section>Plan d'implémentation (fichiers à modifier/créer)</section>
+    <section>Changements appliqués (code + justification)</section>
+    <section>Vérification (tests/lint/build results)</section>
+    <section>Prochaines étapes (ticket suivant ou phase terminée)</section>
+  </output_format>
+</prompt>`;
+}
+
+/**
+ * Génère les prompts spécifiques par ticket
+ */
+export function generateTicketPrompts(
+  tickets: Ticket[],
+  project: Project,
+  stack: string[]
+): TicketPrompt[] {
+  return tickets.map((ticket) => ({
+    prompt_id: ticket.claude_code_prompt_ref,
+    ticket_id: ticket.ticket_id,
+    content: generateTicketPrompt(ticket, project, stack),
+  }));
+}
+
+function generateTicketPrompt(ticket: Ticket, project: Project, stack: string[]): string {
+  return `<prompt>
+  <task_context>
+    <role>Senior Full-Stack Engineer</role>
+    <repo>${project.repo.repo_name}</repo>
+    <ticket_id>${ticket.ticket_id}</ticket_id>
+    <ticket_type>${ticket.type}</ticket_type>
+    <phase>${ticket.phase_id}</phase>
+    <objective>${ticket.title}</objective>
+  </task_context>
+
+  <repo_scope>
+    <stack>
+${stack.slice(0, 5).map((s) => `      <tech>${s}</tech>`).join('\n')}
+    </stack>
+    <paths_to_review>
+${project.repo.important_paths.slice(0, 5).map((p) => `      <path>${p}</path>`).join('\n')}
+    </paths_to_review>
+  </repo_scope>
+
+  <task_description>
+    ${ticket.description}
+
+    ${
+      ticket.dependencies.length > 0
+        ? `<dependencies>
+      Ce ticket dépend de: ${ticket.dependencies.join(', ')}
+      Vérifier que ces tickets sont terminés avant de commencer.
+    </dependencies>`
+        : ''
+    }
+  </task_description>
+
+  <acceptance_criteria>
+${ticket.acceptance_criteria.map((c, i) => `    <criterion id="${i + 1}">${c}</criterion>`).join('\n')}
+  </acceptance_criteria>
+
+  ${
+    ticket.risks.length > 0
+      ? `<risks>
+${ticket.risks
+  .map(
+    (r, i) => `    <risk id="${i + 1}">
+      <description>${r.risk}</description>
+      <mitigation>${r.mitigation}</mitigation>
+    </risk>`
+  )
+  .join('\n')}
+  </risks>`
+      : ''
+  }
+
+  <instructions>
+    <workflow>
+      <step id="1">
+        <name>Explore</name>
+        <action>
+          Inspecte les fichiers listés dans repo_scope.
+          Comprends l'architecture existante et les conventions.
+          Identifie où les changements doivent être appliqués.
+        </action>
+      </step>
+      <step id="2">
+        <name>Plan</name>
+        <action>
+          Propose un plan d'implémentation:
+          - Liste des fichiers à créer/modifier
+          - Structure des changements
+          - Approche technique (alignée sur la stack)
+          Demande validation si incertitude.
+        </action>
+      </step>
+      <step id="3">
+        <name>Implement</name>
+        <action>
+          Applique les changements minimaux et cohérents:
+          - Suis les conventions du repo (naming, structure, patterns)
+          - Implémente UNIQUEMENT ce qui est dans le scope du ticket
+          - Ajoute des commentaires pour les décisions non-évidentes
+          - Ne refactorise PAS de code hors scope
+        </action>
+      </step>
+      <step id="4">
+        <name>Verify</name>
+        <action>
+          Vérifie que tout fonctionne:
+          - Exécute \`npm run build\` (doit passer sans erreur)
+          - Exécute \`npm run lint\` (doit passer sans erreur)
+          - Teste manuellement la fonctionnalité implémentée
+          - Vérifie que TOUS les critères d'acceptation sont satisfaits
+        </action>
+      </step>
+    </workflow>
+  </instructions>
+
+  <output>
+    <format>xml</format>
+    <sections>
+      <section name="plan">
+        Liste des fichiers modifiés/créés + approche technique brève
+      </section>
+      <section name="changes">
+        Résumé des changements appliqués + extraits de code clés
+      </section>
+      <section name="verification">
+        Résultats de build/lint + validation critères d'acceptation
+      </section>
+      <section name="notes">
+        Décisions prises, trade-offs, ou warnings pour les prochains tickets
+      </section>
+    </sections>
+  </output>
+
+  <constraints>
+    <rule>Respecter strictement le scope du ticket (pas de feature creep)</rule>
+    <rule>Utiliser la stack définie (${stack.slice(0, 3).join(', ')})</rule>
+    <rule>Pas de console.log dans le code final (sauf debugging temporaire commenté)</rule>
+    <rule>Types TypeScript stricts (pas de any sauf justifié)</rule>
+    <rule>Accessibilité: labels, ARIA si UI</rule>
+  </constraints>
+</prompt>`;
+}

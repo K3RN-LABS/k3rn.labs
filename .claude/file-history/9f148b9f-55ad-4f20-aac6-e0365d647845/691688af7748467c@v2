@@ -1,0 +1,109 @@
+#!/usr/bin/env node
+/**
+ * Safe Dev Server Launcher
+ *
+ * Détecte et répare automatiquement les problèmes de cache Next.js
+ * avant de démarrer le serveur de développement.
+ *
+ * Problèmes détectés et résolus:
+ * - Cache .next corrompu (erreur "Cannot find module")
+ * - Fichiers webpack fragmentés
+ * - Modules manquants après git pull
+ *
+ * Usage: npm run dev:safe
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { spawn } = require('child_process');
+
+const NEXT_CACHE = path.join(process.cwd(), '.next');
+const CORRUPTION_INDICATORS = [
+  '.next/cache',
+  '.next/server/webpack-runtime.js'
+];
+
+let shouldClean = false;
+
+console.log('🔍 Vérification de l\'intégrité du cache Next.js...\n');
+
+// Check 1: .next existe mais contient des fichiers suspects
+if (fs.existsSync(NEXT_CACHE)) {
+  const cacheAge = Date.now() - fs.statSync(NEXT_CACHE).mtimeMs;
+  const cacheAgeDays = cacheAge / (1000 * 60 * 60 * 24);
+
+  console.log(`📦 Cache .next trouvé (âge: ${cacheAgeDays.toFixed(1)} jours)`);
+
+  // Vérifier si webpack-runtime existe (signe d'un build précédent)
+  const webpackRuntime = path.join(NEXT_CACHE, 'server', 'webpack-runtime.js');
+  if (fs.existsSync(webpackRuntime)) {
+    console.log('⚠️  Cache de build précédent détecté');
+    shouldClean = true;
+  }
+
+  // Si le cache a plus de 7 jours, le nettoyer par précaution
+  if (cacheAgeDays > 7) {
+    console.log('⚠️  Cache trop ancien (>7 jours)');
+    shouldClean = true;
+  }
+} else {
+  console.log('✅ Pas de cache existant (première exécution)');
+}
+
+// Check 2: Forcer le nettoyage si variable d'environnement
+if (process.env.FORCE_CLEAN === 'true') {
+  console.log('🔧 Nettoyage forcé (FORCE_CLEAN=true)');
+  shouldClean = true;
+}
+
+// Nettoyage si nécessaire
+if (shouldClean) {
+  console.log('\n🧹 Nettoyage du cache pour éviter les corruptions...');
+
+  try {
+    if (fs.existsSync(NEXT_CACHE)) {
+      fs.rmSync(NEXT_CACHE, { recursive: true, force: true });
+      console.log('✅ Cache .next supprimé');
+    }
+  } catch (error) {
+    console.error('❌ Erreur lors du nettoyage:', error.message);
+    console.error('   Essayez manuellement: rm -rf .next');
+    process.exit(1);
+  }
+} else {
+  console.log('✅ Cache semble valide, réutilisation');
+}
+
+// Démarrer le serveur de développement
+console.log('\n🚀 Démarrage du serveur Next.js...\n');
+
+const devServer = spawn('npx', ['next', 'dev'], {
+  stdio: 'inherit',
+  shell: true
+});
+
+devServer.on('error', (error) => {
+  console.error('❌ Erreur de démarrage:', error.message);
+  process.exit(1);
+});
+
+devServer.on('exit', (code) => {
+  if (code !== 0 && code !== null) {
+    console.error(`\n❌ Serveur arrêté avec code ${code}`);
+
+    // Si erreur liée au cache, suggérer nettoyage forcé
+    console.log('\n💡 En cas d\'erreur de module manquant:');
+    console.log('   FORCE_CLEAN=true npm run dev:safe');
+  }
+  process.exit(code || 0);
+});
+
+// Gestion du SIGINT (Ctrl+C)
+process.on('SIGINT', () => {
+  console.log('\n\n👋 Arrêt du serveur...');
+  devServer.kill('SIGINT');
+});
+
+process.on('SIGTERM', () => {
+  devServer.kill('SIGTERM');
+});

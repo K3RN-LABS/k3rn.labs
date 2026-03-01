@@ -1,0 +1,20 @@
+'use client';
+
+interface SearchBarProps {
+  query: string;
+  setQuery: (query: string) => void;
+}
+
+export default function SearchBar({ query, setQuery }: SearchBarProps) {
+  return (
+    <div className="card">
+      <input
+        type="text"
+        className="input w-full text-lg"
+        placeholder="Search skills by name, description, triggers, or tags..."
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+    </div>
+  );
+}

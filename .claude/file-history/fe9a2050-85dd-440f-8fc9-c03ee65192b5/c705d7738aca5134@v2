@@ -1,0 +1,10 @@
+/**
+ * K3RN.LABS — Analyse d'idées — Barrel export
+ */
+
+export * from './constants';
+export * from './types';
+export * from './validators';
+export * from './scoring';
+export * from './decision';
+export * from './enrichment';

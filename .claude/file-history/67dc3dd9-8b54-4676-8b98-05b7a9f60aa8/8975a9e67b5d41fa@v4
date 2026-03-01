@@ -1,0 +1,121 @@
+# Refonte Dossiers : Alignement Brand Design + Header Navigation
+
+## Référence : Brand Book Canonique
+Source : `/K3RN.LABS CONCEPTION/brand_design/k3rn.labs_ui_design_system_canonical.md`
+
+### Règles clés à respecter
+- **Page background** : `#000000` (bg-primary) — PAS `#0F0F0F`
+- **Card** : `bg-card` (#1A1A1A), `border-default` (rgba 255,255,255,0.1), `radius-2xl` (24px), `padding space-8` (32px). Hover → `bg-card-hover` (#22242B) + `border-strong` (rgba 0.2). Pas de gradient.
+- **Input** : `bg-secondary` (#0F0F0F), `border-default`, `radius-md` (8px). Focus → `border-color: brand-primary` + `box-shadow: 0 0 0 3px rgba(247,81,5,0.1)`
+- **Button primary** : `bg-brand-primary`, hover → `bg-brand-secondary` + `shadow-glow` + Y-1px
+- **Button secondary** : transparent, `border-default`. Hover → `bg-card` + `border-strong`
+- **Nav active** : `color: brand-primary` + 2px underline orange en bas
+- **Orange** : avec parcimonie — accents et hover importants seulement
+- **Labels** : 0.75rem, Bold 700, 0.1em letter-spacing, uppercase, `color: brand-primary`
+
+---
+
+## 2 chantiers
+
+### CHANTIER A — Header avec navigation contextuelle
+**Fichier** : `src/components/layout/site-header.tsx`
+
+Remplacer le label texte statique par des **liens de navigation** style brand book.
+
+**Structure (variante app) :**
+```
+[Logo k3rn] | Capture   Dossiers   [spacer]   [LanguageSelector] [UserNav]
+```
+
+- 2 liens : **Capture** (`/capture`) et **Dossiers** (`/workspace`)
+- Le lien actif a `color: #F75105` + barre 2px orange en bas (comme `.nav-link.active` du brand book)
+- Les liens inactifs ont `color: #A1A1AA` (text-secondary), hover → `#FAFAFA` (text-primary)
+- Style : `font-size: 0.875rem (14px)`, `font-weight: 500`, `uppercase`, `tracking-widest`
+- Utiliser `usePathname()` de `next/navigation` pour détecter la page active
+- Supprimer la prop `contextLabel` — plus nécessaire
+
+**Changements :**
+- Retirer la prop `contextLabel` de SiteHeader
+- Ajouter `usePathname()` pour détection automatique
+- Rendre les liens de navigation entre Logo et Controls (côté gauche)
+- Mettre à jour `/capture` et `/workspace` pages pour retirer `contextLabel`
+
+### CHANTIER B — Refonte complète page Dossiers
+**Fichiers** : `src/app/workspace/page.tsx` + `src/components/workspace/dossier-settings-dialog.tsx`
+
+#### B.1 — Page background et structure
+- Background : `bg-background` (#000000) — comme le brand book checklist l'exige
+- Cards : `bg-[--color-bg-card]` FLAT (pas de gradient `from-[#1E1F24]`)
+- Border : `border-[--color-border-default]` (rgba 0.1)
+- Hover : `bg-[--color-bg-card-hover]` + `border-[--color-border-strong]`
+- Radius : `rounded-[24px]` (radius-2xl)
+- Padding : `p-8` (space-8 = 32px)
+
+#### B.2 — Cards Grid : structure propre
+Chaque card projet :
+```
+┌─────────────────────────────────┐
+│ [Folder icon]        [Score/100]│  ← score affiché "72/100" format contextualisé
+│                                 │
+│ Titre du Projet                 │  ← card-title: 1.25rem, semibold 600
+│ Description courte...           │  ← text-secondary, 0.875rem
+│                                 │
+│─────────────────────────────────│  ← border-subtle separator
+│ 12 jan. 2026    [EXPLORE badge] │  ← footer : date + DecisionBadge
+└─────────────────────────────────┘
+```
+
+- **Score** : afficher `{score}/100` pour donner du contexte, pas juste un chiffre
+- **Folder icon** : `bg-[--color-bg-card-hover]` (#22242B) au lieu de surface-1
+- **Hover** : card background → `bg-card-hover`, border → `border-strong`. Pas d'orange sur le texte.
+- **"Nouveau Dossier"** : `bg-card`, `border-default` dashed 1px, hover → `border-strong`. Pas d'orange flashy — le + icon en `text-muted`, hover → `text-primary`.
+- **Bande de couleur** : garder la bande 3px en haut — c'est bien. Mais elle utilise la couleur du dossier (user-set) ou couleur de décision par défaut.
+- **Settings gear** : positionnée en haut DROITE de la card (pas gauche), apparaît au hover. Style : `bg-black/40 backdrop-blur` rond, plus discret.
+
+#### B.3 — Cards List : alignement
+- Container : `bg-card`, `border-default`, `radius-2xl`
+- Rows : border-b `border-subtle`. Hover : `bg-card-hover`.
+- Couleur indicator (bande latérale 3px) : ok, garder.
+- DropdownMenu : `bg-card` (#1A1A1A) au lieu de fond custom.
+
+#### B.4 — Filter pills
+- Style inactif : `bg-transparent`, `border-subtle`, `text-muted` (#5D5C5B)
+- Style actif : `bg-{color}/10`, `text-{color}`, `border-{color}/20` — garder les couleurs de décision mais plus subtiles (opacité /20 au lieu de /30)
+- Interaction : hover inactif → `border-default`, `text-secondary`
+
+#### B.5 — Dossier Settings Dialog
+**Fichier** : `src/components/workspace/dossier-settings-dialog.tsx`
+
+Aligner au brand book :
+- **Dialog content** : `bg-card` (#1A1A1A) — pas de couleur custom
+- **Border** : `border-default`
+- **Radius** : `rounded-[24px]` (radius-2xl) — comme les cards
+- **Inputs** : `bg-[--color-bg-secondary]` (#0F0F0F), `border-default`, `rounded-md` (8px). Focus → border orange + ring 3px rgba(247,81,5,0.1)
+- **Labels** : `text-xs` (0.75rem), `font-bold`, `uppercase`, `tracking-[0.1em]`, `text-[#F75105]` (brand-primary pour les labels techniques comme dans le brand book)
+- **Buttons** : "Cancel" = btn-secondary (transparent, border-default). "Save" = btn-primary (bg-brand-primary)
+- **Color swatches** : garder, mais ajouter border-2 border-transparent, active → border-white. Plus d'effet scale.
+- **Score display** : `{score}/100` avec DecisionBadge, fond `bg-secondary` (#0F0F0F)
+
+---
+
+## Fichiers modifiés
+
+| # | Fichier | Action |
+|---|---------|--------|
+| 1 | `src/components/layout/site-header.tsx` | REWRITE — Navigation links + usePathname |
+| 2 | `src/app/workspace/page.tsx` | REWRITE — Alignement brand design complet |
+| 3 | `src/components/workspace/dossier-settings-dialog.tsx` | REWRITE — Alignement brand design |
+| 4 | `src/app/capture/page.tsx` | EDIT — Retirer contextLabel |
+
+## Ordre
+1. SiteHeader (navigation)
+2. Dossier Settings Dialog (alignement)
+3. Workspace page (refonte complète)
+4. Nettoyage capture page
+
+## Vérification
+1. `npm run build` — compilation OK
+2. Header : les 2 liens "Capture" et "Dossiers" sont visibles. Sur `/workspace`, "Dossiers" est orange+underline. Sur `/capture`, "Capture" est orange+underline.
+3. Page dossiers : fond noir pur, cards plates sans gradient, hover = bg-card-hover + border-strong. Score affiché "72/100". Pas d'orange flashy sur "Nouveau Dossier".
+4. Settings dialog : fond #1A1A1A, radius 24px, inputs #0F0F0F, labels orange uppercase.
+5. Filtres : pilules subtiles, pas agressives.

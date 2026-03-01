@@ -1,0 +1,78 @@
+/**
+ * Framework Detector
+ * Deterministic framework detection from package.json dependencies
+ */
+
+import type { PackageJson, DetectionSignal } from '../types';
+
+interface FrameworkRule {
+  signal: string; // Dependency name
+  framework: string;
+  confidence: 'high' | 'medium' | 'low';
+}
+
+const FRAMEWORK_RULES: FrameworkRule[] = [
+  // Next.js
+  { signal: 'next', framework: 'Next.js', confidence: 'high' },
+
+  // React-based
+  { signal: 'react-scripts', framework: 'Create React App', confidence: 'high' },
+  { signal: 'vite', framework: 'Vite', confidence: 'medium' }, // Could be Vue too
+
+  // Angular
+  { signal: '@angular/core', framework: 'Angular', confidence: 'high' },
+
+  // Vue
+  { signal: 'vue', framework: 'Vue.js', confidence: 'high' },
+  { signal: 'nuxt', framework: 'Nuxt.js', confidence: 'high' },
+
+  // Backend frameworks
+  { signal: 'express', framework: 'Express', confidence: 'high' },
+  { signal: 'fastify', framework: 'Fastify', confidence: 'high' },
+  { signal: '@nestjs/core', framework: 'NestJS', confidence: 'high' },
+  { signal: 'koa', framework: 'Koa', confidence: 'high' },
+  { signal: 'hapi', framework: 'Hapi', confidence: 'high' },
+
+  // Meta-frameworks
+  { signal: 'remix', framework: 'Remix', confidence: 'high' },
+  { signal: 'gatsby', framework: 'Gatsby', confidence: 'high' },
+  { signal: 'astro', framework: 'Astro', confidence: 'high' },
+  { signal: 'svelte', framework: 'Svelte', confidence: 'high' },
+  { signal: '@sveltejs/kit', framework: 'SvelteKit', confidence: 'high' },
+];
+
+/**
+ * Detect framework from package.json
+ */
+export function detectFramework(packageJson: PackageJson | null): DetectionSignal | null {
+  if (!packageJson) {
+    return null;
+  }
+
+  const allDeps = {
+    ...packageJson.dependencies,
+    ...packageJson.devDependencies,
+  };
+
+  // Check each rule
+  for (const rule of FRAMEWORK_RULES) {
+    if (allDeps[rule.signal]) {
+      return {
+        confidence: rule.confidence,
+        evidence: `Dependency: ${rule.signal}`,
+        value: rule.framework,
+      };
+    }
+  }
+
+  // React + Vite heuristic
+  if (allDeps.react && allDeps.vite) {
+    return {
+      confidence: 'high',
+      evidence: 'Dependencies: react + vite',
+      value: 'React + Vite',
+    };
+  }
+
+  return null;
+}

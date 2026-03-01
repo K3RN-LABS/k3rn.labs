@@ -1,0 +1,93 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getDb, SearchResult } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const query = searchParams.get('q') || '';
+  const category = searchParams.get('category') || '';
+  const tags = searchParams.get('tags') || '';
+  const hasCard = searchParams.get('hasCard') === 'true';
+  const limit = parseInt(searchParams.get('limit') || '50', 10);
+
+  const db = getDb();
+
+  try {
+    let sql: string;
+    let params: any[];
+
+    if (query) {
+      // FTS search with BM25 ranking
+      // Use simple approach: search FTS and join back to skills table
+      sql = `
+        SELECT
+          s.id,
+          s.name,
+          s.category,
+          s.description,
+          s.tags_json,
+          s.triggers_json,
+          fts.rank as score,
+          'name,description,triggers,tags' as matched_fields
+        FROM skills_fts fts
+        JOIN skills s ON s.name = fts.name
+        ${hasCard ? 'JOIN skill_cards sc ON sc.skill_id = s.id' : ''}
+        WHERE fts MATCH ?
+        ${category ? 'AND s.category = ?' : ''}
+        ${tags ? 'AND s.tags_json LIKE ?' : ''}
+        ORDER BY fts.rank
+        LIMIT ?
+      `;
+
+      params = [query];
+      if (category) params.push(category);
+      if (tags) params.push(`%${tags}%`);
+      params.push(limit);
+    } else {
+      // No query: return all with optional filters
+      sql = `
+        SELECT
+          s.id,
+          s.name,
+          s.category,
+          s.description,
+          s.tags_json,
+          s.triggers_json,
+          0 as score,
+          '' as matched_fields
+        FROM skills s
+        ${hasCard ? 'JOIN skill_cards sc ON sc.skill_id = s.id' : ''}
+        WHERE 1=1
+        ${category ? 'AND s.category = ?' : ''}
+        ${tags ? 'AND s.tags_json LIKE ?' : ''}
+        ORDER BY s.name
+        LIMIT ?
+      `;
+
+      params = [];
+      if (category) params.push(category);
+      if (tags) params.push(`%${tags}%`);
+      params.push(limit);
+    }
+
+    const results = db.prepare(sql).all(...params) as any[];
+
+    const formattedResults = results.map((row, index) => ({
+      id: row.id,
+      name: row.name,
+      category: row.category,
+      description: row.description,
+      tags: JSON.parse(row.tags_json || '[]'),
+      triggers: JSON.parse(row.triggers_json || '[]'),
+      score: row.score || 0,
+      rank: index + 1,
+      matched_fields: row.matched_fields || '',
+    }));
+
+    return NextResponse.json({ results: formattedResults });
+  } catch (error) {
+    console.error('Search error:', error);
+    return NextResponse.json({ error: 'Search failed', results: [] }, { status: 500 });
+  }
+}

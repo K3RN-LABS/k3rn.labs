@@ -1,0 +1,241 @@
+"use client"
+
+import { useState } from "react"
+import { useParams, useRouter } from "next/navigation"
+import { useDossier } from "@/hooks/use-dossier"
+import { useLab, useTransitionLab } from "@/hooks/use-lab"
+import { usePoles, type PoleData } from "@/hooks/use-poles"
+import { ScoreMeter } from "@/components/score/score-meter"
+import { PermissionGate } from "@/components/ui/permission-gate"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
+import { PoleHub } from "@/components/poles/pole-hub"
+import { PoleManagerChat } from "@/components/poles/pole-manager-chat"
+import { KaelCommandBar } from "@/components/poles/kael-command-bar"
+import { ArrowRight, Download, DollarSign, Folder, ChevronLeft, X } from "lucide-react"
+import { cn } from "@/lib/utils"
+
+const SUBFOLDER_LABELS: Record<string, string> = {
+  PRODUIT: "Product",
+  MARCHE: "Market",
+  TECHNOLOGIE: "Technology",
+  BUSINESS: "Business",
+}
+
+const SUBFOLDER_COLORS: Record<string, string> = {
+  PRODUIT: "border-blue-500/40 hover:border-blue-500",
+  MARCHE: "border-green-500/40 hover:border-green-500",
+  TECHNOLOGIE: "border-violet-500/40 hover:border-violet-500",
+  BUSINESS: "border-emerald-500/40 hover:border-emerald-500",
+}
+
+const LAB_LABELS: Record<string, string> = {
+  DISCOVERY: "Discovery",
+  STRUCTURATION: "Structuration",
+  VALIDATION_MARCHE: "Market Validation",
+  DESIGN_PRODUIT: "Product Design",
+  ARCHITECTURE_TECHNIQUE: "Tech Architecture",
+  BUSINESS_FINANCE: "Business & Finance",
+}
+
+export default function WorkspacePage() {
+  const { id } = useParams<{ id: string }>()
+  const router = useRouter()
+  const { data: dossier, isLoading } = useDossier(id)
+  const { data: labData } = useLab(id)
+  const { mutate: transitionLab, isPending: transitioning, error: transitionError } = useTransitionLab()
+  const { data: poles = [] } = usePoles()
+
+  const [activePole, setActivePole] = useState<PoleData | null>(null)
+  const [poleInitialMessage, setPoleInitialMessage] = useState<string | undefined>()
+
+  const currentLab = labData?.labState?.currentLab as string | undefined
+
+  function handleSelectPole(pole: PoleData, initialMessage?: string) {
+    setActivePole(pole)
+    setPoleInitialMessage(initialMessage)
+  }
+
+  function handleCloseChat() {
+    setActivePole(null)
+    setPoleInitialMessage(undefined)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Loading workspace...</div>
+      </div>
+    )
+  }
+
+  if (!dossier) return <div className="p-8 text-destructive">Dossier not found</div>
+
+  return (
+    <div className="h-dvh overflow-hidden bg-background flex flex-col">
+      <header className="border-b px-6 py-3 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => router.push("/")}>
+            <ChevronLeft className="h-4 w-4" />
+            Dossiers
+          </Button>
+          <Separator orientation="vertical" className="h-5" />
+          <span className="font-semibold">{dossier.name}</span>
+          <Badge variant="outline" className="text-xs">
+            {currentLab ? LAB_LABELS[currentLab] : "Loading..."}
+          </Badge>
+        </div>
+        <div className="flex items-center gap-2">
+          <KaelCommandBar
+            dossierId={id}
+            currentLab={currentLab}
+            onSelectPole={handleSelectPole}
+          />
+          <PermissionGate dossierId={id} permission="canCreateCrowdfunding">
+            <Button variant="outline" size="sm" onClick={() => router.push(`/dossiers/${id}/crowdfunding`)}>
+              <DollarSign className="h-4 w-4" />
+              Crowdfunding
+            </Button>
+          </PermissionGate>
+          <PermissionGate dossierId={id} permission="canExport">
+            <Button variant="outline" size="sm" onClick={() => router.push(`/dossiers/${id}/export`)}>
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
+          </PermissionGate>
+        </div>
+      </header>
+
+      <div className="flex flex-1 overflow-hidden">
+        <div className={cn(
+          "flex-1 overflow-y-auto transition-all duration-300",
+          activePole ? "hidden md:block" : ""
+        )}>
+          <div className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div className="lg:col-span-3 space-y-8">
+              <div>
+                <h2 className="text-xl font-semibold mb-4">Sub-folders</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  {(dossier.subFolders ?? []).map((sf: { id: string; type: string }) => (
+                    <Card
+                      key={sf.id}
+                      className={`cursor-pointer transition-all border-2 ${SUBFOLDER_COLORS[sf.type] ?? ""}`}
+                      onClick={() => router.push(`/dossiers/${id}/${sf.id}`)}
+                    >
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center gap-2">
+                          <Folder className="h-4 w-4 text-muted-foreground" />
+                          <CardTitle className="text-base">{SUBFOLDER_LABELS[sf.type] ?? sf.type}</CardTitle>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center justify-end">
+                          <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+              {poles.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold">Pôles Experts</h2>
+                    <span className="text-xs text-muted-foreground">⌘K pour accès rapide</span>
+                  </div>
+                  <PoleHub
+                    poles={poles}
+                    currentLab={currentLab}
+                    onSelectPole={handleSelectPole}
+                    className="grid-cols-1 sm:grid-cols-2"
+                  />
+                </div>
+              )}
+
+              {labData && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">LAB Transition</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="text-sm text-muted-foreground">
+                      Current: <span className="font-medium text-foreground">{LAB_LABELS[labData.labState?.currentLab]}</span>
+                      {labData.nextLab && (
+                        <> → Next: <span className="font-medium text-foreground">{LAB_LABELS[labData.nextLab]}</span></>
+                      )}
+                    </div>
+                    {labData.missingCards?.length > 0 && (
+                      <div className="text-xs text-destructive">
+                        Missing cards: {labData.missingCards.join(", ")}
+                      </div>
+                    )}
+                    {labData.blockingExperts?.length > 0 && (
+                      <div className="text-xs text-destructive">
+                        Blocking experts: {labData.blockingExperts.map((e: { name: string }) => e.name).join(", ")}
+                      </div>
+                    )}
+                    {transitionError && (
+                      <div className="text-xs text-destructive">{String(transitionError)}</div>
+                    )}
+                    {labData.nextLab && (
+                      <Button
+                        size="sm"
+                        disabled={!labData.canTransition || transitioning}
+                        onClick={() => transitionLab(id)}
+                      >
+                        {transitioning ? "Transitioning..." : `Advance to ${LAB_LABELS[labData.nextLab]}`}
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    {!labData.nextLab && (
+                      <Badge variant="secondary">Final LAB reached</Badge>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <ScoreMeter dossierId={id} />
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm text-muted-foreground uppercase tracking-wide">Workspace State</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Badge variant="outline">{dossier.macroState.replace(/_/g, " ")}</Badge>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+
+        {activePole && (
+          <div className={cn(
+            "flex flex-col border-l border-border/50 bg-background",
+            "w-full md:w-[420px] lg:w-[480px] shrink-0",
+            "fixed md:relative inset-0 md:inset-auto z-40 md:z-auto"
+          )}>
+            <div className="absolute top-3 right-3 md:hidden z-50">
+              <button
+                onClick={handleCloseChat}
+                className="p-2 rounded-lg bg-background border border-border/50 hover:bg-muted transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <PoleManagerChat
+              pole={activePole}
+              dossierId={id}
+              currentLab={currentLab}
+              existingSession={null}
+              onBack={handleCloseChat}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

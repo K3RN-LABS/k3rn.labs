@@ -1,0 +1,94 @@
+/**
+ * TicketPack v1 JSON Schema + validation runtime
+ */
+
+export const TICKETPACK_SCHEMA_V1 = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  $id: 'https://windboost.dev/schemas/ticketpack.v1.schema.json',
+  title: 'TicketPack v1',
+  type: 'object',
+  required: ['version', 'meta', 'project', 'prd', 'adrs', 'roadmap', 'tickets', 'prompts', 'runbook', 'skills'],
+} as const;
+
+import type { TicketPack } from './types';
+
+/**
+ * Validation runtime simple (sans lib externe)
+ * Vérifie les champs requis et les contraintes critiques
+ */
+export function validateTicketPack(pack: any): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  // Version
+  if (pack.version !== '1.0.0') {
+    errors.push('version must be 1.0.0');
+  }
+
+  // Meta
+  if (!pack.meta?.pack_id || pack.meta.pack_id.length < 8) {
+    errors.push('meta.pack_id must be at least 8 characters');
+  }
+  if (!pack.meta?.created_at) {
+    errors.push('meta.created_at is required');
+  }
+  if (pack.meta?.language !== 'fr') {
+    errors.push('meta.language must be "fr"');
+  }
+
+  // Project
+  if (!pack.project?.name || pack.project.name.length < 2) {
+    errors.push('project.name must be at least 2 characters');
+  }
+  if (!pack.project?.repo?.repo_name) {
+    errors.push('project.repo.repo_name is required');
+  }
+  if (!Array.isArray(pack.project?.repo?.important_paths) || pack.project.repo.important_paths.length === 0) {
+    errors.push('project.repo.important_paths must be a non-empty array');
+  }
+
+  // PRD
+  if (!pack.prd?.problem_statement || pack.prd.problem_statement.length < 10) {
+    errors.push('prd.problem_statement must be at least 10 characters');
+  }
+  if (!Array.isArray(pack.prd?.goals) || pack.prd.goals.length === 0) {
+    errors.push('prd.goals must be a non-empty array');
+  }
+
+  // ADRs
+  if (!Array.isArray(pack.adrs) || pack.adrs.length === 0) {
+    errors.push('adrs must be a non-empty array');
+  }
+
+  // Roadmap
+  if (!Array.isArray(pack.roadmap?.phases) || pack.roadmap.phases.length === 0) {
+    errors.push('roadmap.phases must be a non-empty array');
+  }
+
+  // Tickets
+  if (!Array.isArray(pack.tickets) || pack.tickets.length < 3) {
+    errors.push('tickets must have at least 3 items');
+  }
+
+  // Prompts
+  if (!pack.prompts?.global_prompt || pack.prompts.global_prompt.length < 50) {
+    errors.push('prompts.global_prompt must be at least 50 characters');
+  }
+  if (!Array.isArray(pack.prompts?.ticket_prompts) || pack.prompts.ticket_prompts.length === 0) {
+    errors.push('prompts.ticket_prompts must be a non-empty array');
+  }
+
+  // Skills
+  if (!pack.skills || typeof pack.skills !== 'object') {
+    errors.push('skills is required');
+  }
+
+  // Runbook
+  if (!Array.isArray(pack.runbook?.verification_commands) || pack.runbook.verification_commands.length === 0) {
+    errors.push('runbook.verification_commands must be a non-empty array');
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}

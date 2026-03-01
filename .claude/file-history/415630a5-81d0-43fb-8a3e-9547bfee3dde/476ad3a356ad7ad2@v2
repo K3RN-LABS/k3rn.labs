@@ -1,0 +1,108 @@
+:root {
+  /* Colors - Futuristic Dark Theme */
+  --bg-dark: #0a0a0f;
+  --bg-overlay: rgba(10, 10, 15, 0.95);
+  --bg-overlay-lighter: rgba(20, 20, 30, 0.9);
+  
+  /* Neon Accents */
+  --accent-primary: #00d9ff;
+  --accent-primary-glow: rgba(0, 217, 255, 0.6);
+  --accent-secondary: #ff6b35;
+  --accent-error: #ff4757;
+  
+  /* Text */
+  --text-primary: #ffffff;
+  --text-secondary: #a0a4b8;
+  --text-muted: #6b7280;
+  
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  
+  /* Typography */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-size-xs: 11px;
+  --font-size-sm: 13px;
+  --font-size-md: 15px;
+  --font-size-lg: 18px;
+  --font-size-xl: 24px;
+  
+  /* Borders */
+  --border-radius-sm: 8px;
+  --border-radius-md: 16px;
+  --border-radius-lg: 24px;
+  --border-radius-full: 9999px;
+  
+  /* Shadows & Effects */
+  --shadow-glow-primary: 0 0 30px var(--accent-primary-glow);
+  --shadow-glow-error: 0 0 30px rgba(255, 71, 87, 0.6);
+  --shadow-overlay: 0 8px 32px rgba(0, 0, 0, 0.6);
+  
+  /* Animation */
+  --transition-fast: 150ms ease-out;
+  --transition-medium: 250ms ease-out;
+  --transition-slow: 400ms ease-out;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-family);
+  color: var(--text-primary);
+  background: transparent;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+/* Utility Classes */
+.fade-in {
+  animation: fadeIn var(--transition-medium) forwards;
+}
+
+.fade-out {
+  animation: fadeOut var(--transition-medium) forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+/* Prevent text selection */
+.no-select {
+  -webkit-user-select: none;
+  user-select: none;
+}

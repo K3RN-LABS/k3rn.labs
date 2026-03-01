@@ -1,0 +1,73 @@
+"use client";
+
+import { useAuth } from "@/providers/auth-provider";
+import { useLanguageStore } from "@/store/language-store";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { LogOut, Settings, Library, User as UserIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+
+export function UserNav() {
+    const { user, signOut, setShowAuthModal } = useAuth();
+    const { t } = useLanguageStore();
+    const router = useRouter();
+
+    if (!user) {
+        return (
+            <Button
+                variant="ghost"
+                onClick={() => setShowAuthModal(true)}
+                className="rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all font-medium text-sm"
+            >
+                {t.auth.signIn}
+            </Button>
+        );
+    }
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full hover:bg-white/5 focus-visible:outline-none focus-visible:ring-0 transition-all overflow-hidden border-0">
+                    <Avatar className="h-10 w-10 border-0">
+                        <AvatarImage src={user.user_metadata?.avatar_url} alt={user.user_metadata?.full_name || user.email} className="object-cover" />
+                        <AvatarFallback className="bg-[#F75105] text-white font-medium text-sm">
+                            {user.email?.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                    </Avatar>
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-64 bg-[#2F323A] border-0 text-white rounded-xl shadow-2xl p-2 mt-2" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal p-3">
+                    <div className="flex flex-col space-y-1.5">
+                        <p className="text-sm font-medium leading-none text-white font-sans">{user.user_metadata?.full_name || "Utilisateur"}</p>
+                        <p className="text-xs leading-none text-gray-400 font-sans">
+                            {user.email}
+                        </p>
+                    </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-[#3A3D45] my-1" />
+                <DropdownMenuItem onClick={() => router.push("/workspace")} className="cursor-pointer hover:bg-[#3A3D45] focus:bg-[#3A3D45] rounded-lg px-3 py-2.5 transition-colors text-gray-200 focus:text-white">
+                    <Library className="mr-3 h-4 w-4 text-[#F75105]" />
+                    <span className="font-sans text-sm">{t.auth.library}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer hover:bg-[#3A3D45] focus:bg-[#3A3D45] rounded-lg px-3 py-2.5 transition-colors text-gray-200 focus:text-white">
+                    <Settings className="mr-3 h-4 w-4 text-gray-400" />
+                    <span className="font-sans text-sm">{t.auth.settings}</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-[#3A3D45] my-1" />
+                <DropdownMenuItem onClick={() => signOut()} className="cursor-pointer text-red-400 hover:text-red-300 hover:bg-red-500/10 focus:bg-red-500/10 rounded-lg px-3 py-2.5 transition-colors">
+                    <LogOut className="mr-3 h-4 w-4" />
+                    <span className="font-sans text-sm">{t.auth.logout}</span>
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
+}

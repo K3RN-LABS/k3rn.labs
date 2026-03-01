@@ -1,0 +1,72 @@
+<prompt>
+  <meta>
+    <project>Wind Boost</project>
+    <mode>Claude Code</mode>
+    <intent>Initialize Git + real atomic commits for state persistence changes</intent>
+    <commit_policy>atomic</commit_policy>
+  </meta>
+
+  <task_context>
+    <role>Senior Engineer</role>
+    <objective>
+      Convert the "logical commits" into real git commits by:
+      1) initializing git if missing
+      2) creating .gitignore if missing (Node/Next defaults)
+      3) committing changes in 3 atomic commits exactly matching:
+         - feat(state): add global persisted app store
+         - refactor(skills): use global store for stack
+         - refactor(ticketpack): persist draft in global store
+    </objective>
+
+    <definition_of_done>
+      <item>git repository initialized (if absent)</item>
+      <item>.gitignore exists and excludes node_modules, .next, logs, env files</item>
+      <item>3 real commits exist with the exact messages above</item>
+      <item>working tree clean</item>
+      <item>npm run build still passes</item>
+    </definition_of_done>
+  </task_context>
+
+  <rules>
+    <rule id="1">Do NOT squash commits.</rule>
+    <rule id="2">Do NOT mix unrelated changes between commits.</rule>
+    <rule id="3">If any file belongs to multiple commits, STOP and explain (we’ll split manually).</rule>
+  </rules>
+
+  <steps>
+    <step id="1">Check if git is initialized (git rev-parse --is-inside-work-tree).</step>
+    <step id="2">If not initialized: git init.</step>
+    <step id="3">Ensure .gitignore exists. If missing, create minimal Next.js/Node .gitignore (no secrets committed).</step>
+    <step id="4">Create commit 1:
+      Stage only:
+        - package.json (zustand dependency)
+        - src/store/appStore.ts
+      Commit message: feat(state): add global persisted app store
+    </step>
+    <step id="5">Create commit 2:
+      Stage only:
+        - src/app/page.tsx
+      Commit message: refactor(skills): use global store for stack
+    </step>
+    <step id="6">Create commit 3:
+      Stage only:
+        - src/app/ticketpack/page.tsx
+        - src/components/ticketpack/InputForm.tsx
+      Commit message: refactor(ticketpack): persist draft in global store
+    </step>
+    <step id="7">Run npm run build and report result.</step>
+    <step id="8">Output git log --oneline -n 5 and confirm working tree is clean.</step>
+  </steps>
+
+  <output_format>
+    <response>
+      <section name="actions"/>
+      <section name="commits"/>
+      <section name="verification"/>
+    </response>
+  </output_format>
+
+  <prefill_assistant>
+    <response><section name="actions">
+  </prefill_assistant>
+</prompt>

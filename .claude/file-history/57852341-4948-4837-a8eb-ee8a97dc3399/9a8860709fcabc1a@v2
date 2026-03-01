@@ -1,0 +1,85 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import type { AnalysisOutput } from "@/lib/analysis/types";
+
+export interface StoredProject {
+    id: string;
+    title: string;
+    text: string;
+    description: string;
+    globalScore: number;
+    recommendation: "GO" | "EXPLORE" | "PARK" | "KILL";
+    confidenceLevel: "LOW" | "MEDIUM" | "HIGH";
+    analysis: {
+        axes: Array<{ label: string; score: number; justification?: string }>;
+        synthesis: string;
+        risks: string[];
+    };
+    timestamp: string;
+    isDemo: boolean;
+    fullResult?: AnalysisOutput;
+}
+
+export function useProject(id: string | undefined) {
+    const [project, setProject] = useState<StoredProject | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        if (!id) {
+            setIsLoading(false);
+            return;
+        }
+
+        // Try k3rn_projects first
+        const projectsRaw = localStorage.getItem("k3rn_projects");
+        if (projectsRaw) {
+            try {
+                const projects: any[] = JSON.parse(projectsRaw);
+                const found = projects.find((p) => p.id === id);
+                if (found) {
+                    setProject(normalizeProject(found));
+                    setIsLoading(false);
+                    return;
+                }
+            } catch { /* ignore parse errors */ }
+        }
+
+        // Fallback: k3rn_active_project
+        const activeRaw = localStorage.getItem("k3rn_active_project");
+        if (activeRaw) {
+            try {
+                const active = JSON.parse(activeRaw);
+                if (active.id === id) {
+                    setProject(normalizeProject(active));
+                    setIsLoading(false);
+                    return;
+                }
+            } catch { /* ignore parse errors */ }
+        }
+
+        setIsLoading(false);
+    }, [id]);
+
+    return { project, isLoading };
+}
+
+function normalizeProject(raw: any): StoredProject {
+    return {
+        id: raw.id || "",
+        title: raw.title || raw.text || "Untitled",
+        text: raw.text || "",
+        description: raw.description || raw.text || "",
+        globalScore: raw.globalScore ?? raw.viabilityScore ?? 0,
+        recommendation: raw.recommendation ?? raw.classification ?? "EXPLORE",
+        confidenceLevel: raw.confidenceLevel ?? "MEDIUM",
+        analysis: {
+            axes: raw.analysis?.axes ?? [],
+            synthesis: raw.analysis?.synthesis ?? "",
+            risks: raw.analysis?.risks ?? [],
+        },
+        timestamp: raw.timestamp || new Date().toISOString(),
+        isDemo: raw.isDemo ?? false,
+        fullResult: raw.fullResult ?? undefined,
+    };
+}

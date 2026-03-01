@@ -1,0 +1,151 @@
+/**
+ * Project Context Summarizer
+ * Orchestrates all detectors and generates deterministic summary
+ */
+
+import type { ProjectContext } from './types';
+import type { RepoMetadata } from './repo-fetcher';
+import { detectFramework } from './detectors/framework.detector';
+import { detectLanguage, detectRuntime, detectPackageManager } from './detectors/language.detector';
+import { detectArchitecture, detectMonorepo } from './detectors/architecture.detector';
+import {
+  detectORM,
+  detectDatabase,
+  detectStateManagement,
+  detectBuildTool,
+} from './detectors/tooling.detector';
+import { detectTestFramework } from './detectors/testing.detector';
+
+/**
+ * Analyze repository and generate project context
+ */
+export function analyzeProject(metadata: RepoMetadata): ProjectContext {
+  const { tree, packageJson, info } = metadata;
+
+  // Run all detectors
+  const framework = detectFramework(packageJson);
+  const language = detectLanguage(packageJson, tree, info.language);
+  const runtime = detectRuntime(packageJson);
+  const packageManager = detectPackageManager(tree);
+  const architecture = detectArchitecture(tree);
+  const monorepo = detectMonorepo(packageJson, tree);
+  const orm = detectORM(packageJson);
+  const database = detectDatabase(packageJson);
+  const stateManagement = detectStateManagement(packageJson);
+  const buildTool = detectBuildTool(packageJson);
+  const testFramework = detectTestFramework(packageJson);
+
+  // Generate deterministic notes
+  const notes = generateNotes({
+    framework,
+    language,
+    runtime,
+    packageManager,
+    architecture,
+    monorepo,
+    orm,
+    database,
+    stateManagement,
+    buildTool,
+    testFramework,
+  });
+
+  return {
+    framework: framework?.value || null,
+    language: language?.value || null,
+    runtime: runtime?.value || null,
+    package_manager: packageManager?.value || null,
+    architecture_style: architecture?.value || null,
+    state_management: stateManagement?.value || null,
+    orm: orm?.value || null,
+    database: database?.value || null,
+    test_framework: testFramework?.value || null,
+    build_tool: buildTool?.value || null,
+    monorepo,
+    notes,
+  };
+}
+
+/**
+ * Generate deterministic notes from detection results
+ * NO LLM - Template-based generation only
+ */
+function generateNotes(detections: {
+  framework: any;
+  language: any;
+  runtime: any;
+  packageManager: any;
+  architecture: any;
+  monorepo: boolean;
+  orm: any;
+  database: any;
+  stateManagement: any;
+  buildTool: any;
+  testFramework: any;
+}): string {
+  const sections: string[] = [];
+
+  // Stack technique
+  if (detections.framework || detections.language || detections.runtime) {
+    const stack: string[] = [];
+    if (detections.language) stack.push(detections.language.value);
+    if (detections.framework) stack.push(detections.framework.value);
+    if (detections.runtime) stack.push(`(${detections.runtime.value})`);
+
+    sections.push(`**Stack technique:** ${stack.join(' + ')}`);
+  }
+
+  // Architecture
+  if (detections.architecture) {
+    sections.push(`**Architecture:** ${detections.architecture.value}`);
+  }
+
+  // Monorepo
+  if (detections.monorepo) {
+    sections.push(`**Structure:** Monorepo détecté`);
+  }
+
+  // Database & ORM
+  if (detections.database || detections.orm) {
+    const db: string[] = [];
+    if (detections.database) db.push(detections.database.value);
+    if (detections.orm) db.push(`via ${detections.orm.value}`);
+    sections.push(`**Base de données:** ${db.join(' ')}`);
+  }
+
+  // State management
+  if (detections.stateManagement) {
+    sections.push(`**Gestion d'état:** ${detections.stateManagement.value}`);
+  }
+
+  // Build tool
+  if (detections.buildTool) {
+    sections.push(`**Build:** ${detections.buildTool.value}`);
+  }
+
+  // Package manager
+  if (detections.packageManager) {
+    sections.push(`**Package manager:** ${detections.packageManager.value}`);
+  }
+
+  // Testing
+  if (detections.testFramework) {
+    sections.push(`**Tests:** ${detections.testFramework.value}`);
+  }
+
+  // Confidence summary
+  const highConfidence: string[] = [];
+  Object.entries(detections).forEach(([key, detection]) => {
+    if (detection && typeof detection === 'object' && detection.confidence === 'high') {
+      highConfidence.push(key);
+    }
+  });
+
+  if (sections.length === 0) {
+    return 'Analyse automatique : informations limitées détectées. Complétez manuellement si nécessaire.';
+  }
+
+  sections.push(`\n*Analyse basée sur ${highConfidence.length} détections haute confiance*`);
+
+  return sections.join('\n');
+}

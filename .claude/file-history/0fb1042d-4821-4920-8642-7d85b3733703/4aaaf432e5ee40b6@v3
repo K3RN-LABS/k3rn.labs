@@ -1,0 +1,194 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { SiteHeader } from "@/components/layout/site-header";
+import { useProfile } from "@/hooks/use-profile";
+import { useAuth } from "@/providers/auth-provider";
+import { useLanguageStore } from "@/store/language-store";
+import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Loader2, User, FlaskConical } from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+export default function SettingsPage() {
+    const router = useRouter();
+    const { user, isLoading: authLoading } = useAuth();
+    const { t } = useLanguageStore();
+    const { profile, isLoading: profileLoading, updateProfile, createProfile } = useProfile();
+
+    const [displayName, setDisplayName] = useState("");
+    const [entityType, setEntityType] = useState<"individual" | "company">("individual");
+    const [labName, setLabName] = useState("");
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Redirect if not authenticated
+    useEffect(() => {
+        if (!authLoading && !user) router.push("/");
+    }, [user, authLoading, router]);
+
+    // Populate form when profile loads
+    useEffect(() => {
+        if (profile) {
+            setDisplayName(profile.display_name || "");
+            setEntityType(profile.entity_type || "individual");
+            setLabName(profile.lab_name || "");
+        }
+    }, [profile]);
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSaving(true);
+        try {
+            const data = {
+                display_name: displayName,
+                entity_type: entityType,
+                lab_name: labName,
+            };
+            if (profile) {
+                await updateProfile(data);
+            } else {
+                await createProfile(data);
+            }
+            toast.success(t.settings.saved);
+        } catch (error: any) {
+            toast.error(t.settings.error, { description: error.message });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-background text-foreground font-sans">
+                <SiteHeader variant="app" />
+                <main className="pt-12 pb-40 px-8 w-full max-w-[800px] mx-auto flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </main>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-background text-foreground font-sans selection:bg-[--color-brand-primary]/30 flex flex-col overflow-x-hidden">
+            <SiteHeader variant="app" />
+
+            <main className="relative z-[1] flex-1 pt-12 pb-40 px-8 w-full max-w-[800px] mx-auto">
+                {/* Page heading */}
+                <div className="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <h1 className="text-[2.5rem] font-light text-white tracking-[-0.02em] leading-[1.1] mb-2">
+                        {t.settings.title}
+                    </h1>
+                    <p className="text-base text-[--color-text-muted]">
+                        {t.settings.subtitle}
+                    </p>
+                </div>
+
+                {/* Settings card */}
+                <div
+                    className="rounded-[var(--radius-2xl)] p-8 animate-in fade-in slide-in-from-bottom-4 duration-500"
+                    style={{
+                        background: "var(--color-bg-secondary)",
+                        border: "1px solid var(--color-border-subtle)",
+                        boxShadow: "inset 0 1px 0 rgba(0,0,0,0.2), inset 0 -1px 0 rgba(255,255,255,0.02)",
+                    }}
+                >
+                    <h2 className="text-lg font-medium text-white mb-6">
+                        {t.settings.profileSection}
+                    </h2>
+
+                    <form onSubmit={handleSave} className="space-y-6">
+                        {/* Display Name */}
+                        <div className="space-y-2">
+                            <Label htmlFor="settings-display-name" className="text-xs font-mono uppercase tracking-wider text-muted-foreground ml-1">
+                                {t.auth.displayName}
+                            </Label>
+                            <div className="relative group">
+                                <User className="absolute left-3 top-3 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                                <Input
+                                    id="settings-display-name"
+                                    type="text"
+                                    placeholder={t.settings.displayNamePlaceholder}
+                                    value={displayName}
+                                    onChange={(e) => setDisplayName(e.target.value)}
+                                    className="pl-10 h-11 bg-secondary/30 border-white/10 focus:border-primary/50 focus:ring-primary/20 transition-all font-light"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Entity Type */}
+                        <div className="space-y-2">
+                            <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground ml-1">
+                                {t.auth.entityType}
+                            </Label>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setEntityType("individual")}
+                                    className={cn(
+                                        "h-11 rounded-md text-sm font-medium transition-all duration-200 border",
+                                        entityType === "individual"
+                                            ? "bg-primary text-primary-foreground border-primary"
+                                            : "bg-secondary/30 text-muted-foreground border-white/10 hover:text-white hover:border-white/20"
+                                    )}
+                                >
+                                    {t.auth.entityIndividual}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setEntityType("company")}
+                                    className={cn(
+                                        "h-11 rounded-md text-sm font-medium transition-all duration-200 border",
+                                        entityType === "company"
+                                            ? "bg-primary text-primary-foreground border-primary"
+                                            : "bg-secondary/30 text-muted-foreground border-white/10 hover:text-white hover:border-white/20"
+                                    )}
+                                >
+                                    {t.auth.entityCompany}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Lab Name */}
+                        <div className="space-y-2">
+                            <Label htmlFor="settings-lab-name" className="text-xs font-mono uppercase tracking-wider text-muted-foreground ml-1">
+                                {t.auth.labName}
+                            </Label>
+                            <div className="relative group">
+                                <FlaskConical className="absolute left-3 top-3 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                                <Input
+                                    id="settings-lab-name"
+                                    type="text"
+                                    placeholder={t.settings.labNamePlaceholder}
+                                    value={labName}
+                                    onChange={(e) => setLabName(e.target.value)}
+                                    className="pl-10 h-11 bg-secondary/30 border-white/10 focus:border-primary/50 focus:ring-primary/20 transition-all font-light"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Save Button */}
+                        <div className="pt-2">
+                            <Button
+                                type="submit"
+                                className="h-11 px-8 bg-primary text-black font-bold tracking-wide hover:bg-primary/90 transition-all"
+                                disabled={isSaving}
+                            >
+                                {isSaving ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                        {t.settings.saving}
+                                    </>
+                                ) : (
+                                    t.settings.save
+                                )}
+                            </Button>
+                        </div>
+                    </form>
+                </div>
+            </main>
+        </div>
+    );
+}

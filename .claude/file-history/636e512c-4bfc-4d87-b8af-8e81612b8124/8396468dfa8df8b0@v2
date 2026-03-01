@@ -1,0 +1,110 @@
+
+// src/hooks/use-workflow.ts
+"use client";
+
+import { useState, useEffect } from "react";
+import type { LabStep } from "@/lib/workflow/definitions";
+
+interface WorkflowData {
+    workflow: {
+        id: string;
+        projectId: string;
+        currentStep: number;
+        totalSteps: number;
+        status: string;
+        completedSteps: string[];
+    } | null;
+    definition: {
+        id: string;
+        name: string;
+        steps: LabStep[];
+    } | null;
+}
+
+export function useWorkflow(projectId: string | undefined) {
+    const [data, setData] = useState<WorkflowData>({ workflow: null, definition: null });
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [isAdvancing, setIsAdvancing] = useState(false);
+
+    useEffect(() => {
+        if (!projectId) {
+            setIsLoading(false);
+            return;
+        }
+
+        fetchWorkflow();
+    }, [projectId]);
+
+    async function fetchWorkflow() {
+        if (!projectId) return;
+
+        try {
+            setIsLoading(true);
+            const res = await fetch(`/api/workflow?projectId=${projectId}`);
+            if (!res.ok) throw new Error('Failed to fetch workflow');
+            const json = await res.json();
+
+            if (json.workflow && json.definition) {
+                setData({
+                    workflow: json.workflow,
+                    definition: json.definition
+                });
+            } else {
+                setData({ workflow: null, definition: null });
+            }
+            setError(null);
+        } catch (err) {
+            console.error('Workflow fetch error:', err);
+            setError('Could not load workflow');
+            setData({ workflow: null, definition: null });
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    async function advanceStep() {
+        if (!projectId || !data.workflow) {
+            throw new Error('No active workflow');
+        }
+
+        try {
+            setIsAdvancing(true);
+            const res = await fetch('/api/workflow', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'ADVANCE_STEP',
+                    projectId
+                })
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.message || 'Failed to advance step');
+            }
+
+            const json = await res.json();
+
+            // Refresh workflow data
+            await fetchWorkflow();
+
+            return json.workflow;
+        } catch (err) {
+            console.error('Advance step error:', err);
+            throw err;
+        } finally {
+            setIsAdvancing(false);
+        }
+    }
+
+    return {
+        workflow: data.workflow,
+        definition: data.definition,
+        isLoading,
+        error,
+        isAdvancing,
+        refresh: fetchWorkflow,
+        advanceStep
+    };
+}

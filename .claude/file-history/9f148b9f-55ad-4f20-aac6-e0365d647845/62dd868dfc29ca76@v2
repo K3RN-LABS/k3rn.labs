@@ -1,0 +1,28 @@
+#!/usr/bin/env tsx
+
+import { getDb } from '../src/lib/db';
+
+async function main() {
+  console.log('🔄 Reindexing FTS...');
+
+  const db = getDb();
+
+  // Rebuild FTS index
+  db.prepare('DELETE FROM skills_fts').run();
+
+  db.prepare(`
+    INSERT INTO skills_fts(name, description, triggers, tags)
+    SELECT name, description, triggers_json, tags_json FROM skills
+  `).run();
+
+  const count = db.prepare('SELECT COUNT(*) as count FROM skills_fts').get() as { count: number };
+  console.log(`✅ Reindexed ${count.count} skills`);
+
+  db.close();
+  console.log('🎉 Reindexing complete!');
+}
+
+main().catch((error) => {
+  console.error('❌ Error:', error);
+  process.exit(1);
+});

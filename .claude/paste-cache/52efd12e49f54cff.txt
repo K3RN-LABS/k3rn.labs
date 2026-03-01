@@ -1,0 +1,25 @@
+Alors, je te fais un compte-rendu globalement, j'aime bien l'expérience de la page Dossier.
+
+En fait, par rapport au header, tu vois? Je réalise qu'il y a un bouton dans le header à côté du logo.
+
+Par exemple, si je suis sur la page Workspace Dossier, le bouton dans le header est "Dossier".
+
+Si je clique dessus, je suis dans le header. Mais si, par exemple, je retourne dans la capture d'une idée (donc, je suis sur la page Capture), le bouton dans le header est devenu "Capture".
+
+Donc, je pense que dans le header, il faut rajouter les boutons de navigation et mettre en évidence, très légèrement, le bouton de la page sur lequel on est déjà, pour pouvoir naviguer simplement en fonction des différentes pages qu'on peut accéder assez rapidement.
+
+Ça, c'est une première chose. Une deuxième chose, il y a vraiment à revoir la cohérence, l'équilibre et l'harmonie de la page Dossier.
+
+Concrètement, l'idée est bonne, mais ça doit s'aligner parfaitement au Brent Design.
+
+Tu vas dans le dossier Brent Design et il faut que ça soit vraiment une harmonie, une cohérence, un alignement.
+
+Parce que là, c'est un peu mal, par exemple, quand je clique sur "Nouveau Dossier", on a un gros bouton orange qui apparaît avec un +. Le contour devient orange, mais l'orange est très flashy, alors que pour les autres dossiers, c'est moins flashy.
+
+Quand je passe la souris sur un dossier, j'ai effectivement une icône "Paramètres" qui apparaît, un peu mal positionnée. La fenêtre qui s'ouvre vraiment au niveau du Brent Design n'est pas du tout harmonieux, pas du tout cohérent avec le reste.
+
+Le score du dossier est un peu mal placé aussi. On ne comprend pas trop ce qu'il signifie. C'est juste 70. C'est juste un chiffre.
+
+Donc, il faut que tu analyses complètement la page Dossier (en réalité, la page Workspace), et que tu fasses un vrai travail de refonte, totalement aligné au branding design.
+
+Quitte à utiliser même les skills qui a dans le dossier points agents. 

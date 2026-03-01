@@ -1,0 +1,165 @@
+# Troubleshooting Guide - Wind Boost
+
+## Problème: "Cannot find module './XXX.js'" au démarrage
+
+### Symptômes
+```
+Error: Cannot find module './331.js'
+Require stack:
+- /Users/user/Desktop/WINDBOOST/.next/server/webpack-runtime.js
+```
+
+### Cause
+Cache Next.js (`.next/`) corrompu. Cela arrive quand:
+- Changements de branches Git
+- Interruption brutale du build
+- Mise à jour de dépendances
+- Cache trop ancien (>7 jours)
+
+### Solutions
+
+#### ✅ Solution Recommandée: dev:safe
+```bash
+npm run dev:safe
+```
+Détecte et nettoie automatiquement le cache avant démarrage.
+
+#### 🔧 Solution Manuelle Rapide
+```bash
+npm run clean
+npm run dev
+```
+
+#### 🚀 Solution Forcée (si persistant)
+```bash
+FORCE_CLEAN=true npm run dev:safe
+```
+
+#### ⚡ Solution Ultra-Rapide (terminal)
+```bash
+rm -rf .next && npm run dev
+```
+
+---
+
+## Problème: Build échoue avec erreurs de modules
+
+### Solution
+```bash
+npm run build:clean
+```
+Nettoie le cache puis rebuild depuis zéro.
+
+---
+
+## Problème: Erreurs TypeScript après git pull
+
+### Solution
+```bash
+npm run clean
+npm install
+npm run dev
+```
+
+---
+
+## Problème: "Port 3000 already in use"
+
+### Solution
+```bash
+# Tuer tous les processus Next.js
+pkill -f "next dev"
+
+# Ou tuer le processus sur le port 3000
+lsof -ti:3000 | xargs kill -9
+
+# Puis redémarrer
+npm run dev
+```
+
+---
+
+## Scripts de Maintenance
+
+| Script | Usage | Quand l'utiliser |
+|--------|-------|------------------|
+| `npm run clean` | Nettoyage complet | Après git pull, problèmes persistants |
+| `npm run dev:safe` | Dev avec auto-clean | Démarrage quotidien (recommandé) |
+| `npm run dev:clean` | Clean + dev | Après changement de branche |
+| `npm run build:clean` | Clean + build | Build de production après problèmes |
+
+---
+
+## Prévention
+
+### ✅ Bonnes Pratiques
+
+1. **Toujours utiliser `dev:safe` au lieu de `dev`**
+   ```bash
+   npm run dev:safe
+   ```
+
+2. **Nettoyer après changement de branche**
+   ```bash
+   git checkout autre-branche
+   npm run clean
+   npm run dev
+   ```
+
+3. **Nettoyer avant build production**
+   ```bash
+   npm run build:clean
+   ```
+
+4. **Ne jamais committer `.next/`**
+   (déjà dans .gitignore)
+
+### ❌ À Éviter
+
+- ❌ Interrompre brutalement le serveur (Ctrl+C violent)
+- ❌ Modifier manuellement les fichiers dans `.next/`
+- ❌ Committer `.next/` dans Git
+- ❌ Ignorer les warnings de cache
+
+---
+
+## Diagnostic Avancé
+
+Si les solutions ci-dessus ne fonctionnent pas:
+
+### 1. Vérifier Node.js
+```bash
+node --version  # Devrait être >= 18.17.0
+npm --version   # Devrait être >= 9.0.0
+```
+
+### 2. Réinstaller les dépendances
+```bash
+rm -rf node_modules package-lock.json
+npm install
+```
+
+### 3. Vérifier l'espace disque
+```bash
+df -h .
+```
+
+### 4. Logs détaillés
+```bash
+DEBUG=* npm run dev 2>&1 | tee debug.log
+```
+
+---
+
+## Contact Support
+
+Si le problème persiste après avoir essayé toutes les solutions:
+
+1. Exécuter: `npm run clean && npm install && npm run dev`
+2. Capturer les logs: `npm run dev 2>&1 | tee error.log`
+3. Créer une issue avec `error.log`
+
+---
+
+**Dernière mise à jour:** 2026-02-15
+**Auteur:** Claude Code

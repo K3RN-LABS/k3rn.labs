@@ -1,0 +1,59 @@
+/**
+ * K3RN.LABS — Build canonical AnalysisInput from frontend capture data
+ */
+
+import type { AnalysisInput, AnalysisInputFile, AnalysisInputLink } from './types';
+import { SCHEMA_VERSION } from './constants';
+
+interface BuildCanonicalInputParams {
+  text: string;
+  files: { name: string; type: string; size: number }[];
+  links: string[];
+  isVoice?: boolean;
+  lang?: string;
+}
+
+function mapFileType(mimeType: string): 'pdf' | 'image' | 'text' {
+  if (mimeType.includes('pdf')) return 'pdf';
+  if (mimeType.startsWith('image/')) return 'image';
+  return 'text';
+}
+
+export function buildCanonicalInput(params: BuildCanonicalInputParams): AnalysisInput {
+  const { text, files, links, isVoice = false, lang = 'fr' } = params;
+
+  const inputFiles: AnalysisInputFile[] = files.map((f) => ({
+    file_id: crypto.randomUUID(),
+    type: mapFileType(f.type),
+    size_kb: Math.round(f.size / 1024),
+  }));
+
+  const inputLinks: AnalysisInputLink[] = links.map((url) => ({
+    url,
+    type: 'web' as const,
+  }));
+
+  return {
+    meta: {
+      schema_version: SCHEMA_VERSION,
+      request_id: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+      language: lang,
+    },
+    idea: {
+      idea_id: crypto.randomUUID(),
+      state: 'CAPTURED',
+    },
+    inputs: {
+      ...(text.trim() && {
+        text: {
+          content: text,
+          source: isVoice ? 'voice_transcript' as const : 'typed' as const,
+          length: text.length,
+        },
+      }),
+      ...(inputLinks.length > 0 && { links: inputLinks }),
+      ...(inputFiles.length > 0 && { files: inputFiles }),
+    },
+  };
+}

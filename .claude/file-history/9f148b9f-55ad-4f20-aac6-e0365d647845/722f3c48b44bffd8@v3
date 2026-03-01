@@ -1,0 +1,152 @@
+'use client';
+
+import { useState } from 'react';
+import type { Ticket, RoadmapPhase } from '@/lib/ticketpack/types';
+
+interface TicketListProps {
+  tickets: Ticket[];
+  phases: RoadmapPhase[];
+}
+
+export default function TicketList({ tickets, phases }: TicketListProps) {
+  const [selectedPhase, setSelectedPhase] = useState<string>('all');
+  const [expandedTicket, setExpandedTicket] = useState<string | null>(null);
+
+  const filteredTickets =
+    selectedPhase === 'all'
+      ? tickets
+      : tickets.filter((t) => t.phase_id === selectedPhase);
+
+  const getTypeVariant = (type: string): 'default' | 'success' => {
+    // Only use success (green) variant for task
+    return type === 'task' ? 'success' : 'default';
+  };
+
+  return (
+    <div className="card">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--sp-4)' }}>
+        <h3 className="h2">
+          Tickets ({filteredTickets.length})
+        </h3>
+
+        <select
+          className="input"
+          value={selectedPhase}
+          onChange={(e) => setSelectedPhase(e.target.value)}
+        >
+          <option value="all">Toutes les phases</option>
+          {phases.map((phase) => (
+            <option key={phase.phase_id} value={phase.phase_id}>
+              {phase.phase_id}: {phase.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
+        {filteredTickets.map((ticket) => (
+          <div
+            key={ticket.ticket_id}
+            className="ticket-card"
+          >
+            <div
+              className="ticket-header"
+              onClick={() =>
+                setExpandedTicket(
+                  expandedTicket === ticket.ticket_id ? null : ticket.ticket_id
+                )
+              }
+            >
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginBottom: 'var(--sp-1)' }}>
+                    <span className="text-small" style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>
+                      {ticket.ticket_id}
+                    </span>
+                    <span className={getTypeVariant(ticket.type) === 'success' ? 'pill pill-success' : 'pill'}>
+                      {ticket.type}
+                    </span>
+                    <span className="pill">
+                      {ticket.phase_id}
+                    </span>
+                  </div>
+                  <h4 className="h3">{ticket.title}</h4>
+                </div>
+                <span className="text-muted">
+                  {expandedTicket === ticket.ticket_id ? '▼' : '▶'}
+                </span>
+              </div>
+            </div>
+
+            {expandedTicket === ticket.ticket_id && (
+              <div className="ticket-details">
+                <div>
+                  <p className="input-label" style={{ marginBottom: 'var(--sp-1)' }}>
+                    Description:
+                  </p>
+                  <p className="text-small text-muted">{ticket.description}</p>
+                </div>
+
+                {ticket.dependencies.length > 0 && (
+                  <div>
+                    <p className="input-label" style={{ marginBottom: 'var(--sp-1)' }}>
+                      Dépendances:
+                    </p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-1)' }}>
+                      {ticket.dependencies.map((dep) => (
+                        <span
+                          key={dep}
+                          className="pill"
+                          style={{ background: 'rgba(245, 158, 11, 0.1)', borderColor: 'rgba(245, 158, 11, 0.2)', color: '#92400E' }}
+                        >
+                          {dep}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <p className="input-label" style={{ marginBottom: 'var(--sp-1)' }}>
+                    Critères d'acceptation:
+                  </p>
+                  <ul style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-1)', listStyle: 'none', padding: 0 }}>
+                    {ticket.acceptance_criteria.map((criterion, i) => (
+                      <li key={i} className="text-small text-muted" style={{ display: 'flex', alignItems: 'flex-start' }}>
+                        <span style={{ color: 'var(--primary-700)', marginRight: 'var(--sp-2)' }}>✓</span>
+                        {criterion}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {ticket.risks.length > 0 && (
+                  <div>
+                    <p className="input-label" style={{ marginBottom: 'var(--sp-1)' }}>Risques:</p>
+                    {ticket.risks.map((risk, i) => (
+                      <div key={i} className="risk-card">
+                        <p className="text-small" style={{ color: '#991B1B' }}>
+                          <strong>⚠ {risk.risk}</strong>
+                        </p>
+                        <p className="text-small" style={{ color: '#B91C1C' }}>→ {risk.mitigation}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ paddingTop: 'var(--sp-2)', borderTop: '1px solid var(--divider)' }}>
+                  <p className="text-small text-muted">
+                    Prompt Claude Code:{' '}
+                    <code style={{ background: 'var(--bg-2)', padding: '2px 4px', borderRadius: '4px', fontFamily: 'var(--font-mono)' }}>
+                      {ticket.claude_code_prompt_ref}
+                    </code>
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,35 @@
+# Database
+DATABASE_URL="postgresql://postgres.grdghxkowakgiqhybnrp:K3rnLabs2024Dev@aws-0-eu-central-1.pooler.supabase.com:6543/postgres"
+DIRECT_URL="postgresql://postgres:K3rnLabs2024Dev@db.grdghxkowakgiqhybnrp.supabase.co:5432/postgres"
+
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL="https://grdghxkowakgiqhybnrp.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdyZGdoeGtvd2FrZ2lxaHlibnJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyMDY1NDAsImV4cCI6MjA4Nzc4MjU0MH0.kjg4-r24_IvuOPTFLylKVUImq0-4oIA8AUckWC9tYCI"
+SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdyZGdoeGtvd2FrZ2lxaHlibnJwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjIwNjU0MCwiZXhwIjoyMDg3NzgyNTQwfQ.-SD5QiyaIPhpmqctvUvI6O0VLqhLjjzSKsxJHskhjxE"
+
+# Supabase Storage
+SUPABASE_STORAGE_BUCKET="exports"
+
+# Upstash Redis
+UPSTASH_REDIS_REST_URL="https://wealthy-squid-51406.upstash.io"
+UPSTASH_REDIS_REST_TOKEN="AcjOAAIncDI4NDcyNmVlY2M5Yjc0NzA3YWI0YjVlODg3MDM0NGMyYnAyNTE0MDY"
+
+# Anthropic Claude
+ANTHROPIC_API_KEY="sk-ant-..."
+
+# OpenAI
+OPENAI_API_KEY="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"
+
+# n8n MCP Gateway (Verdent → n8n → Zapier)
+N8N_API_URL="https://agent.k3rnlabs.com"
+N8N_API_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwYmYyMWRlOS04MzUyLTRlMGEtYTI4MC1lNDU3OGZhYTUzMWMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiYTliMWRlZGMtZmJiMy00ODhlLWJjYmUtZTQ2MDA5NjZkMmU1IiwiaWF0IjoxNzcyMjMzOTIwfQ.yCKok82QwQ2CsTVcif-AR0qgXrR42yljq201Z_DwhjA"
+N8N_WEBHOOK_SECRET="<secret_à_générer>"
+# ZAPIER_* ne va PAS ici — configuré dans n8n Credentials uniquement
+
+# Stripe
+STRIPE_SECRET_KEY="sk_test_..."
+STRIPE_WEBHOOK_SECRET="whsec_..."
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_..."
+
+# App
+NEXT_PUBLIC_APP_URL="http://localhost:3000"

@@ -1,0 +1,8 @@
+export default function BrainstormingPage() {
+  return (
+    <div className="p-8">
+      <h1 className="text-3xl font-semibold text-white mb-2">brainstorming</h1>
+      <p className="text-zinc-400">Espace de génération et exploration d'idées</p>
+    </div>
+  );
+}

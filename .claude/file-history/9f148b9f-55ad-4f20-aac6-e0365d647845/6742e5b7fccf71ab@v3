@@ -1,0 +1,93 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getDb } from '@/lib/db';
+import { syncGitHubSource } from '@/lib/sources/github-sync';
+import { syncLocalSource } from '@/lib/sources/local-sync';
+
+export const dynamic = 'force-dynamic';
+
+/**
+ * POST /api/sources/sync
+ * Synchronize a skill source (fetch and index external skills)
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { sourceId } = body;
+
+    if (!sourceId) {
+      return NextResponse.json({ error: 'sourceId required' }, { status: 400 });
+    }
+
+    const db = getDb();
+
+    // Fetch source configuration
+    const source = db
+      .prepare('SELECT * FROM skill_sources WHERE id = ?')
+      .get(sourceId) as any;
+
+    if (!source) {
+      return NextResponse.json({ error: 'Source not found' }, { status: 404 });
+    }
+
+    if (!source.enabled) {
+      return NextResponse.json({ error: 'Source is disabled' }, { status: 400 });
+    }
+
+    // Parse config
+    const config = JSON.parse(source.config_json || '{}');
+
+    let syncResult;
+
+    // Dispatch to appropriate sync handler based on type
+    switch (source.type) {
+      case 'github':
+        if (!config.repo_url) {
+          return NextResponse.json({ error: 'repo_url required in config' }, { status: 400 });
+        }
+        syncResult = await syncGitHubSource(db, sourceId, config);
+        break;
+
+      case 'local':
+        syncResult = await syncLocalSource(db, sourceId, config);
+        break;
+
+      default:
+        return NextResponse.json({ error: `Unknown source type: ${source.type}` }, { status: 400 });
+    }
+
+    // Update last_sync_at
+    db.prepare('UPDATE skill_sources SET last_sync_at = datetime("now") WHERE id = ?').run(
+      sourceId
+    );
+
+    return NextResponse.json({
+      success: true,
+      source_id: sourceId,
+      source_name: source.name,
+      ...syncResult,
+    });
+  } catch (error: any) {
+    console.error('[API] Sync error:', error);
+
+    // Return structured error with step info if available
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message || 'Sync failed',
+        step: error.step || 'unknown',
+        httpStatus: error.httpStatus,
+        indexed: 0,
+        updated: 0,
+        removed: 0,
+        errors: [
+          {
+            step: error.step || 'unknown',
+            message: error.message || 'Unknown error',
+            httpStatus: error.httpStatus,
+          },
+        ],
+      },
+      { status: error.httpStatus || 500 }
+    );
+  }
+}

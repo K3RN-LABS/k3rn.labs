@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+"""Verification script for backend foundation setup."""
+
+import sys
+from pathlib import Path
+
+# Add project root to path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+
+def verify_imports():
+    """Verify all core modules can be imported."""
+    print("🔍 Verifying imports...")
+
+    try:
+        from app import config, database, logging, main, queue, storage
+        from app.api import health
+
+        print("  ✓ All core modules importable")
+        return True
+    except ImportError as e:
+        print(f"  ✗ Import failed: {e}")
+        return False
+
+
+def verify_config():
+    """Verify configuration can be loaded."""
+    print("🔍 Verifying configuration...")
+
+    try:
+        from app.config import settings
+
+        required_fields = [
+            "database_url",
+            "redis_url",
+            "s3_endpoint_url",
+            "s3_access_key",
+            "s3_secret_key",
+        ]
+
+        for field in required_fields:
+            if not hasattr(settings, field):
+                print(f"  ✗ Missing config field: {field}")
+                return False
+
+        print("  ✓ Configuration valid")
+        return True
+    except Exception as e:
+        print(f"  ✗ Config validation failed: {e}")
+        return False
+
+
+def verify_logging():
+    """Verify logging setup works."""
+    print("🔍 Verifying logging...")
+
+    try:
+        from app.logging import get_logger, setup_logging
+
+        setup_logging()
+        logger = get_logger(__name__)
+        logger.info("Test log message")
+
+        print("  ✓ Logging configured")
+        return True
+    except Exception as e:
+        print(f"  ✗ Logging setup failed: {e}")
+        return False
+
+
+def verify_structure():
+    """Verify project structure."""
+    print("🔍 Verifying project structure...")
+
+    required_files = [
+        "app/__init__.py",
+        "app/main.py",
+        "app/config.py",
+        "app/database.py",
+        "app/queue.py",
+        "app/storage.py",
+        "app/logging.py",
+        "app/api/__init__.py",
+        "app/api/health.py",
+        "alembic/env.py",
+        "alembic.ini",
+        "tests/__init__.py",
+        "tests/test_smoke.py",
+        ".env.example",
+        "pyproject.toml",
+        "README.md",
+    ]
+
+    missing = []
+    for file_path in required_files:
+        full_path = project_root / file_path
+        if not full_path.exists():
+            missing.append(file_path)
+
+    if missing:
+        print("  ✗ Missing files:")
+        for f in missing:
+            print(f"    - {f}")
+        return False
+
+    print("  ✓ All required files present")
+    return True
+
+
+def main():
+    """Run all verification checks."""
+    print("=" * 60)
+    print("kern.labs Backend - Foundation Verification")
+    print("Phase 2 - Ticket 01")
+    print("=" * 60)
+    print()
+
+    checks = [
+        verify_structure,
+        verify_imports,
+        verify_config,
+        verify_logging,
+    ]
+
+    results = []
+    for check in checks:
+        result = check()
+        results.append(result)
+        print()
+
+    print("=" * 60)
+    if all(results):
+        print("✅ All verification checks passed!")
+        print()
+        print("Next steps:")
+        print("  1. docker-compose up -d  # Start dependencies")
+        print("  2. alembic revision -m 'baseline'  # Create baseline migration")
+        print("  3. alembic upgrade head  # Apply migrations")
+        print("  4. uvicorn app.main:app --reload  # Run application")
+        print("  5. pytest tests/  # Run tests")
+        return 0
+    else:
+        print("❌ Some verification checks failed")
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

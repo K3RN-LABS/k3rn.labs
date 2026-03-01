@@ -1,0 +1,107 @@
+TICKET_00.2 — Core v0 “comme la vidéo” : Orchestrateur + SEP Postgres (atomic)
+
+OBJECTIF
+Créer un workflow n8n minimal qui fonctionne en boucle :
+INPUT -> ORCHESTRATEUR++ -> (SEP_RETRIEVE tool) -> (DEFAULT_RESPONSE tool) -> (SEP_APPEND tool) -> output.
+Aucun pôle. Aucun sub-workflow. On valide le pattern multi-agent + mémoire persistante.
+
+WORKFLOW
+Nom exact: "K3rn.labs — Core Engine (v0-orch)"
+
+PREREQUIS
+- Un credential Postgres existe dans n8n et pointe vers ton RDS (SSL OK).
+- Les tables existent déjà (sep_threads, sep_messages). Si elles n’existent pas, créer un node Postgres "SEP_MIGRATION" pour exécuter le SQL à la fin.
+
+NODES A CREER (ordre strict + noms exacts)
+
+1) Chat Trigger: "INPUT"
+
+2) Code: "SESSION_RESOLVER"
+Return JSON:
+{
+  "user_id": "boss",
+  "thread_id": "k3rn:default",
+  "message": $json.chatInput,
+  "timestamp": new Date().toISOString()
+}
+
+3) Postgres node (tool): "SEP_RETRIEVE"
+- Credential: ton Postgres RDS
+- Operation: Execute Query
+- Query (paramétrée si possible):
+SELECT role, content, metadata, created_at
+FROM sep_messages
+WHERE thread_id = {{$json.thread_id}} AND user_id = {{$json.user_id}}
+ORDER BY created_at DESC
+LIMIT 12;
+
+Output attendu: liste des derniers messages du thread.
+
+4) AI Agent: "DEFAULT_RESPONSE"
+- Model: OpenAI gpt-4o
+- Timeout: 200000ms
+- System Prompt:
+You are K3rn.labs v0 execution agent.
+Given the user message and the SEP context, produce:
+1) Summary (max 2 sentences)
+2) Answer / first move
+3) ONE next question (only one).
+No fluff.
+- User Prompt:
+USER: {{ $('SESSION_RESOLVER').item.json.message }}
+SEP_CONTEXT_LAST_MESSAGES: {{ $('SEP_RETRIEVE').item.json }}
+Return plain text.
+
+5) Postgres node (tool): "SEP_APPEND"
+- Credential: ton Postgres RDS
+- Operation: Execute Query
+- Query:
+INSERT INTO sep_threads(thread_id, user_id, title, created_at, updated_at)
+VALUES ({{$json.thread_id}}, {{$json.user_id}}, 'default', now(), now())
+ON CONFLICT (thread_id) DO UPDATE SET updated_at = now();
+
+INSERT INTO sep_messages(thread_id, user_id, role, content, metadata, created_at)
+VALUES
+  ({{$json.thread_id}}, {{$json.user_id}}, 'user', {{$json.message}}, '{}'::jsonb, now()),
+  ({{$json.thread_id}}, {{$json.user_id}}, 'assistant', {{$json.assistant_output}}, '{"workflow":"K3rn.labs — Core Engine (v0-orch)","version":"0.2"}'::jsonb, now());
+
+IMPORTANT: Le second INSERT doit recevoir assistant_output depuis DEFAULT_RESPONSE.
+
+6) AI Agent: "ORCHESTRATEUR++"
+- Model: OpenAI gpt-4o-mini
+- Timeout: 200000ms
+- Tools disponibles:
+  - SEP_RETRIEVE (Postgres)
+  - DEFAULT_RESPONSE (AI Agent)
+  - SEP_APPEND (Postgres)
+- System Prompt (style “vidéo” + durci):
+You are ORCHESTRATEUR++.
+Critical rule: DO NOT plan. ACT.
+For every incoming message:
+STEP 1: Call tool SEP_RETRIEVE with user_id, thread_id.
+STEP 2: Call tool DEFAULT_RESPONSE with message + retrieved context.
+STEP 3: Call tool SEP_APPEND to persist both user message and assistant output.
+STEP 4: Return the assistant output to the user.
+Never describe steps. Execute them.
+- User Prompt:
+user_id={{ $('SESSION_RESOLVER').item.json.user_id }}
+thread_id={{ $('SESSION_RESOLVER').item.json.thread_id }}
+message={{ $('SESSION_RESOLVER').item.json.message }}
+
+CONNECTIONS
+INPUT -> SESSION_RESOLVER -> ORCHESTRATEUR++
+(ORCHESTRATEUR++ appelle les tools; pas de connexions main nécessaires entre tools)
+
+MAPPING DONNEES POUR LES TOOLS
+- Pour SEP_RETRIEVE: fournir {user_id, thread_id}
+- Pour DEFAULT_RESPONSE: fournir {message, sep_context}
+- Pour SEP_APPEND: fournir {user_id, thread_id, message, assistant_output}
+
+VALIDATION
+1) Exécuter: "J'ai une idée de SaaS..."
+2) Vérifier en DB: 2 lignes ajoutées dans sep_messages (user + assistant)
+3) Exécuter un 2e message, vérifier que SEP_RETRIEVE remonte l’historique.
+
+OPTION MIGRATION SI TABLES ABSENTES (uniquement si erreur)
+Créer node Postgres "SEP_MIGRATION" avec ce SQL puis rerun:
+(create tables sep_threads, sep_messages, index)

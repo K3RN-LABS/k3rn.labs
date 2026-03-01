@@ -1,0 +1,58 @@
+/**
+ * Shared types for Skill Sources sync pipeline
+ */
+
+export interface GitHubConfig {
+  repo_url: string;
+  branch?: string;
+  patterns?: string[];
+  github_token?: string;
+}
+
+export interface LocalConfig {
+  base_path?: string; // default: .agent/skills
+}
+
+export type SourceConfig = GitHubConfig | LocalConfig;
+
+/**
+ * Sync error with step tracking for diagnostic
+ */
+export interface SyncError {
+  step: 'fetch_tree' | 'parse_file' | 'write_db' | 'scan_local';
+  message: string;
+  httpStatus?: number;
+  path?: string;
+}
+
+/**
+ * Sync result with full diagnostic data
+ */
+export interface SyncResult {
+  indexed: number;
+  updated: number;
+  removed: number;
+  errors: SyncError[];
+  scannedPaths: string[];
+  detectedFiles: string[];
+}
+
+/**
+ * Detected skill file before parsing
+ */
+export interface DetectedSkill {
+  path: string;
+  slug: string;
+}
+
+/**
+ * Skill metadata extracted from SKILL.md
+ */
+export interface SkillMetadata {
+  name: string;
+  description: string;
+  tags: string[];
+  triggers: string[];
+  license: string | null;
+  version: string | null;
+}

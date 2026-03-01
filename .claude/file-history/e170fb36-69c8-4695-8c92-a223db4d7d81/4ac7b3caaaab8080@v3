@@ -1,0 +1,99 @@
+# Plan : Passer en français et corriger la capitalisation
+
+## Objectif
+1. Changer la langue par défaut en français (lang="fr") ✅
+2. Corriger la capitalisation : majuscule en début de phrase ✅
+3. EXCEPTION : garder les noms k3rn, k0, k1, etc. en minuscules
+4. **NOUVEAU** : Mettre des majuscules sur TOUS les noms de sections (Dashboard, Cortex, Labs, etc.) SAUF k0, k1, k3rn
+
+## Fichiers à modifier
+
+### 1. Layout racine
+**Fichier** : [src/app/layout.tsx](src/app/layout.tsx:26)
+- Changer `lang="en"` → `lang="fr"`
+- Mettre à jour metadata en français
+
+### 2. Composants Shell
+
+**Fichier** : [src/components/shell/SidebarNav.tsx](src/components/shell/SidebarNav.tsx)
+- Garder "k3rn" en minuscule (ligne ~43)
+- Corriger "app shell v1" → "App shell v1"
+
+**Fichier** : [src/components/shell/Topbar.tsx](src/components/shell/Topbar.tsx)
+- Corriger "contexte projet actif" → "Contexte projet actif"
+- Corriger "aide" → "Aide"
+
+### 3. Pages principales
+
+**[src/app/(app)/dashboard/page.tsx](src/app/(app)/dashboard/page.tsx)** :
+- Titre : garder "dashboard" en minuscule
+- Description : "Vue d'ensemble..." → OK (déjà majuscule)
+
+**[src/app/(app)/cortex/page.tsx](src/app/(app)/cortex/page.tsx)** :
+- Titre : garder "cortex" en minuscule
+- Description : "Centre de gestion..." → OK
+
+**[src/app/(app)/projects/page.tsx](src/app/(app)/projects/page.tsx)** :
+- Titre : garder "projects" en minuscule
+- Description : "Gestion et suivi..." → OK
+
+**[src/app/(app)/settings/page.tsx](src/app/(app)/settings/page.tsx)** :
+- Titre : garder "settings" en minuscule
+- Description : "Configuration de..." → OK
+
+### 4. Pages Labs
+
+**[src/app/(app)/labs/k0/page.tsx](src/app/(app)/labs/k0/page.tsx)** :
+- Titre : garder "k0" en minuscule
+- Description : "Phase initiale..." → OK
+
+**[src/app/(app)/labs/brainstorming/page.tsx](src/app/(app)/labs/brainstorming/page.tsx)** :
+- Titre : garder "brainstorming" en minuscule
+- Description : "Espace de génération..." → OK
+
+**[src/app/(app)/labs/system/page.tsx](src/app/(app)/labs/system/page.tsx)** :
+- Titre : garder "system" en minuscule
+- Description : "Architecture et structure..." → OK
+
+**[src/app/(app)/labs/execution/page.tsx](src/app/(app)/labs/execution/page.tsx)** :
+- Titre : garder "execution" en minuscule
+- Description : "Mise en œuvre..." → OK
+
+**[src/app/(app)/labs/pitch/page.tsx](src/app/(app)/labs/pitch/page.tsx)** :
+- Titre : garder "pitch" en minuscule
+- Description : "Préparation et présentation..." → OK
+
+## Règle de capitalisation MISE À JOUR
+- **Majuscule** : TOUT (début de phrase, noms de sections, etc.)
+- **Minuscule** : UNIQUEMENT k3rn, k0, k1, k2, etc. (marque et fonctions k)
+
+## Fichiers supplémentaires à modifier
+
+### Navigation (SidebarNav.tsx)
+- "dashboard" → "Dashboard"
+- "cortex" → "Cortex"
+- "labs" → "Labs"
+- "projects" → "Projects"
+- "settings" → "Settings"
+- "brainstorming" → "Brainstorming"
+- "system" → "System"
+- "execution" → "Execution"
+- "pitch" → "Pitch"
+- GARDER "k0" en minuscule
+
+### Topbar (Topbar.tsx)
+- Mettre les titres retournés en majuscule sauf k0
+
+### Toutes les pages
+- Titres des pages en majuscule (Dashboard, Cortex, Labs, etc.)
+- SAUF k0 qui reste en minuscule
+
+## Vérification
+1. Lancer `npm run dev`
+2. Vérifier que l'attribut lang="fr" est bien présent dans le HTML
+3. Vérifier visuellement toutes les pages pour la capitalisation
+4. L'erreur d'hydratation devrait disparaître
+
+## Impact
+- Résout l'erreur d'hydratation (mismatch lang="en" vs lang="fr")
+- Améliore la cohérence visuelle avec des majuscules appropriées

@@ -1,0 +1,56 @@
+<prompt>
+  <task_context>
+    <role>Senior Full-Stack Engineer</role>
+    <project>Implémentation système saisie vocale et joint de fichier dans ticketpack generator </project>
+    <repo>implementation-systeme-saisie-vocale-et-joint-de-fichier-dans-ticketpack-generator-</repo>
+    <deliverable_type>feature</deliverable_type>
+    <objective>
+      Implémenter Implémentation système saisie vocale et joint de fichier dans ticketpack generator  en suivant les tickets chronologiques du TicketPack.
+      Chaque ticket inclut un prompt XML spécifique pour guider l'implémentation.
+    </objective>
+  </task_context>
+
+  <repo_background>
+    <stack>
+      <tech>React</tech>
+      <tech>TypeScript</tech>
+    </stack>
+    <important_paths>
+      <path>README.md</path>
+      <path>package.json</path>
+      <path>tsconfig.json</path>
+      <path>src/</path>
+    </important_paths>
+    <notes>Généré automatiquement par Wind Boost TicketPack Generator</notes>
+  </repo_background>
+
+
+
+  <workflow>
+    <step id="1">Lire le TicketPack complet (PRD, ADRs, Roadmap, Tickets)</step>
+    <step id="2">Pour chaque ticket dans l'ordre chronologique:
+      <substep>a) Vérifier que les dépendances sont résolues</substep>
+      <substep>b) Utiliser le prompt XML spécifique du ticket (PROMPT-T-XXX)</substep>
+      <substep>c) Implémenter selon le workflow: explore → plan → implement → verify</substep>
+      <substep>d) Marquer le ticket comme terminé avant de passer au suivant</substep>
+    </step>
+    <step id="3">Vérifier les critères de sortie de chaque phase</step>
+    <step id="4">Exécuter le runbook de vérification finale</step>
+  </workflow>
+
+  <conventions>
+    <rule>Respecter strictement la stack technique définie dans les ADRs</rule>
+    <rule>Ne pas sauter de tickets ou modifier l'ordre sans validation</rule>
+    <rule>Commit après chaque ticket terminé avec message: "feat(T-XXX): [titre ticket]"</rule>
+    <rule>Exécuter les tests/lint après chaque changement</rule>
+    <rule>Documenter les décisions dans les commentaires de code si nécessaire</rule>
+  </conventions>
+
+  <output_format>
+    Pour chaque ticket, fournir:
+    <section>Plan d'implémentation (fichiers à modifier/créer)</section>
+    <section>Changements appliqués (code + justification)</section>
+    <section>Vérification (tests/lint/build results)</section>
+    <section>Prochaines étapes (ticket suivant ou phase terminée)</section>
+  </output_format>
+</prompt>

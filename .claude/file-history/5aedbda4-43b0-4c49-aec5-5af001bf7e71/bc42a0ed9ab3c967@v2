@@ -1,0 +1,39 @@
+.PHONY: help install dev run test migrate lint clean
+
+help:
+	@echo "kern.labs Backend - Phase 2 Foundation"
+	@echo ""
+	@echo "Available commands:"
+	@echo "  make install    Install dependencies"
+	@echo "  make dev        Install dev dependencies"
+	@echo "  make run        Run the application"
+	@echo "  make test       Run smoke tests"
+	@echo "  make migrate    Run database migrations"
+	@echo "  make lint       Run code linting"
+	@echo "  make clean      Clean build artifacts"
+
+install:
+	pip install -e .
+
+dev:
+	pip install -e ".[dev]"
+
+run:
+	uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+test:
+	pytest tests/ -v
+
+migrate:
+	alembic upgrade head
+
+lint:
+	ruff check app/ tests/
+
+clean:
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete
+	find . -type f -name "*.pyo" -delete
+	rm -rf .pytest_cache
+	rm -rf .ruff_cache
+	rm -rf dist build *.egg-info

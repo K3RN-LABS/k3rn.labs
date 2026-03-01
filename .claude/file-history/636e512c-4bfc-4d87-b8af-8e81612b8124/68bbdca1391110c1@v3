@@ -1,0 +1,96 @@
+"use client";
+
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useProject } from "@/hooks/use-project";
+import { useWorkflow } from "@/hooks/use-workflow";
+import { DiscoveryPanel } from "@/components/workspace/lab1/discovery-panel";
+import { DiscoveryWorkspace } from "@/components/workspace/lab1/discovery-workspace";
+import { ChatOrchestrator } from '@/components/workspace/ChatOrchestrator'
+import { WorkspaceHeader } from "@/components/workspace/header";
+import { WorkflowStepper } from "@/components/workspace/WorkflowStepper";
+import { checkLab1GateRequirements, type GateCheckResult } from "@/lib/lab1/gate-check";
+import Link from "next/link";
+
+export default function Lab1DiscoveryPage() {
+    const params = useParams();
+    const id = params.id as string;
+    const { project, isLoading } = useProject(id);
+    const { workflow, definition, isAdvancing, advanceStep } = useWorkflow(id);
+    const [gateCheck, setGateCheck] = useState<GateCheckResult>({ canProceed: true, missingRequirements: [] });
+
+    // Check gate requirements on mount and periodically
+    useEffect(() => {
+        if (!id) return;
+
+        const checkGate = async () => {
+            const result = await checkLab1GateRequirements(id);
+            setGateCheck(result);
+        };
+
+        checkGate();
+
+        // Re-check every 10 seconds to catch updates
+        const interval = setInterval(checkGate, 10000);
+        return () => clearInterval(interval);
+    }, [id]);
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-[#22242B] text-white">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-8 h-8 border-2 border-[#F75105] border-t-transparent rounded-full animate-spin" />
+                    <span className="text-sm text-gray-400">Chargement du projet...</span>
+                </div>
+            </div>
+        );
+    }
+
+    if (!project) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-[#22242B] text-white">
+                <div className="flex flex-col items-center gap-4 text-center">
+                    <div className="text-4xl">?</div>
+                    <h2 className="text-lg font-medium">Projet introuvable</h2>
+                    <p className="text-sm text-gray-400 max-w-sm">
+                        Le projet avec l&apos;ID <code className="text-[#F75105]">{id}</code> n&apos;a pas ete trouve dans votre espace de travail.
+                    </p>
+                    <Link href="/workspace" className="text-sm text-[#F75105] hover:text-[#F78E21] transition-colors">
+                        Retour au workspace
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex flex-col h-screen bg-[#22242B] text-white font-sans overflow-hidden">
+            <WorkspaceHeader
+                projectId={id}
+                project={project}
+                labName="Discovery"
+                labNumber={1}
+            />
+
+            {workflow && definition && (
+                <WorkflowStepper
+                    labName="Discovery"
+                    labNumber={1}
+                    currentStep={workflow.currentStep}
+                    totalSteps={workflow.totalSteps}
+                    steps={definition.steps}
+                    onAdvanceStep={advanceStep}
+                    isAdvancing={isAdvancing}
+                    canAdvance={gateCheck.canProceed}
+                    blockingMessage={gateCheck.blockingMessage}
+                />
+            )}
+
+            <div className="flex-1 flex overflow-hidden">
+                <DiscoveryPanel project={project} />
+                <DiscoveryWorkspace project={project} />
+                <ChatOrchestrator dossier={project} />
+            </div>
+        </div>
+    );
+}

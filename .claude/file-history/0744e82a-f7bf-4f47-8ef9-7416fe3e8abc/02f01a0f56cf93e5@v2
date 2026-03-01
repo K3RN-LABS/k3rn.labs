@@ -1,0 +1,184 @@
+# K3rn.labs — Mémoire de session
+
+## Contraintes n8n critiques
+
+### Agent-as-tool IMPOSSIBLE en n8n
+Un node `@n8n/n8n-nodes-langchain.agent` NE PEUT PAS être connecté en `ai_tool`
+à un autre agent. Il n'implémente pas `supplyData`. Erreur runtime :
+"Node ne possède pas de méthode `supplyData` définie."
+
+### Versioning actif vs draft
+n8n sépare draft et version active exécutée. Après `n8n_update_full_workflow`,
+**toujours faire deactivate → update → activate** sinon l'ancienne version
+continue de s'exécuter.
+
+### removeNode par name échoue avec caractères spéciaux
+Les em-dash (—) et apostrophes dans les noms de nodes causent des échecs.
+Toujours utiliser `nodeId` (UUID) pour removeNode.
+
+### Warnings validateur = faux positifs connus
+- "AI Agent has no systemMessage" → faux positif, systemMessage est dans `options.systemMessage`
+- "Community node X used as AI tool" → faux positif pour agents connectés via `main`
+- "MISSING_TOOL_DESCRIPTION" pour toolWorkflow v2.2 → faux positif
+Aucun impact runtime. Ignorer ces warnings si `valid: true` et `errorCount: 0`.
+
+### toolHttpRequest "Invalid URL" = BUG CONNU n8n
+Le node `toolHttpRequest` v1.1 produit "Invalid URL" en ~3ms dans n8n 2.7.5.
+Bug confirmé sur community.n8n.io (versions 1.73 à 2.7.5). Non résolu.
+**Solution : utiliser `toolCode` v1.3 avec `fetch()` natif** à la place.
+
+### LangChain tool names = alphanumeric ONLY
+Les noms de nodes `toolHttpRequest`/`toolCode` deviennent les noms d'outils LangChain.
+Espaces, tirets, caractères spéciaux → erreur "not a valid alphanumeric string".
+Pattern : `PerplexitySearchP01A` (pas `Perplexity P01-A`).
+
+### Tavily API = Bearer auth en header (plus api_key dans body)
+POST https://api.tavily.com/search, Header: `Authorization: Bearer <key>`
+
+## TICKET 2 — État (23/02/2026)
+- **DEV__DBCleanup__v1** (CAi7ZJD2fOZbTYDx) — créé, 11 nodes, PAS ENCORE EXÉCUTÉ
+- **XO__CoreEngine__v1** (R5Nl1y1XGauqOrCi) — créé, 13 nodes, INACTIF (attente credential Anthropic + DB cleanup)
+- **WEBHOOK__IdeaCapture__v1** (Xj4D9OHJqaNhiINI) — DÉSACTIVÉ
+- Anthropic node type : `@n8n/n8n-nodes-langchain.lmChatAnthropic` v1.3
+- Model format : `{"mode":"id","value":"claude-sonnet-4-5-20250929"}`, credential type: "anthropicApi"
+- ⚠️ `claude-sonnet-4-20250514` (ticket user) n'existe pas → utiliser `claude-sonnet-4-5-20250929`
+
+## Workflow principal K3rn.labs — ARCHITECTURE ACTUELLE (REFACTO V2)
+- **ID** : LHPHYhAPIEHVxGBo — ACTIF, 61 nodes
+- **webhookId Chat** : c3f7a291-4e82-4b19-9d56-7e8f3a120c45
+- **Credentials OpenAI** : id `0zCm2AMTb5pDX8Sa`, name "OpenAi account"
+- **Architecture** : Single canvas sequential pipeline (plus de sub-workflows)
+
+### Pipeline principal
+```
+INPUT → CERVEAU++ (router/gpt-4o-mini) → PARSE JSON → ROUTER (Switch v3.4)
+  ├─route "ideation"  → P01-A → P01-B → P01-C → SYNTHESE FINALE
+  ├─route "strategy"  → P02-A → P02-B → P02-C → SYNTHESE FINALE
+  ├─route "market"    → P03-A → P03-B → P03-C → SYNTHESE FINALE
+  ├─route "finance"   → P04-A → P04-B → P04-C → SYNTHESE FINALE
+  └─fallback          → SYNTHESE FINALE
+```
+
+### IDs des agents (inline sur le canvas principal)
+- CERVEAU++ (router): `a1b2c3d4-0002`
+- PARSE JSON (Code): `a1b2c3d4-0010`
+- ROUTER (Switch): `a1b2c3d4-0011`
+- P01-A Analyste Idee: `a1b2c3d4-0101`, P01-B Architecte Questions: `a1b2c3d4-0111`, P01-C Structurateur IOM: `a1b2c3d4-0121`
+- P02-A Stratege Positionnement: `a1b2c3d4-0201`, P02-B Analyste Concurrentiel: `a1b2c3d4-0211`, P02-C Architecte Vision: `a1b2c3d4-0221`
+- P03-A Analyste Marche: `a1b2c3d4-0301`, P03-B Validateur Demande: `a1b2c3d4-0311`, P03-C Profilage Client: `a1b2c3d4-0321`
+- P04-A Modelisateur Financier: `a1b2c3d4-0401`, P04-B Analyste Unit Economics: `a1b2c3d4-0411`, P04-C Simulateur Scenarios: `a1b2c3d4-0421`
+- SYNTHESE FINALE: `a1b2c3d4-0501`
+
+### Noms des agents (sans apostrophe ni accent pour expressions $('node'))
+Noms utilisables dans les expressions n8n : `P01-A — Analyste Idee` (pas d'Idée)
+em-dash (—) OK dans les expressions $('node name'), apostrophe NON.
+
+## Clés API
+- **Perplexity** : `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`
+- **Tavily** : `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`
+- **Telegram Bot Token** : `8119342595:AAG9Xns126Dor_c7IfZ3UP5-5R3uH_y6wCY`
+- **Telegram Credential ID** : `phBnIaab9S8x5cOj` (name: "Telegram K3rn Bot")
+
+## CERVEAU++ (routing classifier)
+- Role : analyse la requête et sort un JSON `{route, summary, language}`
+- Pas de promptType:define, pas de text field — utilise le chatInput automatiquement
+- `options.systemMessage` + `maxIterations: 3`
+- Routes : "ideation" | "strategy" | "market" | "finance" | "default"
+
+## PARSE JSON (Code node v2)
+- `$input.first().json.output` → JSON.parse → retourne `{route, summary, language}`
+- Fallback sur `{route: 'default', ...}` en cas d'erreur de parsing
+
+## Pattern agent inline (promptType: define)
+```json
+{
+  "promptType": "define",
+  "text": "=context: {{ $('INPUT').item.json.chatInput }}\nPrevious: {{ $json.output }}",
+  "options": {
+    "systemMessage": "...",
+    "maxIterations": 10,
+    "timeout": 200000
+  }
+}
+```
+- P01-C accède à P01-A via `{{ $('P01-A — Analyste Idee').item.json.output }}`
+
+## typeVersions validés
+- chatTrigger : 1.4 — package `@n8n/n8n-nodes-langchain.chatTrigger` (PAS n8n-nodes-base)
+- agent : 3.1
+- lmChatOpenAi : 1.3
+- memoryBufferWindow : 1.3
+- toolHttpRequest : 1.1
+- toolCode : 1.3
+- switch : 3.4
+- code : 2
+- postgres : 2.6
+- webhook : 2
+
+## Contrainte : nodes orphelins INTERDITS
+n8n refuse via API tout node sans connexion (même non-trigger).
+Pour un node temporaire (ex: migration), créer un workflow séparé avec webhook trigger.
+Pattern : `DEV__XxxMigration__v1` → webhook → node → activer → tester → désactiver.
+
+## Credentials
+- **OpenAI** : id `0zCm2AMTb5pDX8Sa`, name "OpenAi account"
+- **Postgres RDS** : id `Nl0ptIY5ANjEApX8`, name "Postgres account"
+
+## Workflow Core Engine (v0-orch) — ACTIF, 24 nodes
+- **ID** : `lp81TUxNPppLok1n` — ACTIF
+- **Pipeline** :
+```
+INPUT → SESSION_RESOLVER → SEP_RETRIEVE → SEP_AGGREGATOR → CERVEAU++ → PARSE_ROUTE → ROUTER
+  ├─route "ideation" → P01-A → P01-B → P01-C → SEP_APPEND
+  └─fallback         → ORCHESTRATEUR++     → SEP_APPEND
+```
+- **Tables SEP** : `sep_threads`, `sep_messages` — CRÉÉES
+- **thread_id** par défaut : `k3rn:default`, **user_id** : `boss`
+- **Tools search** : 4x `toolCode` v1.3 (Perplexity+Tavily pour P01-A et P01-C)
+- **IDs nodes P01** : voir CLAUDE.md section "IDs des agents"
+- **Note** : les toolCode search retournent success mais agents signalent "erreurs techniques" — à investiguer
+
+## Projet CV Architect
+
+### Bot Telegram
+- **Username** : @lisa_CVArchitectbot
+- **Token** : `8402001050:AAHNrJKLQPRZBK4on8hp7Y-YB70Qd9n2sgM`
+- **Credential n8n** : id `XKSXpHQfQ3pj4JZW`, name "Telegram CVArchitect Bot"
+
+### Workflows
+- `TELEGRAM__CVArchitect__v1` : ID `4XbLyEq54fePoYQo` — ACTIF, 13 nodes
+- `DEV__CVArchitectMigration__v1` : ID `KWOJOke4qv4ypOz0` — inactif, référence
+- `DEV__CVAddNbTurns__v1` : ID `MwgNUJjum8299GMS` — inactif, référence
+
+### Tables DB
+- `cvs` (id UUID, user_id, target_role, target_sector, cv_json JSONB, pdf_url, share_url, parent_cv_id, tags, created_at, updated_at)
+- `cv_sessions` (session_id UUID, user_id, session_state, current_cv_id, collected_data JSONB, message_history JSONB, nb_turns, last_message_at, created_at, updated_at)
+
+### Architecture pipeline
+```
+INPUT (TelegramTrigger) → SESSION_LOADER → CERVEAU (Code) → ROUTER (Switch)
+  ├─ /start /nouveau → RESET_SESSION → AGENT_CLAUDE → SESSION_SAVER → TELEGRAM_RESPONSE
+  ├─ /liste → LIST_CVS → FORMAT_LIST → NOOP_LIST → TELEGRAM_RESPONSE_LIST
+  └─ conversation → AGENT_CLAUDE → SESSION_SAVER → TELEGRAM_RESPONSE
+```
+- Agent : gpt-4o-mini, system prompt avec contexte session dynamique
+- State machine : INIT → COLLECTING → REVIEWING → READY → DONE
+
+## Projet Idée → Labo (NOUVEAU — distinct du Core Engine)
+
+### Workflows
+- `DEV__IdeaLaboMigration__v1` : ID `AkmWVAsDRiRXWJno` — migration DB (exécuter 1x, garder pour référence)
+- `WEBHOOK__IdeaCapture__v1` : ID `Xj4D9OHJqaNhiINI` — ACTIF, pipeline principal Telegram
+
+### Tables DB créées (Postgres RDS)
+- `projets` (projet_id UUID, porteur_id, titre, etat, fiche_concept JSONB, score_global, created_at, updated_at)
+- `sessions` (session_id UUID, projet_id FK, porteur_id, historique JSONB, etat_courant, nb_questions, score_global, porteur_confirme, fiche_complete, created_at, updated_at)
+- `executions_log` (id BIGSERIAL, session_id, agent_id, input_tokens, output_tokens, latence_ms, statut, erreur, created_at)
+
+### Architecture pipeline (Phase 0)
+```
+INPUT (TelegramTrigger v1.2) → CERVEAU (Code v2) → REPONSE (Telegram v1.2 sendMessage)
+```
+- porteur_id = Telegram chat_id (String)
+- Phase 0 validée : /start + messages reçus et répondus OK
+- Prochaine étape : Phase 1 — CERVEAU déterministe (lecture session DB) + Agent 1 RÉCEPTEUR

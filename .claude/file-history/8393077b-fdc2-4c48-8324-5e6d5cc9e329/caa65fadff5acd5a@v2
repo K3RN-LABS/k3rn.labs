@@ -1,0 +1,371 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  OWNER
+  COLLABORATOR
+  VIEWER
+}
+
+enum MacroState {
+  SYSTEM_READY
+  DASHBOARD
+  WORKSPACE_IDLE
+  SUBFOLDER_OPEN
+  CARD_FLOW
+  EXPERT_FLOW
+  SCORE_UPDATE
+  LAB_TRANSITION
+  EXPORT
+  CROWDFUNDING
+}
+
+enum SubFolderType {
+  PRODUIT
+  MARCHE
+  TECHNOLOGIE
+  BUSINESS
+}
+
+enum LabType {
+  DISCOVERY
+  STRUCTURATION
+  VALIDATION_MARCHE
+  DESIGN_PRODUIT
+  ARCHITECTURE_TECHNIQUE
+  BUSINESS_FINANCE
+}
+
+enum CardState {
+  DRAFT
+  VALIDATED
+  REJECTED
+  ARCHIVED
+}
+
+enum ExpertSessionStatus {
+  PENDING
+  WAITING_VALIDATION
+  VALIDATED
+  REJECTED
+}
+
+enum ExportState {
+  LOCKED
+  ELIGIBLE
+  GENERATING
+  READY
+  FAILED
+}
+
+enum CrowdfundingState {
+  LOCKED
+  ELIGIBLE
+  ACTIVE
+  CLOSED
+}
+
+enum InvestmentStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
+enum PoleCode {
+  P01_STRATEGIE
+  P02_MARKET
+  P03_PRODUIT_TECH
+  P04_FINANCE
+  P05_MARKETING
+  P06_LEGAL
+  P07_TALENT_OPS
+}
+
+enum PoleSessionStatus {
+  ACTIVE
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  role      UserRole @default(OWNER)
+  createdAt DateTime @default(now())
+
+  dossiers             Dossier[]
+  auditLogs            AuditLog[]
+  cardTransitionLogs   CardTransitionLog[]
+}
+
+model Dossier {
+  id                  String     @id @default(cuid())
+  name                String
+  ownerId             String
+  macroState          MacroState @default(WORKSPACE_IDLE)
+  archived            Boolean    @default(false)
+  onboardingMessages  Json       @default("[]")
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  owner                User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  subFolders           SubFolder[]
+  labState             LabState?
+  scoreSnapshots       ScoreSnapshot[]
+  exportRecord         ExportRecord?
+  crowdfundingCampaign CrowdfundingCampaign?
+  expertSessions       ExpertSession[]
+  poleSessions         PoleSession[]
+  auditLogs            AuditLog[]
+
+  @@index([ownerId])
+  @@index([archived])
+}
+
+model SubFolder {
+  id        String        @id @default(cuid())
+  dossierId String
+  type      SubFolderType
+  createdAt DateTime      @default(now())
+
+  dossier     Dossier      @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  cards       Card[]
+  canvasNodes CanvasNode[]
+  canvasEdges CanvasEdge[]
+
+  @@unique([dossierId, type])
+  @@index([dossierId])
+}
+
+model LabState {
+  id                String   @id @default(cuid())
+  dossierId         String   @unique
+  currentLab        LabType  @default(DISCOVERY)
+  transitionAllowed Boolean  @default(false)
+  updatedAt         DateTime @updatedAt
+
+  dossier        Dossier         @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  expertSessions ExpertSession[]
+}
+
+model Card {
+  id          String    @id @default(cuid())
+  subFolderId String
+  lab         LabType
+  type        String
+  title       String
+  content     Json      @default("{}")
+  state       CardState @default(DRAFT)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  subFolder      SubFolder           @relation(fields: [subFolderId], references: [id], onDelete: Cascade)
+  transitionLogs CardTransitionLog[]
+  expertSessions ExpertSession[]
+
+  @@index([subFolderId])
+  @@index([lab])
+  @@index([state])
+}
+
+model CardTransitionLog {
+  id              String    @id @default(cuid())
+  cardId          String
+  fromState       CardState
+  toState         CardState
+  triggeredBy     String
+  expertSessionId String?
+  createdAt       DateTime  @default(now())
+
+  triggeredByUser User           @relation(fields: [triggeredBy], references: [id])
+  cardRef         Card           @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  expertSession   ExpertSession? @relation(fields: [expertSessionId], references: [id])
+
+  @@index([cardId])
+}
+
+model CanvasNode {
+  id          String   @id @default(cuid())
+  subFolderId String
+  nodeId      String
+  type        String
+  positionX   Float
+  positionY   Float
+  data        Json     @default("{}")
+  labContext  LabType
+  updatedAt   DateTime @updatedAt
+
+  subFolder SubFolder @relation(fields: [subFolderId], references: [id], onDelete: Cascade)
+
+  @@unique([subFolderId, nodeId])
+  @@index([subFolderId, labContext])
+}
+
+model CanvasEdge {
+  id          String   @id @default(cuid())
+  subFolderId String
+  edgeId      String
+  source      String
+  target      String
+  data        Json     @default("{}")
+  labContext  LabType
+  updatedAt   DateTime @updatedAt
+
+  subFolder SubFolder @relation(fields: [subFolderId], references: [id], onDelete: Cascade)
+
+  @@unique([subFolderId, edgeId])
+  @@index([subFolderId, labContext])
+}
+
+model Expert {
+  id                  String  @id @default(cuid())
+  name                String
+  slug                String  @unique
+  lab                 LabType
+  poleId              String?
+  systemPrompt        String  @db.Text
+  requiredCardTypes   Json    @default("[]")
+  blocksLabTransition Boolean @default(false)
+
+  pole     Pole?          @relation(fields: [poleId], references: [id], onDelete: SetNull)
+  sessions ExpertSession[]
+
+  @@index([poleId])
+}
+
+model Pole {
+  id                  String   @id @default(cuid())
+  code                PoleCode @unique
+  managerName         String
+  managerSlug         String   @unique
+  systemPrompt        String   @db.Text
+  hashtagTriggers     Json     @default("[]")
+  activePriorityLabs  Json     @default("[]")
+  n8nWorkflowId       String?
+  n8nWebhookUrl       String?
+  createdAt           DateTime @default(now())
+
+  experts  Expert[]
+  sessions PoleSession[]
+}
+
+model PoleSession {
+  id             String            @id @default(cuid())
+  poleId         String
+  dossierId      String
+  labAtCreation  LabType           @default(DISCOVERY)
+  messages       Json              @default("[]")
+  n8nExecutionId String?
+  n8nStatus      String?
+  status         PoleSessionStatus @default(ACTIVE)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  pole    Pole    @relation(fields: [poleId], references: [id], onDelete: Cascade)
+  dossier Dossier @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+
+  @@index([dossierId])
+  @@index([poleId])
+}
+
+model ExpertSession {
+  id           String              @id @default(cuid())
+  expertId     String
+  dossierId    String
+  labStateId   String
+  cardId       String?
+  messages     Json                @default("[]")
+  status       ExpertSessionStatus @default(PENDING)
+  proposedCard Json?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  expert         Expert             @relation(fields: [expertId], references: [id])
+  dossier        Dossier            @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  labState       LabState           @relation(fields: [labStateId], references: [id])
+  card           Card?              @relation(fields: [cardId], references: [id])
+  transitionLogs CardTransitionLog[]
+
+  @@index([dossierId])
+  @@index([expertId])
+}
+
+model ScoreSnapshot {
+  id           String   @id @default(cuid())
+  dossierId    String
+  marketScore  Float    @default(0)
+  techScore    Float    @default(0)
+  financeScore Float    @default(0)
+  globalScore  Float    @default(0)
+  triggeredBy  String?
+  createdAt    DateTime @default(now())
+
+  dossier Dossier @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+
+  @@index([dossierId])
+}
+
+model ExportRecord {
+  id          String      @id @default(cuid())
+  dossierId   String      @unique
+  state       ExportState @default(LOCKED)
+  storageUrl  String?
+  generatedAt DateTime?
+  createdAt   DateTime    @default(now())
+
+  dossier Dossier @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+}
+
+model CrowdfundingCampaign {
+  id              String            @id @default(cuid())
+  dossierId       String            @unique
+  state           CrowdfundingState @default(LOCKED)
+  goal            Float
+  raised          Float             @default(0)
+  shareToken      String            @unique @default(cuid())
+  stripeProductId String?
+  closedAt        DateTime?
+  createdAt       DateTime          @default(now())
+
+  dossier     Dossier      @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  investments Investment[]
+
+  @@index([shareToken])
+}
+
+model Investment {
+  id                    String           @id @default(cuid())
+  campaignId            String
+  investorEmail         String
+  amount                Float
+  stripePaymentIntentId String           @unique
+  status                InvestmentStatus @default(PENDING)
+  createdAt             DateTime         @default(now())
+
+  campaign CrowdfundingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  dossierId String?
+  action    String
+  entity    String
+  entityId  String
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id])
+  dossier Dossier? @relation(fields: [dossierId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([dossierId])
+  @@index([entity, entityId])
+}

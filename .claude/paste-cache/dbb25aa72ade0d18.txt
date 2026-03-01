@@ -1,0 +1,131 @@
+<prompt>
+  <meta>
+    <project>Wind Boost</project>
+    <mode>Claude Code</mode>
+    <intent>Implémentation Brand Design + Design System k3rn.labs</intent>
+    <commit_strategy>atomic_per_feature</commit_strategy>
+  </meta>
+
+  <task_context>
+    <role>Senior Frontend Architect</role>
+    <objective>
+      Implémenter intégralement le brand design k3rn.labs (tokens, layout shell, primitives UI)
+      dans l’application existante Wind Boost (Next.js 15 + Tailwind),
+      sans modifier la logique métier (TicketPack, Skills, API).
+    </objective>
+
+    <definition_of_done>
+      <item>Design tokens canoniques intégrés globalement.</item>
+      <item>Background premium implémenté (subtil, performant, CSS-only).</item>
+      <item>Layout shell cohérent (topbar blur, container, spacing system).</item>
+      <item>Primitives UI brand-safe créées (Button, Input, Badge, Card, Typography).</item>
+      <item>Page Skills et TicketPack visuellement harmonisées.</item>
+      <item>Aucune valeur couleur hardcodée hors tokens.</item>
+      <item>Build passe.</item>
+      <item>Commits atomiques respectés.</item>
+    </definition_of_done>
+  </task_context>
+
+  <brand_sources>
+    <file>/mnt/data/brand_book.html</file>
+    <file>/mnt/data/canonical_brand_design.html</file>
+    <file>/mnt/data/color_system.md</file>
+    <file>/mnt/data/typography.md</file>
+    <file>/mnt/data/tokens.css</file>
+  </brand_sources>
+
+  <strict_rules>
+    <rule>Lire tous les fichiers brand avant toute modification.</rule>
+    <rule>Utiliser uniquement les CSS variables définies dans tokens.css.</rule>
+    <rule>Green réservé exclusivement aux CTA primaires.</rule>
+    <rule>Aucune refactorisation logique.</rule>
+    <rule>Ne pas introduire de librairie UI externe.</rule>
+    <rule>Procéder par commits atomiques.</rule>
+  </strict_rules>
+
+  <atomic_commit_policy>
+    <description>
+      Chaque bloc suivant doit faire l’objet d’un commit séparé.
+      Message de commit clair, format:
+      feat(brand): description courte
+      ou
+      refactor(ui): description courte
+    </description>
+
+    <blocks>
+      <block id="1">Intégration design tokens globaux</block>
+      <block id="2">Implémentation background premium</block>
+      <block id="3">Mise en place layout shell global</block>
+      <block id="4">Création primitives UI brand-safe</block>
+      <block id="5">Reskin page Skills</block>
+      <block id="6">Reskin page TicketPack</block>
+    </blocks>
+  </atomic_commit_policy>
+
+  <implementation_steps>
+
+    <step id="1">
+      Intégrer tokens.css dans globals.css ou layout.
+      Vérifier que :root variables sont actives.
+      Remplacer couleurs/typos globales par tokens.
+    </step>
+
+    <step id="2">
+      Implémenter le background premium (radial tint + grid ghost + noise subtle).
+      Injecter dans layout global.
+      CSS-only, pas d’impact perf.
+    </step>
+
+    <step id="3">
+      Mettre en place layout shell:
+      - Topbar sticky + backdrop blur
+      - Border hairline
+      - Container max-width
+      - Navigation Skills | TicketPack
+    </step>
+
+    <step id="4">
+      Créer primitives UI:
+      - Button (primary/dark/secondary/ghost)
+      - Input / Textarea
+      - Badge
+      - Card
+      - Typography utilities
+      Tous basés exclusivement sur tokens.
+    </step>
+
+    <step id="5">
+      Remplacer composants existants sur page Skills par primitives UI.
+      Garder comportement identique.
+    </step>
+
+    <step id="6">
+      Harmoniser TicketPack avec primitives.
+    </step>
+
+    <step id="7">
+      Vérification:
+      - npm run build
+      - Test navigation
+      - Test focus clavier
+      - Responsive
+    </step>
+
+  </implementation_steps>
+
+  <output_format>
+    <response>
+      <section name="plan"/>
+      <section name="changes"/>
+      <section name="commits"/>
+      <section name="verification"/>
+      <section name="next_actions"/>
+    </response>
+  </output_format>
+
+  <prefill_assistant>
+    <response>
+      <section name="plan">
+  </prefill_assistant>
+
+</prompt>

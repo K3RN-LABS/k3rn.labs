@@ -1,0 +1,37 @@
+/**
+ * Constantes pour la génération de TicketPacks
+ */
+
+export const TICKETPACK_VERSION = '1.0.0';
+
+export const DELIVERABLE_TYPE_LABELS: Record<string, string> = {
+  saas: 'Application SaaS',
+  app: 'Application (Web/Mobile)',
+  landing_page: 'Page d\'atterrissage',
+  feature: 'Nouvelle fonctionnalité',
+  bugfix: 'Correction de bug',
+};
+
+export const DEFAULT_STACK_BY_DELIVERABLE: Record<string, string[]> = {
+  saas: ['Next.js', 'React', 'TypeScript', 'Tailwind CSS', 'PostgreSQL', 'Prisma'],
+  app: ['Next.js', 'React', 'TypeScript', 'Tailwind CSS', 'SQLite'],
+  landing_page: ['Next.js', 'React', 'TypeScript', 'Tailwind CSS'],
+  feature: ['React', 'TypeScript'],
+  bugfix: ['TypeScript'],
+};
+
+export const PHASE_NAMES = {
+  P01: 'Fondations & Setup',
+  P02: 'Modèles & Services Core',
+  P03: 'API & Intégrations',
+  P04: 'Interface Utilisateur',
+  P05: 'Tests & Documentation',
+  P06: 'Déploiement & Monitoring',
+};
+
+export const SKILL_CATEGORIES_PRIORITY = [
+  'architecture',
+  'development',
+  'data-ai',
+  'business',
+];

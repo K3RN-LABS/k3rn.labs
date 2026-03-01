@@ -1,0 +1,128 @@
+# Skill: N8N Node Configuration Expert
+
+## Déclencheurs
+Ce skill s'active quand l'utilisateur configure des nodes, choisit des opérations, ou a besoin d'aide sur les propriétés d'un node.
+
+## Configuration Orientée Opération
+
+Chaque node N8N a des propriétés qui dépendent de l'opération sélectionnée. L'approche correcte :
+
+```
+1. Choisir le node → n8n_get_node_info pour voir les opérations disponibles
+2. Sélectionner l'opération → Voir les propriétés spécifiques à cette opération
+3. Configurer les propriétés requises → Puis les optionnelles
+4. Valider → n8n_validate_workflow
+```
+
+## Dépendances de Propriétés
+
+Certaines propriétés débloquent d'autres propriétés. Exemples courants :
+
+| Propriété parente | Valeur | Propriété débloquée |
+|-------------------|--------|---------------------|
+| `sendBody` | `true` | `contentType`, `body` |
+| `authentication` | `oAuth2` | `credential` (OAuth2) |
+| `operation` | `create` | `fields` (champs à remplir) |
+| `returnAll` | `false` | `limit` |
+| `resource` | valeur | `operation` (liste filtrée) |
+
+## Nodes les Plus Utilisés - Configuration
+
+### HTTP Request (`n8n-nodes-base.httpRequest`)
+```json
+{
+  "method": "GET|POST|PUT|PATCH|DELETE",
+  "url": "https://api.example.com/endpoint",
+  "authentication": "none|genericCredentialType|predefinedCredentialType",
+  "sendHeaders": true,
+  "headerParameters": { "parameters": [{"name": "Authorization", "value": "Bearer {{ $env.TOKEN }}"}] },
+  "sendBody": true,
+  "contentType": "json",
+  "body": { "key": "value" },
+  "options": {
+    "timeout": 30000,
+    "retry": { "maxRetries": 3 }
+  }
+}
+```
+
+### Set (`n8n-nodes-base.set`)
+```json
+{
+  "mode": "manual",
+  "duplicateItem": false,
+  "assignments": {
+    "assignments": [
+      { "id": "uuid", "name": "fieldName", "value": "{{ $json.data }}", "type": "string" }
+    ]
+  }
+}
+```
+
+### IF (`n8n-nodes-base.if`)
+```json
+{
+  "conditions": {
+    "options": { "combinator": "and" },
+    "conditions": [
+      {
+        "leftValue": "{{ $json.status }}",
+        "rightValue": "active",
+        "operator": { "type": "string", "operation": "equals" }
+      }
+    ]
+  }
+}
+```
+
+### Switch (`n8n-nodes-base.switch`)
+```json
+{
+  "mode": "rules",
+  "rules": {
+    "rules": [
+      {
+        "output": 0,
+        "conditions": {
+          "conditions": [{ "leftValue": "{{ $json.type }}", "rightValue": "order", "operator": { "type": "string", "operation": "equals" } }]
+        }
+      }
+    ]
+  }
+}
+```
+
+### Code (`n8n-nodes-base.code`)
+```json
+{
+  "language": "javaScript",
+  "mode": "runOnceForAllItems",
+  "jsCode": "const items = $input.all();\nreturn items.map(item => ({json: {...item.json, processed: true}}));"
+}
+```
+
+## Types de Connexions AI
+
+Pour les workflows AI, les connexions utilisent des types spéciaux :
+
+| Type de connexion | Usage |
+|-------------------|-------|
+| `main` | Connexion standard entre nodes |
+| `ai_languageModel` | Connexion vers un LLM |
+| `ai_tool` | Outil disponible pour l'agent AI |
+| `ai_memory` | Mémoire de conversation |
+| `ai_outputParser` | Parser de sortie structurée |
+| `ai_retriever` | Retriever pour RAG |
+| `ai_document` | Document loader |
+| `ai_embedding` | Modèle d'embedding |
+| `ai_textSplitter` | Splitter de texte |
+| `ai_vectorStore` | Vector store |
+
+## Positionnement des Nodes
+
+Convention pour un layout lisible :
+- Espacement horizontal : **250-300px** entre nodes
+- Espacement vertical : **100-150px** entre branches
+- Trigger node : position `[250, 300]`
+- Nodes suivants : incrémenter X de 250
+- Branches : décaler Y de ±150

@@ -1,0 +1,371 @@
+# TICKET 2 — Migration schéma + XO Central
+
+## Contexte
+
+L'audit complet est fait. Voici la situation exacte :
+
+**Schémas DB en production :**
+- Ancien schéma v1 : tables `projets`, `sessions`, `executions_log` — utilisées par WEBHOOK__IdeaCapture__v1
+- Schéma SEP : `sep_threads`, `sep_messages` — utilisées par v0-orch (inactif)
+- Schéma XO nouveau : `kern_projets`, `kern_sessions`, `utilisateurs`, `messages`, `documents`, `decisions`, `poles_activations`, `logs_systeme` + vues — créé au TICKET 1, aucun workflow ne l'utilise encore
+
+**Décision validée : Option B — nettoyer et renommer**
+
+---
+
+## ÉTAPE 1 — Nettoyage et renommage DB
+
+### 1a. Supprimer l'ancien schéma v1 (tables orphelines)
+
+```sql
+-- Vérifier qu'elles sont bien vides avant suppression
+SELECT 'projets' as table_name, COUNT(*) FROM projets
+UNION ALL
+SELECT 'sessions', COUNT(*) FROM sessions
+UNION ALL
+SELECT 'executions_log', COUNT(*) FROM executions_log;
+
+-- Si COUNT = 0 sur les trois → supprimer
+DROP TABLE IF EXISTS executions_log;
+DROP TABLE IF EXISTS sessions CASCADE;
+DROP TABLE IF EXISTS projets CASCADE;
+```
+
+Si COUNT > 0 sur projets ou sessions → STOP, me le signaler avec le contenu avant suppression.
+
+### 1b. Renommer les tables kern_ → noms propres
+
+```sql
+ALTER TABLE kern_projets RENAME TO projets;
+ALTER TABLE kern_sessions RENAME TO sessions;
+```
+
+### 1c. Vérifier les FK après renommage
+
+```sql
+-- Vérifier que les FK pointent toujours correctement
+SELECT
+    tc.table_name,
+    kcu.column_name,
+    ccu.table_name AS foreign_table
+FROM information_schema.table_constraints tc
+JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
+JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name = tc.constraint_name
+WHERE tc.constraint_type = 'FOREIGN KEY'
+AND tc.table_schema = 'public'
+ORDER BY tc.table_name;
+```
+
+Toutes les FK doivent pointer vers les bonnes tables. Corriger si nécessaire.
+
+### 1d. État final attendu (\dt)
+
+Tables actives après nettoyage :
+- utilisateurs
+- projets (ex kern_projets)
+- sessions (ex kern_sessions)
+- messages
+- documents
+- decisions
+- poles_activations
+- logs_systeme
+- sep_threads (conserver — utilisé par v0-orch)
+- sep_messages (conserver — utilisé par v0-orch)
+
+Tables supprimées : executions_log, ancien projets, ancien sessions
+
+---
+
+## ÉTAPE 2 — Créer le workflow XO Central sur Telegram
+
+Créer un nouveau workflow n8n : `XO__CoreEngine__v1`
+
+### Architecture du workflow
+
+```
+TELEGRAM_INPUT
+    ↓
+SESSION_LOAD      ← charge état depuis DB (utilisateurs + sessions + projets)
+    ↓
+CERVEAU_XO        ← routing déterministe JS (Switch node)
+    ↓
+[Switch]
+  ├─[0] /menu          → MENU_HANDLER
+  ├─[1] /reset         → RESET_HANDLER
+  ├─[2] nouvelle_idee  → XO_AGENT (mode: qualification)
+  ├─[3] projet_actif   → XO_AGENT (mode: dialogue)
+  └─[4] default        → XO_AGENT (mode: dialogue)
+    ↓
+XO_AGENT          ← Claude Sonnet (claude-sonnet-4-20250514)
+    ↓
+DB_WRITE          ← INSERT messages + UPDATE sessions
+    ↓
+TELEGRAM_OUTPUT
+```
+
+### Node TELEGRAM_INPUT
+- Type : telegramTrigger v1.2
+- Credential : Telegram K3rn Bot (phBnIaab9S8x5cOj) — réutiliser l'existant
+- ⚠️  IMPORTANT : désactiver WEBHOOK__IdeaCapture__v1 AVANT d'activer XO__CoreEngine__v1 pour éviter les conflits de webhook
+
+### Node SESSION_LOAD
+- Type : postgres v2.6
+- Credential : Postgres 1 (Nl0ptIY5ANjEApX8)
+- Requête :
+```sql
+SELECT
+    u.utilisateur_id,
+    u.telegram_id,
+    p.projet_id,
+    p.hashtag AS projet_actif,
+    p.nom AS projet_nom,
+    p.brief_executif,
+    p.statut AS projet_statut,
+    s.session_id,
+    s.pole_actif,
+    s.etat AS session_etat,
+    s.resume_session,
+    COALESCE(recent_msgs.historique, '[]'::jsonb) AS historique_recent
+FROM utilisateurs u
+LEFT JOIN sessions s ON s.utilisateur_id = u.utilisateur_id
+    AND s.etat = 'ouvert'
+    AND s.last_activity > NOW() - INTERVAL '24 hours'
+LEFT JOIN projets p ON p.projet_id = s.projet_id
+LEFT JOIN LATERAL (
+    SELECT jsonb_agg(
+        jsonb_build_object('role', m.role, 'contenu', m.contenu, 'pole', m.pole_emetteur, 'ts', m.created_at)
+        ORDER BY m.created_at DESC
+    ) AS historique
+    FROM (
+        SELECT role, contenu, pole_emetteur, created_at
+        FROM messages
+        WHERE session_id = s.session_id
+        ORDER BY created_at DESC
+        LIMIT 5
+    ) m
+) recent_msgs ON true
+WHERE u.telegram_id = {{ $json.message.chat.id }}
+LIMIT 1;
+```
+
+Si aucune ligne retournée → l'utilisateur n'existe pas encore, créer automatiquement :
+```sql
+INSERT INTO utilisateurs (telegram_id, nom)
+VALUES ({{ $json.message.chat.id }}, '{{ $json.message.chat.first_name }}')
+ON CONFLICT (telegram_id) DO UPDATE SET updated_at = NOW()
+RETURNING *;
+```
+
+### Node CERVEAU_XO (Code JS — routing déterministe)
+
+```javascript
+const msg = $input.first().json;
+const text = (msg.message?.text || '').trim();
+const sessionData = $('SESSION_LOAD').first().json;
+
+// Extraire hashtags
+const hashtags = (text.match(/#(\w+)/g) || []).map(h => h.slice(1).toLowerCase());
+const poleHashtags = ['finance', 'marketing', 'strategie', 'produit', 'risk'];
+const polesActives = hashtags.filter(h => poleHashtags.includes(h));
+const projetHashtag = hashtags.find(h => !poleHashtags.includes(h));
+
+// Détecter le mode
+let route = 'dialogue';
+let mode = 'dialogue';
+
+if (text.startsWith('/menu')) { route = 'menu'; }
+else if (text.startsWith('/reset') || text === 'reset') { route = 'reset'; }
+else if (!sessionData.session_id && !text.startsWith('/')) { route = 'nouvelle_idee'; mode = 'qualification'; }
+else if (text.toLowerCase().match(/j.ai une id[eé]e|et si on|je veux cr[eé]er|je veux d[eé]velopper/)) {
+    route = 'nouvelle_idee'; mode = 'qualification';
+}
+else { route = 'dialogue'; mode = 'dialogue'; }
+
+return [{
+    json: {
+        ...msg,
+        routing: {
+            route,
+            mode,
+            poles_actives: polesActives.length > 0 ? polesActives : null,
+            projet_hashtag: projetHashtag || sessionData.projet_actif || null,
+            session_context: sessionData,
+            text_clean: text.replace(/#\w+/g, '').trim()
+        }
+    }
+}];
+```
+
+### Node XO_AGENT
+- Type : agent v3.1
+- LLM : **Anthropic Claude** — modèle `claude-sonnet-4-20250514`
+  - Si credential Anthropic absent → créer credential Anthropic avec la clé API disponible
+- promptType : define
+- System message (expression) :
+
+```
+Tu es le Chief of Staff (XO) — bras droit exécutif du patron.
+Tu diriges une organisation complète : Stratégie, Finance, Marketing, Produit, Risk.
+Tu es l'unique interlocuteur. Le patron ne parle jamais aux pôles directement.
+
+MODE ACTUEL : {{ $('CERVEAU_XO').item.json.routing.mode }}
+PROJET ACTIF : {{ $('CERVEAU_XO').item.json.routing.projet_hashtag || 'aucun' }}
+PÔLES ACTIVÉS : {{ $('CERVEAU_XO').item.json.routing.poles_actives?.join(', ') || 'inférence auto' }}
+
+CONTEXTE SESSION :
+{{ $('SESSION_LOAD').item.json.brief_executif || 'Pas de projet actif.' }}
+
+HISTORIQUE RÉCENT :
+{{ $('SESSION_LOAD').item.json.historique_recent || 'Première interaction.' }}
+
+RÈGLES :
+- Dialogue naturel, professionnel, direct
+- Mode qualification → accueille l'idée, reformule, annonce l'étape suivante (pas de questions dans ce premier message)
+- Mode dialogue → réponds à la requête, active les pôles pertinents si #hashtag présent
+- Maximum 1 question par message si clarification nécessaire
+- Jamais de jargon technique exposé (agents, workflows, nodes)
+- Si pas de projet actif et message ambigu → demande sur quel projet travailler
+- Ton : confiant, class mondiale, sans remplissage
+```
+
+- Human message : `{{ $('CERVEAU_XO').item.json.routing.text_clean }}`
+
+### Node DB_WRITE
+- Type : postgres v2.6
+- Deux requêtes séquentielles :
+
+**Requête 1 — Créer session si inexistante :**
+```sql
+INSERT INTO sessions (projet_id, utilisateur_id, pole_actif, etat)
+SELECT
+    p.projet_id,
+    u.utilisateur_id,
+    'XO',
+    'ouvert'
+FROM utilisateurs u
+LEFT JOIN projets p ON p.hashtag = '{{ $('CERVEAU_XO').item.json.routing.projet_hashtag }}'
+    AND p.utilisateur_id = u.utilisateur_id
+WHERE u.telegram_id = {{ $('TELEGRAM_INPUT').item.json.message.chat.id }}
+AND NOT EXISTS (
+    SELECT 1 FROM sessions s2
+    WHERE s2.utilisateur_id = u.utilisateur_id
+    AND s2.etat = 'ouvert'
+    AND s2.last_activity > NOW() - INTERVAL '24 hours'
+)
+RETURNING session_id;
+```
+
+**Requête 2 — Insérer les deux messages (user + assistant) :**
+```sql
+INSERT INTO messages (session_id, projet_id, role, pole_emetteur, contenu, modele_utilise)
+SELECT s.session_id, s.projet_id, role, pole, contenu, modele
+FROM sessions s
+JOIN utilisateurs u ON u.utilisateur_id = s.utilisateur_id
+CROSS JOIN (VALUES
+    ('user', NULL, '{{ $('CERVEAU_XO').item.json.routing.text_clean }}', NULL),
+    ('assistant', 'XO', '{{ $('XO_AGENT').item.json.output }}', 'claude-sonnet-4-20250514')
+) AS msgs(role, pole, contenu, modele)
+WHERE u.telegram_id = {{ $('TELEGRAM_INPUT').item.json.message.chat.id }}
+AND s.etat = 'ouvert'
+AND s.last_activity > NOW() - INTERVAL '24 hours'
+ORDER BY s.last_activity DESC
+LIMIT 1;
+
+-- Update compteur et timestamp
+UPDATE sessions SET
+    nb_messages = nb_messages + 2,
+    last_activity = NOW()
+WHERE utilisateur_id = (
+    SELECT utilisateur_id FROM utilisateurs
+    WHERE telegram_id = {{ $('TELEGRAM_INPUT').item.json.message.chat.id }}
+)
+AND etat = 'ouvert'
+AND last_activity > NOW() - INTERVAL '24 hours';
+```
+
+### Node TELEGRAM_OUTPUT
+- Type : telegram v1.2
+- Credential : Telegram K3rn Bot
+- chatId : `{{ $('TELEGRAM_INPUT').item.json.message.chat.id }}`
+- text : `{{ $('XO_AGENT').item.json.output }}`
+- parse_mode : Markdown
+
+### Node MENU_HANDLER (simple pour l'instant)
+- Type : telegram v1.2
+- Texte fixe avec InlineKeyboard basique :
+```
+Menu K3rn.labs en construction. Commandes disponibles :
+/reset — Nouvelle session
+#[nom_projet] — Activer un projet
+#finance #marketing #strategie #produit #risk — Activer un pôle
+```
+
+### Node RESET_HANDLER
+- Type : postgres v2.6
+- Requête :
+```sql
+UPDATE sessions SET etat = 'ferme', closed_at = NOW()
+WHERE utilisateur_id = (
+    SELECT utilisateur_id FROM utilisateurs
+    WHERE telegram_id = {{ $('TELEGRAM_INPUT').item.json.message.chat.id }}
+)
+AND etat = 'ouvert';
+```
+- Suivi d'un telegram node : "Session réinitialisée. Prêt pour un nouveau projet."
+
+---
+
+## ÉTAPE 3 — Tests de validation
+
+### Séquence de test obligatoire (dans l'ordre)
+
+```
+Test 1 : /reset
+→ Attendu : confirmation reset, session fermée en DB
+
+Test 2 : "Bonjour"
+→ Attendu : XO répond, session créée en DB (vérifier SELECT * FROM sessions ORDER BY started_at DESC LIMIT 1)
+
+Test 3 : "J'ai une idée d'app pour les coachs sportifs"
+→ Attendu : XO reformule l'idée en 2-3 lignes, ton professionnel, aucune question
+
+Test 4 : "#finance comment on structure le business model ?"
+→ Attendu : XO répond sur la dimension financière, mention que le pôle Finance est consulté
+
+Test 5 : Vérifier en DB
+SELECT m.role, m.pole_emetteur, LEFT(m.contenu, 100), m.created_at
+FROM messages m
+JOIN sessions s ON s.session_id = m.session_id
+JOIN utilisateurs u ON u.utilisateur_id = s.utilisateur_id
+WHERE u.telegram_id = [TON_TELEGRAM_ID]
+ORDER BY m.created_at DESC
+LIMIT 10;
+```
+
+---
+
+## Critère de DONE
+
+- [ ] Tables kern_ renommées, FK valides, ancien schéma supprimé
+- [ ] Workflow XO__CoreEngine__v1 créé et ACTIF
+- [ ] WEBHOOK__IdeaCapture__v1 DÉSACTIVÉ
+- [ ] Credential Anthropic configuré avec claude-sonnet-4-20250514
+- [ ] 5 tests Telegram passés avec succès
+- [ ] Messages stockés en DB (vérification SELECT)
+- [ ] Aucune erreur dans les logs n8n
+
+## Output attendu
+
+Rapporter :
+1. Résultat nettoyage DB (tables supprimées, renommées, FK validées)
+2. Screenshot ou log de chaque test Telegram (réponse reçue)
+3. Résultat SELECT messages pour confirmer la persistence
+4. Tout problème rencontré + solution appliquée
+5. Credential Anthropic créé ou existant utilisé
+
+## Notes importantes
+
+- Ne jamais avoir deux webhooks Telegram actifs simultanément — désactiver l'ancien AVANT d'activer le nouveau
+- Le modèle Anthropic à utiliser : claude-sonnet-4-20250514 (pas claude-3 ni claude-2)
+- Si credential Anthropic absent dans n8n : créer une credential de type "Anthropic" avec la clé API
+- Les tables sep_threads et sep_messages ne doivent PAS être touchées

@@ -1,0 +1,178 @@
+# 🔧 FIX - Erreur Sauvegarde Projet après Analyse
+
+## ⚠️ PROBLÈME IDENTIFIÉ
+
+Quand vous capturez et analysez une idée :
+1. ✅ **L'analyse fonctionne** (visible dans les logs : `"analysis_complete", "success":true`)
+2. ❌ **La sauvegarde échoue** avec l'erreur :
+   ```
+   Foreign key constraint violated on the constraint: `projects_user_id_fkey`
+   ```
+
+### Cause Racine
+
+- L'utilisateur s'authentifie via **Supabase Auth** (`auth.users`)
+- Mais `projects.user_id` référence **`public.users.id`**
+- Il n'y a pas de ligne dans `public.users` pour l'utilisateur authentifié
+- Résultat : violation de foreign key lors de la création du projet
+
+---
+
+## ✅ SOLUTION IMPLÉMENTÉE
+
+### 1. **Helper Auto-création** (`/src/lib/user-helpers.ts`)
+
+Créé une fonction `ensurePublicUserExists()` qui :
+- Vérifie si l'utilisateur existe dans `public.users`
+- Le crée automatiquement si absent
+- Appelée avant chaque création de projet
+
+### 2. **Modification POST /api/projects**
+
+Ajout d'un appel automatique :
+```typescript
+// Ensure user exists in public.users (create if needed)
+await ensurePublicUserExists({ id: user.id, email: user.email || '' })
+```
+
+### 3. **Migration SQL Supabase** (À exécuter)
+
+Fichier : `supabase/migrations/20260211_create_public_user_trigger.sql`
+
+Cette migration :
+- ✅ Crée un trigger automatique qui synchronise `auth.users` → `public.users`
+- ✅ Synchronise les utilisateurs existants
+- ✅ Garantit que tous les futurs utilisateurs seront auto-créés
+
+---
+
+## 🚀 ÉTAPES POUR CORRIGER
+
+### Option A : Exécuter la Migration SQL (Recommandé)
+
+1. **Ouvrir Supabase Dashboard**
+   - Aller sur https://supabase.com/dashboard
+   - Sélectionner votre projet
+
+2. **Exécuter la Migration**
+   - Aller dans **SQL Editor** (menu gauche)
+   - Copier le contenu de `supabase/migrations/20260211_create_public_user_trigger.sql`
+   - Coller dans l'éditeur SQL
+   - Cliquer **RUN**
+
+3. **Vérifier le Résultat**
+   ```sql
+   -- Vérifier que l'utilisateur existe maintenant dans public.users
+   SELECT id, email, created_at FROM public.users;
+   ```
+
+### Option B : Laisser l'Auto-création Fonctionner
+
+Si vous ne pouvez pas exécuter la migration SQL maintenant :
+- ✅ L'auto-création via `ensurePublicUserExists()` fonctionne déjà
+- ✅ La prochaine tentative de sauvegarde créera l'utilisateur automatiquement
+- ⚠️ Mais les futurs utilisateurs devront créer un projet pour être synchronisés
+
+**IMPORTANT** : L'option A (migration SQL) est fortement recommandée car elle :
+- Synchronise tous les utilisateurs existants
+- Crée le trigger pour les futurs utilisateurs
+- Évite les erreurs lors de la première sauvegarde
+
+---
+
+## 🧪 TEST DE VÉRIFICATION
+
+1. **Retourner sur /capture**
+2. **Entrer une nouvelle idée** (ex: "Application de gestion de tâches pour freelances")
+3. **Cliquer "Analyser"**
+4. **Attendre l'analyse**
+5. **Vérifier** :
+   - ✅ L'analyse se termine avec succès
+   - ✅ Le projet apparaît dans `/workspace`
+   - ✅ Vous pouvez cliquer dessus et accéder à Lab 1
+   - ✅ Plus d'erreur "Foreign key constraint violated"
+
+---
+
+## 📊 LOGS À SURVEILLER
+
+Dans les logs du serveur (terminal), vous devriez voir :
+
+### Avant (Échec)
+```
+POST /api/analysis 200 in 16.4s
+POST /api/projects 500 in 5.7s
+❌ Foreign key constraint violated on the constraint: `projects_user_id_fkey`
+```
+
+### Après (Succès)
+```
+POST /api/analysis 200 in 16.4s
+✅ Created public user for your@email.com
+POST /api/projects 201 in 1.2s
+```
+
+---
+
+## 🔄 MIGRATION SQL (Détails)
+
+Le fichier `supabase/migrations/20260211_create_public_user_trigger.sql` effectue :
+
+### 1. Création de la fonction trigger
+```sql
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.users (id, email, email_verified, updated_at, created_at)
+  VALUES (NEW.id, NEW.email, NEW.email_confirmed_at, NOW(), NOW())
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+### 2. Création du trigger
+```sql
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_user();
+```
+
+### 3. Synchronisation des utilisateurs existants
+```sql
+INSERT INTO public.users (id, email, email_verified, updated_at, created_at)
+SELECT id, email, email_confirmed_at, NOW(), created_at
+FROM auth.users
+WHERE id NOT IN (SELECT id FROM public.users)
+ON CONFLICT (id) DO NOTHING;
+```
+
+---
+
+## ✅ RÉSULTAT ATTENDU
+
+Après la correction :
+- ✅ Les analyses sont sauvegardées en base de données
+- ✅ Les projets apparaissent dans `/workspace`
+- ✅ Plus besoin de localStorage pour persister les projets
+- ✅ Navigation fluide vers Lab 1 après analyse
+- ✅ Tous les futurs utilisateurs seront auto-synchronisés
+
+---
+
+## 🎯 PROCHAINES ÉTAPES
+
+Une fois le fix appliqué :
+1. ✅ Tester la capture et l'analyse d'une idée
+2. ✅ Vérifier que le projet apparaît dans `/workspace`
+3. ✅ Naviguer vers Lab 1 et remplir les sections
+4. ✅ Tester le gate check (bloquer si exigences non remplies)
+
+---
+
+**Fix Implémenté** ✅
+**Migration SQL Disponible** ✅
+**Prêt pour Test** ✅
+
+*Rapport généré par Claude Sonnet 4.5*

@@ -1,0 +1,168 @@
+/**
+ * Tooling Detector
+ * Detect ORM, database, state management, build tools
+ */
+
+import type { PackageJson, DetectionSignal } from '../types';
+
+/**
+ * Detect ORM
+ */
+export function detectORM(packageJson: PackageJson | null): DetectionSignal | null {
+  if (!packageJson) {
+    return null;
+  }
+
+  const allDeps = {
+    ...packageJson.dependencies,
+    ...packageJson.devDependencies,
+  };
+
+  const ormRules: Array<{ signal: string; orm: string }> = [
+    { signal: 'prisma', orm: 'Prisma' },
+    { signal: '@prisma/client', orm: 'Prisma' },
+    { signal: 'typeorm', orm: 'TypeORM' },
+    { signal: 'sequelize', orm: 'Sequelize' },
+    { signal: 'mongoose', orm: 'Mongoose' },
+    { signal: 'drizzle-orm', orm: 'Drizzle ORM' },
+    { signal: 'kysely', orm: 'Kysely' },
+    { signal: 'mikro-orm', orm: 'MikroORM' },
+  ];
+
+  for (const rule of ormRules) {
+    if (allDeps[rule.signal]) {
+      return {
+        confidence: 'high',
+        evidence: `Dependency: ${rule.signal}`,
+        value: rule.orm,
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Detect database
+ */
+export function detectDatabase(packageJson: PackageJson | null): DetectionSignal | null {
+  if (!packageJson) {
+    return null;
+  }
+
+  const allDeps = {
+    ...packageJson.dependencies,
+    ...packageJson.devDependencies,
+  };
+
+  const dbRules: Array<{ signal: string; database: string }> = [
+    { signal: 'pg', database: 'PostgreSQL' },
+    { signal: 'postgres', database: 'PostgreSQL' },
+    { signal: '@vercel/postgres', database: 'PostgreSQL (Vercel)' },
+    { signal: 'mysql', database: 'MySQL' },
+    { signal: 'mysql2', database: 'MySQL' },
+    { signal: 'mongodb', database: 'MongoDB' },
+    { signal: 'mongoose', database: 'MongoDB' },
+    { signal: 'sqlite3', database: 'SQLite' },
+    { signal: 'better-sqlite3', database: 'SQLite' },
+    { signal: 'redis', database: 'Redis' },
+    { signal: '@upstash/redis', database: 'Redis (Upstash)' },
+    { signal: 'firebase', database: 'Firebase' },
+    { signal: '@supabase/supabase-js', database: 'Supabase' },
+  ];
+
+  for (const rule of dbRules) {
+    if (allDeps[rule.signal]) {
+      return {
+        confidence: 'high',
+        evidence: `Dependency: ${rule.signal}`,
+        value: rule.database,
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Detect state management
+ */
+export function detectStateManagement(packageJson: PackageJson | null): DetectionSignal | null {
+  if (!packageJson) {
+    return null;
+  }
+
+  const allDeps = {
+    ...packageJson.dependencies,
+    ...packageJson.devDependencies,
+  };
+
+  const stateRules: Array<{ signal: string; lib: string }> = [
+    { signal: 'redux', lib: 'Redux' },
+    { signal: '@reduxjs/toolkit', lib: 'Redux Toolkit' },
+    { signal: 'zustand', lib: 'Zustand' },
+    { signal: 'jotai', lib: 'Jotai' },
+    { signal: 'recoil', lib: 'Recoil' },
+    { signal: 'mobx', lib: 'MobX' },
+    { signal: 'xstate', lib: 'XState' },
+    { signal: 'valtio', lib: 'Valtio' },
+  ];
+
+  for (const rule of stateRules) {
+    if (allDeps[rule.signal]) {
+      return {
+        confidence: 'high',
+        evidence: `Dependency: ${rule.signal}`,
+        value: rule.lib,
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Detect build tool
+ */
+export function detectBuildTool(packageJson: PackageJson | null): DetectionSignal | null {
+  if (!packageJson) {
+    return null;
+  }
+
+  const allDeps = {
+    ...packageJson.dependencies,
+    ...packageJson.devDependencies,
+  };
+
+  const buildRules: Array<{ signal: string; tool: string; confidence: 'high' | 'medium' }> = [
+    { signal: 'vite', tool: 'Vite', confidence: 'high' },
+    { signal: 'webpack', tool: 'Webpack', confidence: 'high' },
+    { signal: 'turbopack', tool: 'Turbopack', confidence: 'high' },
+    { signal: 'esbuild', tool: 'esbuild', confidence: 'high' },
+    { signal: 'rollup', tool: 'Rollup', confidence: 'high' },
+    { signal: 'parcel', tool: 'Parcel', confidence: 'high' },
+    { signal: '@swc/core', tool: 'SWC', confidence: 'medium' },
+    { signal: 'tsup', tool: 'tsup', confidence: 'high' },
+  ];
+
+  for (const rule of buildRules) {
+    if (allDeps[rule.signal]) {
+      return {
+        confidence: rule.confidence,
+        evidence: `Dependency: ${rule.signal}`,
+        value: rule.tool,
+      };
+    }
+  }
+
+  // Check Next.js (has built-in bundler)
+  if (allDeps.next) {
+    return {
+      confidence: 'medium',
+      evidence: 'Next.js built-in bundler',
+      value: 'Next.js (built-in)',
+    };
+  }
+
+  return null;
+}

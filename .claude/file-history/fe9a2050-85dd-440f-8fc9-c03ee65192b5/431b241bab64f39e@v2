@@ -1,0 +1,211 @@
+/**
+ * K3RN.LABS — Tests de la logique de décision
+ * Source de vérité : Contrat Canonique v1.1, Section 5.1
+ */
+
+import { describe, test, expect } from 'vitest';
+import { determineDecision } from '@/lib/analysis/decision';
+import type { AnalysisAxes } from '@/lib/analysis/types';
+import validOutput from '@/lib/analysis/fixtures/analysis-v1.0/outputs/valid-simple-idea-expected-output.json';
+
+// ─── Helper to build analysis with custom scores ────────────────
+function makeAnalysis(overrides: Partial<Record<keyof AnalysisAxes, { score?: number; blocking_gap?: boolean }>> = {}): AnalysisAxes {
+  const defaults: AnalysisAxes = {
+    problem: { score: 70, justification: 'Test justification for problem axis.', blocking_gap: false },
+    market: { score: 70, justification: 'Test justification for market axis.', blocking_gap: false },
+    differentiation: { score: 70, justification: 'Test justification for diff axis.', blocking_gap: false },
+    feasibility: { score: 70, justification: 'Test justification for feasibility.', blocking_gap: false },
+    business: { score: 70, justification: 'Test justification for business axis.', blocking_gap: false },
+    founder_fit: { score: 70, justification: 'Test justification for founder fit.', blocking_gap: false },
+  };
+  for (const [axis, override] of Object.entries(overrides)) {
+    const key = axis as keyof AnalysisAxes;
+    if (override.score !== undefined) defaults[key].score = override.score;
+    if (override.blocking_gap !== undefined) defaults[key].blocking_gap = override.blocking_gap;
+  }
+  return defaults;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FIXTURE TEST
+// ═══════════════════════════════════════════════════════════════════
+
+describe('Fixture validation', () => {
+  test('should match fixture: score 58 + MEDIUM confidence = EXPLORE', () => {
+    const analysis = validOutput.analysis as AnalysisAxes;
+    const result = determineDecision(58, analysis, 'MEDIUM');
+    expect(result.recommendation).toBe('EXPLORE');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// KILL RULES (Règle 1)
+// ═══════════════════════════════════════════════════════════════════
+
+describe('KILL decision', () => {
+  test('should KILL when global score < 30', () => {
+    const analysis = makeAnalysis({
+      problem: { score: 25 },
+      market: { score: 20 },
+      business: { score: 25 },
+    });
+    const result = determineDecision(25, analysis, 'MEDIUM');
+    expect(result.recommendation).toBe('KILL');
+  });
+
+  test('should KILL when blocking_gap exists', () => {
+    const analysis = makeAnalysis({
+      market: { score: 70, blocking_gap: true },
+    });
+    const result = determineDecision(70, analysis, 'HIGH');
+    expect(result.recommendation).toBe('KILL');
+  });
+
+  test('should KILL when problem score < 20', () => {
+    const analysis = makeAnalysis({
+      problem: { score: 15 },
+    });
+    const result = determineDecision(55, analysis, 'MEDIUM');
+    expect(result.recommendation).toBe('KILL');
+  });
+
+  test('should KILL even with high global score if blocking_gap', () => {
+    const analysis = makeAnalysis({
+      feasibility: { score: 80, blocking_gap: true },
+    });
+    const result = determineDecision(85, analysis, 'HIGH');
+    expect(result.recommendation).toBe('KILL');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// PARK RULES (Règle 2)
+// ═══════════════════════════════════════════════════════════════════
+
+describe('PARK decision', () => {
+  test('should PARK when score is 30-49 with no blocking gaps', () => {
+    const analysis = makeAnalysis({
+      problem: { score: 40 },
+      market: { score: 35 },
+      business: { score: 30 },
+    });
+    const result = determineDecision(40, analysis, 'MEDIUM');
+    expect(result.recommendation).toBe('PARK');
+  });
+
+  test('should PARK at score exactly 30', () => {
+    const analysis = makeAnalysis({
+      problem: { score: 30 },
+      market: { score: 30 },
+      business: { score: 30 },
+    });
+    const result = determineDecision(30, analysis, 'LOW');
+    expect(result.recommendation).toBe('PARK');
+  });
+
+  test('should PARK at score 49', () => {
+    const analysis = makeAnalysis({
+      problem: { score: 50 },
+      market: { score: 45 },
+      business: { score: 50 },
+    });
+    const result = determineDecision(49, analysis, 'LOW');
+    expect(result.recommendation).toBe('PARK');
+  });
+
+  test('should KILL (not PARK) when critical axis < 25', () => {
+    const analysis = makeAnalysis({
+      problem: { score: 20 }, // < 25, critical axis
+      market: { score: 40 },
+      business: { score: 40 },
+    });
+    const result = determineDecision(40, analysis, 'LOW');
+    // problem < 20 triggers KILL or < 25 triggers KILL in PARK range
+    expect(result.recommendation).toBe('KILL');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// EXPLORE RULES (Règle 3)
+// ═══════════════════════════════════════════════════════════════════
+
+describe('EXPLORE decision', () => {
+  test('should EXPLORE when score is 50-69', () => {
+    const analysis = makeAnalysis();
+    const result = determineDecision(55, analysis, 'MEDIUM');
+    expect(result.recommendation).toBe('EXPLORE');
+  });
+
+  test('should EXPLORE at score exactly 50', () => {
+    const analysis = makeAnalysis();
+    const result = determineDecision(50, analysis, 'MEDIUM');
+    expect(result.recommendation).toBe('EXPLORE');
+  });
+
+  test('should EXPLORE at score 69', () => {
+    const analysis = makeAnalysis();
+    const result = determineDecision(69, analysis, 'HIGH');
+    expect(result.recommendation).toBe('EXPLORE');
+  });
+
+  test('should EXPLORE when score >= 70 but confidence is LOW', () => {
+    const analysis = makeAnalysis();
+    const result = determineDecision(75, analysis, 'LOW');
+    expect(result.recommendation).toBe('EXPLORE');
+  });
+
+  test('should EXPLORE when score >= 70 but critical axis < 50', () => {
+    const analysis = makeAnalysis({
+      business: { score: 45 }, // Critical axis < 50
+    });
+    const result = determineDecision(72, analysis, 'MEDIUM');
+    expect(result.recommendation).toBe('EXPLORE');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// GO RULES (Règle 4)
+// ═══════════════════════════════════════════════════════════════════
+
+describe('GO decision', () => {
+  test('should GO when score >= 70, confidence >= MEDIUM, no gaps, criticals >= 50', () => {
+    const analysis = makeAnalysis(); // all at 70
+    const result = determineDecision(70, analysis, 'MEDIUM');
+    expect(result.recommendation).toBe('GO');
+  });
+
+  test('should GO with HIGH confidence', () => {
+    const analysis = makeAnalysis();
+    const result = determineDecision(85, analysis, 'HIGH');
+    expect(result.recommendation).toBe('GO');
+  });
+
+  test('should not GO with LOW confidence even if score >= 70', () => {
+    const analysis = makeAnalysis();
+    const result = determineDecision(80, analysis, 'LOW');
+    expect(result.recommendation).toBe('EXPLORE');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// PRIORITY CONFLICTS (Section 5.2)
+// ═══════════════════════════════════════════════════════════════════
+
+describe('Priority conflicts', () => {
+  test('KILL should override GO when blocking_gap exists', () => {
+    // Score = 72 (GO range) but blocking_gap HIGH → KILL
+    const analysis = makeAnalysis({
+      market: { score: 80, blocking_gap: true },
+    });
+    const result = determineDecision(72, analysis, 'HIGH');
+    expect(result.recommendation).toBe('KILL');
+  });
+
+  test('KILL should override EXPLORE when problem < 20', () => {
+    const analysis = makeAnalysis({
+      problem: { score: 10 },
+    });
+    const result = determineDecision(60, analysis, 'MEDIUM');
+    expect(result.recommendation).toBe('KILL');
+  });
+});

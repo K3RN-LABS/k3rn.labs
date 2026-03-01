@@ -1,0 +1,206 @@
+import WebSocket from 'ws';
+import { EventEmitter } from 'events';
+import {
+    REALTIME_API_URL,
+    REALTIME_TRANSCRIPTION_MODEL,
+    AUDIO_SAMPLE_RATE,
+} from '../config/constants';
+
+/**
+ * Events emitted by StreamingTranscription:
+ *   'delta'     → { text: string, itemId: string } — incremental transcript
+ *   'completed' → { text: string, itemId: string } — final transcript for a turn
+ *   'error'     → { message: string }
+ *   'connected' → {}
+ *   'closed'    → {}
+ */
+class StreamingTranscription extends EventEmitter {
+    private ws: WebSocket | null = null;
+    private isConnected = false;
+    private reconnectTimeout: NodeJS.Timeout | null = null;
+
+    /**
+     * Open a WebSocket to the OpenAI Realtime transcription endpoint
+     */
+    connect(apiKey: string, language: string = 'auto'): void {
+        if (this.ws) {
+            this.disconnect();
+        }
+
+        console.log('[StreamingTranscription] Connecting to Realtime API...');
+
+        const ws = new WebSocket(REALTIME_API_URL, {
+            headers: {
+                Authorization: `Bearer ${apiKey}`,
+                'OpenAI-Beta': 'realtime=v1',
+            },
+        });
+        this.ws = ws;
+
+        ws.on('open', () => {
+            if (this.ws !== ws) return; // superseded by a newer connection
+            this.isConnected = true;
+            console.log('[StreamingTranscription] WebSocket connected');
+
+            // Configure session for transcription-only mode
+            // Uses the transcription_session.update event type for the ?intent=transcription endpoint
+            const sessionConfig: any = {
+                type: 'transcription_session.update',
+                session: {
+                    input_audio_format: 'pcm16',
+                    input_audio_transcription: {
+                        model: REALTIME_TRANSCRIPTION_MODEL,
+                    },
+                    turn_detection: {
+                        type: 'server_vad',
+                        threshold: 0.5,
+                        prefix_padding_ms: 300,
+                        silence_duration_ms: 500,
+                    },
+                },
+            };
+
+            // Add language if not auto-detect
+            if (language !== 'auto') {
+                sessionConfig.session.input_audio_transcription.language = language;
+            }
+
+            ws.send(JSON.stringify(sessionConfig));
+            this.emit('connected');
+        });
+
+        ws.on('message', (data: WebSocket.Data) => {
+            if (this.ws !== ws) return; // superseded
+            try {
+                const event = JSON.parse(data.toString());
+                this.handleServerEvent(event);
+            } catch (err) {
+                console.error('[StreamingTranscription] Failed to parse event:', err);
+            }
+        });
+
+        ws.on('error', (error: Error) => {
+            if (this.ws !== ws) return; // superseded
+            console.error('[StreamingTranscription] WebSocket error:', error.message);
+            this.emit('error', { message: error.message });
+        });
+
+        ws.on('close', (code: number, reason: Buffer) => {
+            console.log(`[StreamingTranscription] WebSocket closed: ${code} ${reason.toString()}`);
+            if (this.ws === ws) {
+                // Only clear state if this is still the active connection
+                this.isConnected = false;
+                this.ws = null;
+            }
+            this.emit('closed');
+        });
+    }
+
+    /**
+     * Send a chunk of PCM16 audio (raw Int16 samples) as base64
+     */
+    sendAudioChunk(pcmBuffer: Buffer): void {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+        const base64Audio = pcmBuffer.toString('base64');
+
+        this.ws.send(JSON.stringify({
+            type: 'input_audio_buffer.append',
+            audio: base64Audio,
+        }));
+    }
+
+    /**
+     * Manually commit the audio buffer (used when VAD is disabled)
+     */
+    commitAudioBuffer(): void {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+        this.ws.send(JSON.stringify({
+            type: 'input_audio_buffer.commit',
+        }));
+    }
+
+    /**
+     * Disconnect from the Realtime API
+     */
+    disconnect(): void {
+        if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = null;
+        }
+
+        if (this.ws) {
+            this.isConnected = false;
+            this.ws.close();
+            this.ws = null;
+        }
+    }
+
+    /**
+     * Whether the WebSocket is currently connected
+     */
+    get connected(): boolean {
+        return this.isConnected;
+    }
+
+    /**
+     * Handle incoming server events
+     */
+    private handleServerEvent(event: any): void {
+        switch (event.type) {
+            case 'session.created':
+            case 'transcription_session.created':
+                console.log('[StreamingTranscription] Session created:', event.session?.id);
+                break;
+
+            case 'session.updated':
+            case 'transcription_session.updated':
+                console.log('[StreamingTranscription] Session configured for transcription');
+                break;
+
+            case 'conversation.item.input_audio_transcription.delta':
+                // Incremental transcript — stream to UI
+                this.emit('delta', {
+                    text: event.delta || '',
+                    itemId: event.item_id,
+                });
+                break;
+
+            case 'conversation.item.input_audio_transcription.completed':
+                // Final transcript for this speech turn
+                this.emit('completed', {
+                    text: event.transcript || '',
+                    itemId: event.item_id,
+                });
+                break;
+
+            case 'input_audio_buffer.speech_started':
+                console.log('[StreamingTranscription] Speech detected');
+                this.emit('speech_started');
+                break;
+
+            case 'input_audio_buffer.speech_stopped':
+                console.log('[StreamingTranscription] Speech ended');
+                this.emit('speech_stopped');
+                break;
+
+            case 'input_audio_buffer.committed':
+                console.log('[StreamingTranscription] Audio buffer committed, item:', event.item_id);
+                break;
+
+            case 'error':
+                console.error('[StreamingTranscription] Server error:', event.error);
+                this.emit('error', {
+                    message: event.error?.message || 'Unknown server error',
+                });
+                break;
+
+            default:
+                // Ignore other event types
+                break;
+        }
+    }
+}
+
+export const streamingTranscription = new StreamingTranscription();

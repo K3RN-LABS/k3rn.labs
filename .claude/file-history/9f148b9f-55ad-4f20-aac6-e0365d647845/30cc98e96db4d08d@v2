@@ -1,0 +1,54 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { generateTicketPack } from '@/lib/ticketpack/generator';
+import { validateTicketPack } from '@/lib/ticketpack/schema';
+import type { TicketPackInput } from '@/lib/ticketpack/types';
+
+export const dynamic = 'force-dynamic';
+
+export async function POST(request: NextRequest) {
+  try {
+    const input: TicketPackInput = await request.json();
+
+    // Validation input
+    if (!input.brief || input.brief.trim().length < 10) {
+      return NextResponse.json(
+        { error: 'Brief trop court (minimum 10 caractères)' },
+        { status: 400 }
+      );
+    }
+
+    if (!input.deliverable_type) {
+      return NextResponse.json(
+        { error: 'Type de livrable requis' },
+        { status: 400 }
+      );
+    }
+
+    // Génération du pack
+    const pack = await generateTicketPack(input);
+
+    // Validation du pack généré
+    const validation = validateTicketPack(pack);
+    if (!validation.valid) {
+      console.error('TicketPack validation errors:', validation.errors);
+      return NextResponse.json(
+        {
+          error: 'Erreur de génération du pack',
+          details: validation.errors,
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(pack);
+  } catch (error) {
+    console.error('TicketPack generation error:', error);
+    return NextResponse.json(
+      {
+        error: 'Erreur lors de la génération',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
+  }
+}

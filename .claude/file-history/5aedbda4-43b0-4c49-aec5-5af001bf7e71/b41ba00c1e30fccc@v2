@@ -1,0 +1,277 @@
+"""Tests unitaires pour la gestion des artefacts."""
+
+import hashlib
+from io import BytesIO
+
+import pytest
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.main import app
+from app.models import Artifact, Project
+from app.services.artifact_service import compute_sha256, detect_content_type
+
+
+class TestArtifactService:
+    """Tests pour le service artifact_service."""
+
+    def test_compute_sha256(self):
+        """Test du calcul SHA-256."""
+        content = b"Hello kern.labs!"
+        expected_hash = hashlib.sha256(content).hexdigest()
+
+        result = compute_sha256(content)
+
+        assert result == expected_hash
+        assert len(result) == 64  # SHA-256 = 64 caractères hex
+
+    def test_compute_sha256_empty(self):
+        """Test du calcul SHA-256 pour contenu vide."""
+        content = b""
+        expected_hash = hashlib.sha256(content).hexdigest()
+
+        result = compute_sha256(content)
+
+        assert result == expected_hash
+
+    def test_compute_sha256_deterministic(self):
+        """Test que le SHA-256 est déterministe."""
+        content = b"Deterministic test"
+
+        hash1 = compute_sha256(content)
+        hash2 = compute_sha256(content)
+
+        assert hash1 == hash2
+
+    def test_detect_content_type_txt(self):
+        """Test détection content-type pour fichier .txt."""
+        result = detect_content_type("file.txt", None)
+        assert result == "text/plain"
+
+    def test_detect_content_type_markdown(self):
+        """Test détection content-type pour fichier .md."""
+        result = detect_content_type("README.md", None)
+        assert result == "text/markdown"
+
+    def test_detect_content_type_json(self):
+        """Test détection content-type pour fichier .json."""
+        result = detect_content_type("data.json", None)
+        assert result == "application/json"
+
+    def test_detect_content_type_zip(self):
+        """Test détection content-type pour fichier .zip."""
+        result = detect_content_type("archive.zip", None)
+        assert result == "application/zip"
+
+    def test_detect_content_type_correction(self):
+        """Test correction d'un content-type incorrect."""
+        # Simulate incorrect content-type from browser
+        result = detect_content_type("file.txt", "application/octet-stream")
+        assert result == "text/plain"
+
+    def test_detect_content_type_keep_valid(self):
+        """Test que le content-type valide est conservé."""
+        result = detect_content_type("file.txt", "text/plain; charset=utf-8")
+        assert result == "text/plain; charset=utf-8"
+
+    def test_detect_content_type_unknown(self):
+        """Test pour extension inconnue."""
+        result = detect_content_type("file.xyz", None)
+        assert result == "application/octet-stream"
+
+
+class TestArtifactEndpoints:
+    """Tests pour les endpoints artifacts."""
+
+    @pytest.mark.asyncio
+    async def test_upload_artifact_txt(self, test_client: AsyncClient, test_project: Project):
+        """Test upload d'un fichier texte."""
+        content = b"This is a test brainstorm log.\nLine 2\nLine 3"
+        filename = "brainstorm.txt"
+
+        files = {"file": (filename, BytesIO(content), "text/plain")}
+        data = {
+            "project_id": test_project.id,
+            "artifact_type": "BRAINSTORM_LOG",
+        }
+
+        response = await test_client.post("/artifacts/upload", files=files, data=data)
+
+        assert response.status_code == 201
+        result = response.json()
+
+        # Vérifications
+        assert result["project_id"] == test_project.id
+        assert result["artifact_type"] == "BRAINSTORM_LOG"
+        assert result["filename"] == filename
+        assert result["content_type"] == "text/plain"
+        assert result["size_bytes"] == len(content)
+        assert len(result["sha256"]) == 64
+        assert result["storage_key"].startswith(f"projects/{test_project.id}/")
+
+        # Vérifier que le SHA-256 est correct
+        expected_sha256 = hashlib.sha256(content).hexdigest()
+        assert result["sha256"] == expected_sha256
+
+    @pytest.mark.asyncio
+    async def test_upload_artifact_markdown(self, test_client: AsyncClient, test_project: Project):
+        """Test upload d'un fichier markdown."""
+        content = b"# Test Markdown\n\nThis is a test."
+        filename = "distillation.md"
+
+        files = {"file": (filename, BytesIO(content), "text/markdown")}
+        data = {
+            "project_id": test_project.id,
+            "artifact_type": "DISTILLATION_MD",
+        }
+
+        response = await test_client.post("/artifacts/upload", files=files, data=data)
+
+        assert response.status_code == 201
+        result = response.json()
+        assert result["content_type"] == "text/markdown"
+
+    @pytest.mark.asyncio
+    async def test_upload_artifact_empty_file(
+        self, test_client: AsyncClient, test_project: Project
+    ):
+        """Test upload d'un fichier vide (doit échouer)."""
+        content = b""
+        filename = "empty.txt"
+
+        files = {"file": (filename, BytesIO(content), "text/plain")}
+        data = {
+            "project_id": test_project.id,
+            "artifact_type": "BRAINSTORM_LOG",
+        }
+
+        response = await test_client.post("/artifacts/upload", files=files, data=data)
+
+        assert response.status_code == 400
+        assert "empty" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_upload_artifact_invalid_type(
+        self, test_client: AsyncClient, test_project: Project
+    ):
+        """Test upload avec type d'artefact invalide."""
+        content = b"Test content"
+        filename = "test.txt"
+
+        files = {"file": (filename, BytesIO(content), "text/plain")}
+        data = {
+            "project_id": test_project.id,
+            "artifact_type": "INVALID_TYPE",
+        }
+
+        response = await test_client.post("/artifacts/upload", files=files, data=data)
+
+        assert response.status_code == 400
+        assert "Invalid artifact_type" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_download_artifact(
+        self, test_client: AsyncClient, test_project: Project, test_artifact: Artifact
+    ):
+        """Test download d'un artefact."""
+        response = await test_client.get(f"/artifacts/{test_artifact.id}/download")
+
+        assert response.status_code == 200
+        assert response.headers["x-sha256"] == test_artifact.sha256
+        assert response.headers["content-type"] == test_artifact.content_type
+
+        # Vérifier que le contenu est identique
+        downloaded_hash = hashlib.sha256(response.content).hexdigest()
+        assert downloaded_hash == test_artifact.sha256
+
+    @pytest.mark.asyncio
+    async def test_download_artifact_not_found(self, test_client: AsyncClient):
+        """Test download d'un artefact inexistant."""
+        response = await test_client.get("/artifacts/99999/download")
+
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_verify_artifact_integrity(
+        self, test_client: AsyncClient, test_artifact: Artifact
+    ):
+        """Test vérification de l'intégrité d'un artefact."""
+        response = await test_client.get(f"/artifacts/{test_artifact.id}/verify")
+
+        assert response.status_code == 200
+        result = response.json()
+
+        assert result["artifact_id"] == test_artifact.id
+        assert result["sha256"] == test_artifact.sha256
+        assert result["integrity"] == "verified"
+
+    @pytest.mark.asyncio
+    async def test_upload_download_roundtrip(
+        self, test_client: AsyncClient, test_project: Project
+    ):
+        """Test complet: upload puis download, vérification intégrité."""
+        # Upload
+        original_content = b"Roundtrip test content with special chars: éàç"
+        filename = "roundtrip.txt"
+
+        files = {"file": (filename, BytesIO(original_content), "text/plain")}
+        data = {
+            "project_id": test_project.id,
+            "artifact_type": "BRAINSTORM_LOG",
+        }
+
+        upload_response = await test_client.post("/artifacts/upload", files=files, data=data)
+        assert upload_response.status_code == 201
+
+        artifact_id = upload_response.json()["id"]
+        original_sha256 = upload_response.json()["sha256"]
+
+        # Download
+        download_response = await test_client.get(f"/artifacts/{artifact_id}/download")
+        assert download_response.status_code == 200
+
+        # Vérifier intégrité
+        downloaded_content = download_response.content
+        downloaded_sha256 = hashlib.sha256(downloaded_content).hexdigest()
+
+        assert downloaded_content == original_content
+        assert downloaded_sha256 == original_sha256
+
+    @pytest.mark.asyncio
+    async def test_double_upload_same_content(
+        self, test_client: AsyncClient, test_project: Project
+    ):
+        """Test double upload du même contenu (edge case: autorisé, SHA identique)."""
+        content = b"Same content uploaded twice"
+        filename = "duplicate.txt"
+
+        files1 = {"file": (filename, BytesIO(content), "text/plain")}
+        data1 = {
+            "project_id": test_project.id,
+            "artifact_type": "BRAINSTORM_LOG",
+        }
+
+        # Premier upload
+        response1 = await test_client.post("/artifacts/upload", files=files1, data=data1)
+        assert response1.status_code == 201
+        sha256_1 = response1.json()["sha256"]
+
+        # Deuxième upload du même contenu
+        files2 = {"file": (filename, BytesIO(content), "text/plain")}
+        data2 = {
+            "project_id": test_project.id,
+            "artifact_type": "BRAINSTORM_LOG",
+        }
+
+        response2 = await test_client.post("/artifacts/upload", files=files2, data=data2)
+
+        # Note: Le ticket indique "autorisé, mais pas obligatoire de dédupliquer"
+        # Notre implémentation crée un nouvel artefact avec SHA identique
+        # mais storage_key différent (car UUID différent)
+        if response2.status_code == 201:
+            sha256_2 = response2.json()["sha256"]
+            assert sha256_1 == sha256_2  # Même contenu = même SHA
+        else:
+            # Si on implémentait la déduplication, on pourrait avoir un 409
+            assert response2.status_code == 409

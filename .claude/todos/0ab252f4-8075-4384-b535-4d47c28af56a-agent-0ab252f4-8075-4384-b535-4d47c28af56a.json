@@ -1,0 +1,32 @@
+[
+  {
+    "content": "Investiguer pourquoi les toolCode ne s'exécutent pas",
+    "status": "completed",
+    "activeForm": "Investigation toolCode execution"
+  },
+  {
+    "content": "Refactorer en architecture pré-fetch : Code nodes avant agents",
+    "status": "completed",
+    "activeForm": "Refactoring architecture pré-fetch"
+  },
+  {
+    "content": "Fix SEARCH : HTTP Request nodes natifs (Perplexity OK, Tavily pas exécuté)",
+    "status": "completed",
+    "activeForm": "Fix HTTP Request nodes"
+  },
+  {
+    "content": "Fix connexions : PERPLEXITY → TAVILY en séquence (pas parallèle)",
+    "status": "in_progress",
+    "activeForm": "Fix connexions séquentielles"
+  },
+  {
+    "content": "Fix rate limit : tronquer sep_context et résultats recherche",
+    "status": "pending",
+    "activeForm": "Fix rate limit tokens"
+  },
+  {
+    "content": "TEST — pipeline complet route ideation",
+    "status": "pending",
+    "activeForm": "Test pipeline complet"
+  }
+]

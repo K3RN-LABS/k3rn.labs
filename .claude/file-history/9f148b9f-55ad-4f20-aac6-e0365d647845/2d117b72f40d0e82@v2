@@ -1,0 +1,280 @@
+/**
+ * GitHub repository skill indexing (metadata-only, no content scraping)
+ */
+
+import Database from 'better-sqlite3';
+import { parseSkillFrontmatter } from './skill-parser';
+
+interface GitHubConfig {
+  repo_url: string;
+  branch?: string;
+  patterns?: string[]; // e.g., ["skills/*/SKILL.md", "SKILL.md"]
+  github_token?: string; // Optional PAT for private repos or higher rate limits
+}
+
+interface GitHubTreeItem {
+  path: string;
+  mode: string;
+  type: 'blob' | 'tree';
+  sha: string;
+  size?: number;
+  url: string;
+}
+
+interface SyncResult {
+  indexed: number;
+  updated: number;
+  removed: number;
+  errors: string[];
+}
+
+/**
+ * Sync GitHub repository: index SKILL.md files as external skill refs
+ */
+export async function syncGitHubSource(
+  db: Database.Database,
+  sourceId: number,
+  config: GitHubConfig
+): Promise<SyncResult> {
+  const result: SyncResult = {
+    indexed: 0,
+    updated: 0,
+    removed: 0,
+    errors: [],
+  };
+
+  try {
+    // Parse repo URL to extract owner/repo
+    const { owner, repo } = parseGitHubUrl(config.repo_url);
+    const branch = config.branch || 'main';
+    const patterns = config.patterns || ['skills/*/SKILL.md', '**/SKILL.md'];
+
+    // Fetch repository tree via GitHub API
+    const tree = await fetchGitHubTree(owner, repo, branch, config.github_token);
+
+    // Discover SKILL.md files matching patterns
+    const skillFiles = tree.filter((item) =>
+      item.type === 'blob' && matchesPattern(item.path, patterns)
+    );
+
+    console.log(`Found ${skillFiles.length} SKILL.md files in ${owner}/${repo}`);
+
+    // Track seen slugs for pruning
+    const seenSlugs = new Set<string>();
+
+    // Process each skill file
+    for (const file of skillFiles) {
+      try {
+        const slug = extractSlugFromPath(file.path);
+        seenSlugs.add(slug);
+
+        // Fetch file content (raw)
+        const content = await fetchFileContent(owner, repo, file.path, branch, config.github_token);
+
+        // Parse frontmatter + extract metadata
+        const metadata = parseSkillFrontmatter(content);
+
+        // Build repo_url for this specific skill
+        const skillRepoUrl = `https://github.com/${owner}/${repo}/blob/${branch}/${file.path}`;
+
+        // Check if skill already exists
+        const existing = db
+          .prepare('SELECT id FROM external_skill_refs WHERE source_id = ? AND slug = ?')
+          .get(sourceId, slug) as any;
+
+        if (existing) {
+          // Update existing
+          db.prepare(`
+            UPDATE external_skill_refs
+            SET name = ?, description = ?, tags_json = ?, triggers_json = ?,
+                license = ?, repo_url = ?, version = ?, sha = ?, last_seen_at = datetime('now')
+            WHERE id = ?
+          `).run(
+            metadata.name,
+            metadata.description,
+            JSON.stringify(metadata.tags),
+            JSON.stringify(metadata.triggers),
+            metadata.license,
+            skillRepoUrl,
+            metadata.version,
+            file.sha,
+            existing.id
+          );
+          result.updated++;
+        } else {
+          // Insert new
+          db.prepare(`
+            INSERT INTO external_skill_refs
+            (source_id, slug, name, description, tags_json, triggers_json, license, repo_url, version, sha)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(
+            sourceId,
+            slug,
+            metadata.name,
+            metadata.description,
+            JSON.stringify(metadata.tags),
+            JSON.stringify(metadata.triggers),
+            metadata.license,
+            skillRepoUrl,
+            metadata.version,
+            file.sha
+          );
+          result.indexed++;
+
+          // Index in FTS
+          db.prepare(`
+            INSERT INTO external_skills_fts (name, description, triggers, tags)
+            VALUES (?, ?, ?, ?)
+          `).run(
+            metadata.name,
+            metadata.description,
+            JSON.stringify(metadata.triggers),
+            JSON.stringify(metadata.tags)
+          );
+        }
+      } catch (error: any) {
+        console.error(`Failed to process ${file.path}:`, error);
+        result.errors.push(`${file.path}: ${error.message}`);
+      }
+    }
+
+    // Prune skills that are no longer in the repo
+    const allExisting = db
+      .prepare('SELECT id, slug FROM external_skill_refs WHERE source_id = ?')
+      .all(sourceId) as Array<{ id: number; slug: string }>;
+
+    for (const existing of allExisting) {
+      if (!seenSlugs.has(existing.slug)) {
+        db.prepare('DELETE FROM external_skill_refs WHERE id = ?').run(existing.id);
+        result.removed++;
+      }
+    }
+
+    return result;
+  } catch (error: any) {
+    console.error('GitHub sync failed:', error);
+    throw new Error(`GitHub sync failed: ${error.message}`);
+  }
+}
+
+/**
+ * Parse GitHub URL to extract owner/repo
+ */
+function parseGitHubUrl(url: string): { owner: string; repo: string } {
+  const match = url.match(/github\.com\/([^\/]+)\/([^\/\.]+)/);
+  if (!match) {
+    throw new Error('Invalid GitHub URL format');
+  }
+  return { owner: match[1], repo: match[2] };
+}
+
+/**
+ * Fetch repository tree via GitHub API (recursive)
+ */
+async function fetchGitHubTree(
+  owner: string,
+  repo: string,
+  branch: string,
+  token?: string
+): Promise<GitHubTreeItem[]> {
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github.v3+json',
+  };
+
+  if (token) {
+    headers.Authorization = `token ${token}`;
+  }
+
+  // Get branch ref to find tree SHA
+  const refUrl = `https://api.github.com/repos/${owner}/${repo}/git/ref/heads/${branch}`;
+  const refRes = await fetch(refUrl, { headers });
+
+  if (!refRes.ok) {
+    throw new Error(`Failed to fetch branch ref: ${refRes.status} ${refRes.statusText}`);
+  }
+
+  const refData = await refRes.json();
+  const commitSha = refData.object.sha;
+
+  // Get commit to find tree SHA
+  const commitUrl = `https://api.github.com/repos/${owner}/${repo}/git/commits/${commitSha}`;
+  const commitRes = await fetch(commitUrl, { headers });
+
+  if (!commitRes.ok) {
+    throw new Error(`Failed to fetch commit: ${commitRes.status} ${commitRes.statusText}`);
+  }
+
+  const commitData = await commitRes.json();
+  const treeSha = commitData.tree.sha;
+
+  // Get tree recursively
+  const treeUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/${treeSha}?recursive=1`;
+  const treeRes = await fetch(treeUrl, { headers });
+
+  if (!treeRes.ok) {
+    throw new Error(`Failed to fetch tree: ${treeRes.status} ${treeRes.statusText}`);
+  }
+
+  const treeData = await treeRes.json();
+  return treeData.tree as GitHubTreeItem[];
+}
+
+/**
+ * Fetch file content from GitHub
+ */
+async function fetchFileContent(
+  owner: string,
+  repo: string,
+  path: string,
+  branch: string,
+  token?: string
+): Promise<string> {
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github.v3.raw',
+  };
+
+  if (token) {
+    headers.Authorization = `token ${token}`;
+  }
+
+  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
+  const res = await fetch(url, { headers });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch file: ${res.status} ${res.statusText}`);
+  }
+
+  return await res.text();
+}
+
+/**
+ * Check if path matches any of the patterns
+ */
+function matchesPattern(path: string, patterns: string[]): boolean {
+  return patterns.some((pattern) => {
+    // Simple glob matching: **/* = any depth, * = single segment
+    const regexPattern = pattern
+      .replace(/\*\*/g, '.*')
+      .replace(/\*/g, '[^/]*')
+      .replace(/\//g, '\\/');
+
+    const regex = new RegExp(`^${regexPattern}$`);
+    return regex.test(path);
+  });
+}
+
+/**
+ * Extract slug from file path (e.g., "skills/react/SKILL.md" -> "react")
+ */
+function extractSlugFromPath(path: string): string {
+  // Remove SKILL.md and get the parent directory name
+  const parts = path.split('/');
+
+  // If pattern is skills/*/SKILL.md, slug is the folder name
+  if (parts.length >= 2 && parts[parts.length - 1] === 'SKILL.md') {
+    return parts[parts.length - 2];
+  }
+
+  // Fallback: use the full path without .md as slug
+  return path.replace(/\.md$/i, '').replace(/\//g, '-');
+}

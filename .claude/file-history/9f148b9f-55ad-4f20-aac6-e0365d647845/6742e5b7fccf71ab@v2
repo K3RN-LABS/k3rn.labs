@@ -1,0 +1,74 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getDb } from '@/lib/db';
+import { syncGitHubSource } from '@/lib/sources/github-sync';
+
+export const dynamic = 'force-dynamic';
+
+/**
+ * POST /api/sources/sync
+ * Synchronize a skill source (fetch and index external skills)
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { sourceId } = body;
+
+    if (!sourceId) {
+      return NextResponse.json({ error: 'sourceId required' }, { status: 400 });
+    }
+
+    const db = getDb();
+
+    // Fetch source configuration
+    const source = db
+      .prepare('SELECT * FROM skill_sources WHERE id = ?')
+      .get(sourceId) as any;
+
+    if (!source) {
+      return NextResponse.json({ error: 'Source not found' }, { status: 404 });
+    }
+
+    if (!source.enabled) {
+      return NextResponse.json({ error: 'Source is disabled' }, { status: 400 });
+    }
+
+    // Parse config
+    const config = JSON.parse(source.config_json || '{}');
+
+    let syncResult;
+
+    // Dispatch to appropriate sync handler based on type
+    switch (source.type) {
+      case 'github':
+        if (!config.repo_url) {
+          return NextResponse.json({ error: 'repo_url required in config' }, { status: 400 });
+        }
+        syncResult = await syncGitHubSource(db, sourceId, config);
+        break;
+
+      case 'local':
+        return NextResponse.json({ error: 'Local source does not require sync' }, { status: 400 });
+
+      default:
+        return NextResponse.json({ error: `Unknown source type: ${source.type}` }, { status: 400 });
+    }
+
+    // Update last_sync_at
+    db.prepare('UPDATE skill_sources SET last_sync_at = datetime("now") WHERE id = ?').run(
+      sourceId
+    );
+
+    return NextResponse.json({
+      success: true,
+      source_id: sourceId,
+      source_name: source.name,
+      ...syncResult,
+    });
+  } catch (error: any) {
+    console.error('Sync error:', error);
+    return NextResponse.json(
+      { error: 'Sync failed', details: error.message },
+      { status: 500 }
+    );
+  }
+}

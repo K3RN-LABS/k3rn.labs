@@ -1,0 +1,144 @@
+"use client";
+
+import { useState, useRef, ChangeEvent, FormEvent } from "react";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+import Button from "@/components/ui/Button";
+
+interface BrainDumpInputProps {
+  onSubmit: (text: string) => void;
+  isLoading?: boolean;
+  placeholder?: string;
+  maxLength?: number;
+  quickActions?: string[];
+}
+
+export default function BrainDumpInput({
+  onSubmit,
+  isLoading = false,
+  placeholder = "Décrivez votre idée de projet en quelques mots...",
+  maxLength = 2000,
+  quickActions = [
+    "App mobile santé",
+    "SaaS B2B",
+    "Marketplace",
+    "IA générative",
+  ],
+}: BrainDumpInputProps) {
+  const [text, setText] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    if (value.length <= maxLength) {
+      setText(value);
+    }
+  };
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (text.trim() && !isLoading) {
+      onSubmit(text);
+    }
+  };
+
+  const handleQuickAction = (action: string) => {
+    setText(action);
+    textareaRef.current?.focus();
+  };
+
+  const percentage = (text.length / maxLength) * 100;
+  const isNearLimit = percentage >= 90;
+  const isAtLimit = percentage >= 100;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="w-full max-w-3xl mx-auto"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Textarea avec gradient border on focus */}
+        <div className="relative">
+          {/* Gradient border effect */}
+          <div
+            className={cn(
+              "absolute inset-0 rounded-2xl bg-gradient-to-r from-orange-500 via-orange-600 to-orange-700 opacity-0 blur-sm transition-opacity duration-300",
+              isFocused && "opacity-50"
+            )}
+          />
+
+          {/* Textarea */}
+          <textarea
+            ref={textareaRef}
+            value={text}
+            onChange={handleChange}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            placeholder={placeholder}
+            className={cn(
+              "relative w-full min-h-[180px] px-6 py-5 bg-bg-elevated border-2 rounded-2xl text-fg-primary placeholder:text-fg-tertiary resize-none transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-bg-base",
+              isFocused
+                ? "border-orange-500 shadow-orange"
+                : "border-neutral-800 hover:border-neutral-700"
+            )}
+            disabled={isLoading}
+          />
+        </div>
+
+        {/* Quick actions pills */}
+        {quickActions.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <span className="text-xs text-fg-tertiary self-center">
+              Exemples rapides :
+            </span>
+            {quickActions.map((action, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => handleQuickAction(action)}
+                className="px-3 py-1 text-xs bg-neutral-900 text-fg-secondary border border-neutral-800 rounded-full hover:border-neutral-700 hover:text-fg-primary transition-all duration-200 hover:scale-105"
+                disabled={isLoading}
+              >
+                {action}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Character count + Submit button */}
+        <div className="flex items-center justify-between gap-4">
+          {/* Character count */}
+          <div className="text-sm">
+            <span
+              className={cn(
+                "transition-colors duration-200",
+                isAtLimit
+                  ? "text-error font-medium"
+                  : isNearLimit
+                  ? "text-warning"
+                  : "text-fg-tertiary"
+              )}
+            >
+              {text.length} / {maxLength}
+            </span>
+          </div>
+
+          {/* Submit button */}
+          <Button
+            type="submit"
+            variant="primary"
+            size="lg"
+            isLoading={isLoading}
+            disabled={!text.trim() || isLoading}
+            className="min-w-[200px]"
+          >
+            Commencer le projet
+          </Button>
+        </div>
+      </form>
+    </motion.div>
+  );
+}

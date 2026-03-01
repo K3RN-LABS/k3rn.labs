@@ -1,0 +1,115 @@
+"""Create storage tables for M1 artifacts
+
+Revision ID: 001
+Revises:
+Create Date: 2026-02-02 19:00:00.000000
+
+"""
+from alembic import op
+import sqlalchemy as sa
+
+
+# revision identifiers, used by Alembic.
+revision = '001'
+down_revision = None
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    # Create projects table
+    op.create_table(
+        'projects',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('name', sa.String(length=255), nullable=False),
+        sa.Column('description', sa.Text(), nullable=True),
+        sa.Column('status', sa.String(length=50), nullable=False),
+        sa.Column('created_at', sa.DateTime(), nullable=False),
+        sa.Column('updated_at', sa.DateTime(), nullable=False),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_projects_id'), 'projects', ['id'], unique=False)
+    op.create_index(op.f('ix_projects_name'), 'projects', ['name'], unique=False)
+
+    # Create runs table
+    op.create_table(
+        'runs',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('run_id', sa.String(length=100), nullable=False),
+        sa.Column('step_code', sa.String(length=100), nullable=False),
+        sa.Column('provider', sa.String(length=100), nullable=True),
+        sa.Column('status', sa.String(length=50), nullable=False),
+        sa.Column('started_at', sa.DateTime(), nullable=False),
+        sa.Column('completed_at', sa.DateTime(), nullable=True),
+        sa.Column('error_message', sa.Text(), nullable=True),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_runs_id'), 'runs', ['id'], unique=False)
+    op.create_index(op.f('ix_runs_run_id'), 'runs', ['run_id'], unique=True)
+    op.create_index(op.f('ix_runs_step_code'), 'runs', ['step_code'], unique=False)
+
+    # Create artifacts table
+    op.create_table(
+        'artifacts',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('project_id', sa.Integer(), nullable=False),
+        sa.Column('run_id', sa.Integer(), nullable=True),
+        sa.Column('artifact_type', sa.String(length=100), nullable=False),
+        sa.Column('filename', sa.String(length=500), nullable=False),
+        sa.Column('content_type', sa.String(length=100), nullable=False),
+        sa.Column('size_bytes', sa.Integer(), nullable=False),
+        sa.Column('sha256', sa.String(length=64), nullable=False),
+        sa.Column('storage_key', sa.String(length=500), nullable=False),
+        sa.Column('created_at', sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ),
+        sa.ForeignKeyConstraint(['run_id'], ['runs.id'], ),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_artifacts_artifact_type'), 'artifacts', ['artifact_type'], unique=False)
+    op.create_index(op.f('ix_artifacts_id'), 'artifacts', ['id'], unique=False)
+    op.create_index(op.f('ix_artifacts_project_id'), 'artifacts', ['project_id'], unique=False)
+    op.create_index(op.f('ix_artifacts_run_id'), 'artifacts', ['run_id'], unique=False)
+    op.create_index(op.f('ix_artifacts_sha256'), 'artifacts', ['sha256'], unique=True)
+    op.create_index(op.f('ix_artifacts_storage_key'), 'artifacts', ['storage_key'], unique=True)
+
+    # Create step_executions table
+    op.create_table(
+        'step_executions',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('project_id', sa.Integer(), nullable=False),
+        sa.Column('step_code', sa.String(length=100), nullable=False),
+        sa.Column('current_state', sa.String(length=50), nullable=False),
+        sa.Column('last_run_id', sa.Integer(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), nullable=False),
+        sa.Column('updated_at', sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(['last_run_id'], ['runs.id'], ),
+        sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_step_executions_id'), 'step_executions', ['id'], unique=False)
+    op.create_index(op.f('ix_step_executions_project_id'), 'step_executions', ['project_id'], unique=False)
+    op.create_index(op.f('ix_step_executions_step_code'), 'step_executions', ['step_code'], unique=False)
+
+
+def downgrade() -> None:
+    op.drop_index(op.f('ix_step_executions_step_code'), table_name='step_executions')
+    op.drop_index(op.f('ix_step_executions_project_id'), table_name='step_executions')
+    op.drop_index(op.f('ix_step_executions_id'), table_name='step_executions')
+    op.drop_table('step_executions')
+
+    op.drop_index(op.f('ix_artifacts_storage_key'), table_name='artifacts')
+    op.drop_index(op.f('ix_artifacts_sha256'), table_name='artifacts')
+    op.drop_index(op.f('ix_artifacts_run_id'), table_name='artifacts')
+    op.drop_index(op.f('ix_artifacts_project_id'), table_name='artifacts')
+    op.drop_index(op.f('ix_artifacts_id'), table_name='artifacts')
+    op.drop_index(op.f('ix_artifacts_artifact_type'), table_name='artifacts')
+    op.drop_table('artifacts')
+
+    op.drop_index(op.f('ix_runs_step_code'), table_name='runs')
+    op.drop_index(op.f('ix_runs_run_id'), table_name='runs')
+    op.drop_index(op.f('ix_runs_id'), table_name='runs')
+    op.drop_table('runs')
+
+    op.drop_index(op.f('ix_projects_name'), table_name='projects')
+    op.drop_index(op.f('ix_projects_id'), table_name='projects')
+    op.drop_table('projects')

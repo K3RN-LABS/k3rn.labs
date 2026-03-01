@@ -1,0 +1,147 @@
+'use client';
+
+import { useState } from 'react';
+
+interface StackPanelProps {
+  stack: number[];
+  results: any[];
+  removeFromStack: (skillId: number) => void;
+  reorderStack: (fromIndex: number, toIndex: number) => void;
+}
+
+export default function StackPanel({
+  stack,
+  results,
+  removeFromStack,
+  reorderStack,
+}: StackPanelProps) {
+  const [exporting, setExporting] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'markdown' | 'json'>('markdown');
+
+  const handleExport = async () => {
+    if (stack.length === 0) {
+      alert('Add skills to your stack first!');
+      return;
+    }
+
+    setExporting(true);
+    try {
+      const res = await fetch('/api/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skillIds: stack, format: exportFormat }),
+      });
+
+      const data = await res.json();
+
+      // Download file
+      const blob = new Blob([data.content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = exportFormat === 'json' ? 'stack.json' : 'skill_stack.md';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Export failed. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const getSkillName = (skillId: number) => {
+    const skill = results.find((r) => r.id === skillId);
+    return skill ? skill.name : `Skill ${skillId}`;
+  };
+
+  return (
+    <div className="stack-panel">
+      <div className="card">
+        <h3 className="h3" style={{ marginBottom: 'var(--sp-4)' }}>
+          Stack Builder ({stack.length})
+        </h3>
+
+        {stack.length === 0 ? (
+          <p className="text-small text-muted" style={{ textAlign: 'center', padding: 'var(--sp-8) 0' }}>
+            Add skills to build your stack
+          </p>
+        ) : (
+          <>
+            <div className="stack-items">
+              {stack.map((skillId, index) => (
+                <div
+                  key={skillId}
+                  className="stack-item"
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', flex: 1 }}>
+                    <div className="stack-reorder">
+                      <button
+                        className="reorder-btn"
+                        onClick={() => index > 0 && reorderStack(index, index - 1)}
+                        disabled={index === 0}
+                      >
+                        ▲
+                      </button>
+                      <button
+                        className="reorder-btn"
+                        onClick={() =>
+                          index < stack.length - 1 && reorderStack(index, index + 1)
+                        }
+                        disabled={index === stack.length - 1}
+                      >
+                        ▼
+                      </button>
+                    </div>
+                    <span className="text-small">
+                      {getSkillName(skillId)}
+                    </span>
+                  </div>
+                  <button
+                    className="remove-btn"
+                    onClick={() => removeFromStack(skillId)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)', marginTop: 'var(--sp-4)' }}>
+              <div>
+                <label className="input-label" style={{ marginBottom: 'var(--sp-2)' }}>
+                  Export Format
+                </label>
+                <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
+                  <button
+                    className={exportFormat === 'markdown' ? 'btn dark' : 'btn secondary'}
+                    style={{ flex: 1 }}
+                    onClick={() => setExportFormat('markdown')}
+                  >
+                    Markdown
+                  </button>
+                  <button
+                    className={exportFormat === 'json' ? 'btn dark' : 'btn secondary'}
+                    style={{ flex: 1 }}
+                    onClick={() => setExportFormat('json')}
+                  >
+                    JSON
+                  </button>
+                </div>
+              </div>
+
+              <button
+                className="btn primary"
+                style={{ width: '100%' }}
+                onClick={handleExport}
+                disabled={exporting}
+              >
+                {exporting ? 'Exporting...' : 'Export Stack'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

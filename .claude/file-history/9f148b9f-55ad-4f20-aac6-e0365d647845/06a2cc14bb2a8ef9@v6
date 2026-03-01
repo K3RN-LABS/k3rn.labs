@@ -1,0 +1,291 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { DELIVERABLE_TYPE_LABELS } from '@/lib/ticketpack/constants';
+import { useAppStore } from '@/store/appStore';
+
+interface InputFormProps {
+  onGenerate: (input: {
+    brief: string;
+    sources: Array<{ type: 'text' | 'url'; content: string }>;
+    deliverable_type: string;
+    project_name: string;
+    selected_skills?: any;
+  }) => void;
+  loading: boolean;
+  error: string | null;
+}
+
+export default function InputForm({ onGenerate, loading, error }: InputFormProps) {
+  // Use global store for draft persistence
+  const { ticketDraft, updateTicketDraft } = useAppStore();
+
+  // Local UI state (not persisted)
+  const [currentSource, setCurrentSource] = useState('');
+  const [sourceType, setSourceType] = useState<'text' | 'url'>('text');
+  const [skillsError, setSkillsError] = useState<string>('');
+
+  // Convenience accessors for draft fields
+  const brief = ticketDraft.brief;
+  const projectName = ticketDraft.projectName;
+  const deliverableType = ticketDraft.deliverableType;
+  const sources = ticketDraft.sources;
+  const skillsStackJson = ticketDraft.skillsStackJson;
+
+  // Update functions that sync to global store
+  const setBrief = (value: string) => updateTicketDraft({ brief: value });
+  const setProjectName = (value: string) => updateTicketDraft({ projectName: value });
+  const setDeliverableType = (value: string) => updateTicketDraft({ deliverableType: value });
+  const setSources = (value: Array<{ type: 'text' | 'url'; content: string }>) =>
+    updateTicketDraft({ sources: value });
+  const setSkillsStackJson = (value: string) => updateTicketDraft({ skillsStackJson: value });
+
+  const handleAddSource = () => {
+    if (currentSource.trim()) {
+      setSources([...sources, { type: sourceType, content: currentSource.trim() }]);
+      setCurrentSource('');
+    }
+  };
+
+  const handleRemoveSource = (index: number) => {
+    setSources(sources.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Parse skills stack JSON if provided
+    let selectedSkills;
+    if (skillsStackJson.trim()) {
+      try {
+        selectedSkills = JSON.parse(skillsStackJson);
+        setSkillsError('');
+      } catch (err) {
+        setSkillsError('JSON invalide');
+        return;
+      }
+    }
+
+    onGenerate({
+      brief,
+      sources,
+      deliverable_type: deliverableType,
+      project_name: projectName || 'Mon Projet',
+      selected_skills: selectedSkills,
+    });
+  };
+
+  const canSubmit = brief.trim().length >= 10 && !loading;
+
+  return (
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-6)' }}>
+      <div className="card">
+        <h2 className="h2" style={{ marginBottom: 'var(--sp-4)' }}>
+          1. Décrivez votre idée
+        </h2>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
+          <div>
+            <label className="input-label">
+              Nom du projet (optionnel)
+            </label>
+            <input
+              type="text"
+              className="input"
+              style={{ width: '100%' }}
+              placeholder="Ex: Mon Application SaaS"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="input-label">
+              Brief / Idée *
+            </label>
+            <textarea
+              className="input"
+              style={{ width: '100%', resize: 'vertical', minHeight: '160px' }}
+              rows={8}
+              placeholder="Décrivez votre projet, fonctionnalités souhaitées, contraintes... (minimum 10 caractères)"
+              value={brief}
+              onChange={(e) => setBrief(e.target.value)}
+              required
+            />
+            <p className="text-small text-muted" style={{ marginTop: 'var(--sp-1)' }}>
+              {brief.length} caractère{brief.length > 1 ? 's' : ''}
+              {brief.length < 10 && ' (minimum 10)'}
+            </p>
+          </div>
+
+          <div>
+            <label className="input-label">
+              Type de livrable *
+            </label>
+            <select
+              className="input"
+              style={{ width: '100%' }}
+              value={deliverableType}
+              onChange={(e) => setDeliverableType(e.target.value)}
+            >
+              {Object.entries(DELIVERABLE_TYPE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h2 className="h2" style={{ marginBottom: 'var(--sp-4)' }}>
+          2. Sources additionnelles (optionnel)
+        </h2>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
+          <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
+            <select
+              className="input"
+              value={sourceType}
+              onChange={(e) => setSourceType(e.target.value as 'text' | 'url')}
+            >
+              <option value="text">Texte</option>
+              <option value="url">URL</option>
+            </select>
+
+            <input
+              type="text"
+              className="input"
+              style={{ flex: 1 }}
+              placeholder={
+                sourceType === 'url'
+                  ? 'https://example.com/doc'
+                  : 'Collez du texte ou des notes...'
+              }
+              value={currentSource}
+              onChange={(e) => setCurrentSource(e.target.value)}
+            />
+
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={handleAddSource}
+              disabled={!currentSource.trim()}
+            >
+              Ajouter
+            </button>
+          </div>
+
+          {sources.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
+              <p className="input-label">
+                Sources ajoutées ({sources.length})
+              </p>
+              {sources.map((source, index) => (
+                <div
+                  key={index}
+                  className="source-item"
+                >
+                  <div style={{ flex: 1 }}>
+                    <span className="kicker">
+                      {source.type}
+                    </span>
+                    <p className="text-small" style={{ marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {source.content.slice(0, 100)}
+                      {source.content.length > 100 && '...'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="remove-btn"
+                    onClick={() => handleRemoveSource(index)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="card">
+        <h2 className="h2" style={{ marginBottom: 'var(--sp-4)' }}>
+          3. Skills Stack (optionnel)
+        </h2>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--sp-2)' }}>
+              <label className="input-label">
+                Coller le JSON minimal exporté depuis Skills
+              </label>
+              <button
+                type="button"
+                className="btn secondary"
+                style={{ height: '32px', padding: '0 var(--sp-3)', fontSize: '13px' }}
+                onClick={() => {
+                  try {
+                    const saved = localStorage.getItem('windboost.skillStack.min.v1');
+                    if (saved) {
+                      setSkillsStackJson(saved);
+                      setSkillsError('');
+                    } else {
+                      setSkillsError('Aucun skills stack sauvegardé');
+                    }
+                  } catch (e) {
+                    setSkillsError('Erreur localStorage');
+                  }
+                }}
+              >
+                Importer depuis Skills
+              </button>
+            </div>
+            <textarea
+              className="input"
+              style={{ width: '100%', resize: 'vertical', minHeight: '120px', fontFamily: 'var(--font-mono)', fontSize: '13px' }}
+              rows={6}
+              placeholder='{"version":"1.0.0","skills":[{"id":1,"slug":"react","priority":"primary"}]}'
+              value={skillsStackJson}
+              onChange={(e) => setSkillsStackJson(e.target.value)}
+            />
+            {skillsError && (
+              <p className="text-small" style={{ marginTop: 'var(--sp-1)', color: 'var(--error-500)' }}>
+                {skillsError}
+              </p>
+            )}
+            {!skillsError && skillsStackJson.trim() && (
+              <p className="text-small text-muted" style={{ marginTop: 'var(--sp-1)' }}>
+                ✓ JSON détecté ({skillsStackJson.length} caractères)
+              </p>
+            )}
+          </div>
+
+          <p className="text-small text-muted">
+            Si aucun skills stack fourni, le generator utilisera les recommendations automatiques.
+          </p>
+        </div>
+      </div>
+
+      {error && (
+        <div className="card" style={{ background: 'var(--error-50)', borderColor: 'var(--error-100)' }}>
+          <p style={{ color: 'var(--error-900)' }}>
+            <strong>Erreur:</strong> {error}
+          </p>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button
+          type="submit"
+          className="btn primary"
+          style={{ padding: '0 var(--sp-6)', fontSize: '16px', height: '52px' }}
+          disabled={!canSubmit}
+        >
+          {loading ? 'Génération en cours...' : 'Générer le Pack'}
+        </button>
+      </div>
+    </form>
+  );
+}

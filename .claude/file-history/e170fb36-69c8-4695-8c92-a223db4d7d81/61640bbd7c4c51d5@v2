@@ -1,0 +1,42 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+
+export default function K0Page() {
+  return (
+    <div className="p-6 lg:p-8 space-y-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <h1 className="text-4xl font-bold text-fg-primary mb-2">k0</h1>
+        <p className="text-lg text-fg-secondary">
+          Point de départ - Initialisation et découverte du projet
+        </p>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle>k0 - Discovery Phase</CardTitle>
+            <CardDescription>
+              Phase initiale d'exploration et de cadrage
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-fg-secondary">
+              k0 est la phase de découverte où vous définissez les bases de votre
+              projet avant d'entrer dans la méthodologie BMAD complète.
+            </p>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </div>
+  );
+}

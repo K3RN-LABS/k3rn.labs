@@ -1,0 +1,198 @@
+/**
+ * Templates Markdown pour PRD, ADR, Roadmap, Runbook
+ */
+
+import type { PRD, ADR, Roadmap, Runbook, Project } from './types';
+
+export function generatePRDMarkdown(prd: PRD, project: Project): string {
+  return `# PRD - ${project.name}
+
+## Énoncé du Problème
+
+${prd.problem_statement}
+
+## Objectifs
+
+${prd.goals.map((g, i) => `${i + 1}. ${g}`).join('\n')}
+
+## Non-Objectifs
+
+${prd.non_goals.length > 0 ? prd.non_goals.map((g, i) => `${i + 1}. ${g}`).join('\n') : '_Aucun non-objectif défini._'}
+
+## Scope
+
+### Dans le Scope
+
+${prd.scope.in_scope.map((s, i) => `- ${s}`).join('\n')}
+
+### Hors Scope
+
+${prd.scope.out_of_scope.length > 0 ? prd.scope.out_of_scope.map((s) => `- ${s}`).join('\n') : '_Aucun élément hors scope défini._'}
+
+## Critères d'Acceptation
+
+### Definition of Done
+
+${prd.acceptance.definition_of_done.map((d, i) => `- [ ] ${d}`).join('\n')}
+
+### Barre de Qualité
+
+${prd.acceptance.quality_bar.map((q) => `- ${q}`).join('\n')}
+
+## Contraintes
+
+### Produit
+
+${prd.constraints.product.length > 0 ? prd.constraints.product.map((c) => `- ${c}`).join('\n') : '_Aucune contrainte produit._'}
+
+### Techniques
+
+${prd.constraints.technical.length > 0 ? prd.constraints.technical.map((c) => `- ${c}`).join('\n') : '_Aucune contrainte technique._'}
+
+${
+  prd.constraints.security && prd.constraints.security.length > 0
+    ? `### Sécurité\n\n${prd.constraints.security.map((c) => `- ${c}`).join('\n')}`
+    : ''
+}
+`;
+}
+
+export function generateADRMarkdown(adr: ADR): string {
+  return `# ${adr.adr_id}: ${adr.title}
+
+**Statut:** ${adr.status === 'accepted' ? 'Accepté' : 'Proposé'}
+
+## Contexte
+
+${adr.context}
+
+## Décision
+
+${adr.decision}
+
+## Alternatives Considérées
+
+${adr.alternatives
+  .map(
+    (alt, i) => `
+### ${i + 1}. ${alt.option}
+
+**Pour:**
+${alt.pros.map((p) => `- ${p}`).join('\n')}
+
+**Contre:**
+${alt.cons.map((c) => `- ${c}`).join('\n')}
+`
+  )
+  .join('\n')}
+
+## Conséquences
+
+${adr.consequences.length > 0 ? adr.consequences.map((c) => `- ${c}`).join('\n') : '_Aucune conséquence identifiée._'}
+`;
+}
+
+export function generateRoadmapMarkdown(roadmap: Roadmap): string {
+  return `# Roadmap
+
+${roadmap.phases
+  .map(
+    (phase, i) => `
+## ${phase.phase_id}: ${phase.name}
+
+**Objectif:** ${phase.objective}
+
+**Critères de Sortie:**
+${phase.exit_criteria.map((c) => `- [ ] ${c}`).join('\n')}
+`
+  )
+  .join('\n')}
+`;
+}
+
+export function generateRunbookMarkdown(runbook: Runbook): string {
+  return `# Runbook - Vérification & Déploiement
+
+## Commandes de Vérification
+
+${runbook.verification_commands.map((cmd) => `\`\`\`bash\n${cmd}\n\`\`\``).join('\n\n')}
+
+## Notes
+
+${runbook.notes.length > 0 ? runbook.notes.map((n) => `- ${n}`).join('\n') : '_Aucune note._'}
+`;
+}
+
+export function generateTicketMarkdown(ticket: any): string {
+  return `# ${ticket.ticket_id}: ${ticket.title}
+
+**Type:** ${ticket.type}
+**Phase:** ${ticket.phase_id}
+
+## Description
+
+${ticket.description}
+
+## Dépendances
+
+${ticket.dependencies.length > 0 ? ticket.dependencies.map((d: string) => `- ${d}`).join('\n') : '_Aucune dépendance._'}
+
+## Critères d'Acceptation
+
+${ticket.acceptance_criteria.map((c: string) => `- [ ] ${c}`).join('\n')}
+
+## Risques
+
+${
+  ticket.risks.length > 0
+    ? ticket.risks.map((r: any) => `- **Risque:** ${r.risk}\n  **Mitigation:** ${r.mitigation}`).join('\n')
+    : '_Aucun risque identifié._'
+}
+
+## Prompt Claude Code
+
+Référence: \`${ticket.claude_code_prompt_ref}\`
+`;
+}
+
+export function generateRiskRegisterMarkdown(tickets: any[]): string {
+  const allRisks = tickets.flatMap((t) =>
+    t.risks.map((r: any) => ({
+      ticket: t.ticket_id,
+      risk: r.risk,
+      mitigation: r.mitigation,
+    }))
+  );
+
+  if (allRisks.length === 0) {
+    return '# Registre des Risques\n\n_Aucun risque identifié._';
+  }
+
+  return `# Registre des Risques
+
+| Ticket | Risque | Mitigation |
+|--------|--------|------------|
+${allRisks.map((r) => `| ${r.ticket} | ${r.risk} | ${r.mitigation} |`).join('\n')}
+`;
+}
+
+export function generateStackRecommendationMarkdown(stack: string[], skills: any[]): string {
+  return `# Recommandation de Stack
+
+## Stack Technique
+
+${stack.map((s) => `- ${s}`).join('\n')}
+
+## Skills Recommandés (Top ${skills.length})
+
+${skills
+  .map(
+    (s, i) => `
+### ${i + 1}. ${s.name} (Score: ${s.score})
+
+${s.rationale}
+`
+  )
+  .join('\n')}
+`;
+}

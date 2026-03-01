@@ -1,0 +1,113 @@
+'use client';
+
+import { useState } from 'react';
+import type { TicketPack } from '@/lib/ticketpack/types';
+
+interface ExportActionsProps {
+  pack: TicketPack;
+}
+
+export default function ExportActions({ pack }: ExportActionsProps) {
+  const [exporting, setExporting] = useState(false);
+  const [exported, setExported] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    setExported(false);
+
+    try {
+      const res = await fetch('/api/ticketpack/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pack),
+      });
+
+      if (!res.ok) {
+        throw new Error('Export failed');
+      }
+
+      const data = await res.json();
+
+      // Télécharger chaque fichier individuellement
+      for (const [filename, content] of Object.entries(data.files)) {
+        downloadFile(filename, content as string);
+        await new Promise((resolve) => setTimeout(resolve, 100)); // Délai entre téléchargements
+      }
+
+      setExported(true);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Erreur lors de l\'export. Voir console.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleCopyPrompt = async (promptType: 'global' | 'first-ticket') => {
+    const content =
+      promptType === 'global'
+        ? pack.prompts.global_prompt
+        : pack.prompts.ticket_prompts[0]?.content || '';
+
+    try {
+      await navigator.clipboard.writeText(content);
+      alert('Prompt copié dans le presse-papier!');
+    } catch (error) {
+      console.error('Copy error:', error);
+      alert('Erreur de copie. Voir console.');
+    }
+  };
+
+  const downloadFile = (filename: string, content: string) => {
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename.replace(/\//g, '_'); // Flatten paths for browser download
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="card bg-blue-50 border-blue-200">
+      <h3 className="text-lg font-semibold text-blue-900 mb-3">
+        Actions d'Export
+      </h3>
+
+      <div className="flex flex-wrap gap-3">
+        <button
+          className="btn-primary"
+          onClick={handleExport}
+          disabled={exporting}
+        >
+          {exporting ? 'Export en cours...' : 'Télécharger tous les fichiers'}
+        </button>
+
+        <button
+          className="btn-secondary"
+          onClick={() => handleCopyPrompt('global')}
+        >
+          Copier Prompt Global
+        </button>
+
+        <button
+          className="btn-secondary"
+          onClick={() => handleCopyPrompt('first-ticket')}
+        >
+          Copier 1er Prompt Ticket
+        </button>
+      </div>
+
+      {exported && (
+        <p className="text-sm text-green-700 mt-3">
+          ✓ Pack exporté avec succès! Vérifiez vos téléchargements.
+        </p>
+      )}
+
+      <p className="text-xs text-gray-600 mt-3">
+        <strong>Note:</strong> Les fichiers seront téléchargés individuellement
+        (pas de zip). Organisez-les dans un dossier selon la structure suggérée.
+      </p>
+    </div>
+  );
+}

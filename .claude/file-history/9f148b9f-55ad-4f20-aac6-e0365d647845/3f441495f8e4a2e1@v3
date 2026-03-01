@@ -1,0 +1,494 @@
+/**
+ * Génération de tickets chronologiques avec phases et dépendances
+ */
+
+import type { Ticket, RoadmapPhase, TicketRisk } from './types';
+import { PHASE_NAMES } from './constants';
+import type { ExtractedRequirements } from './extractor';
+
+export interface TicketingPlan {
+  phases: RoadmapPhase[];
+  tickets: Ticket[];
+}
+
+/**
+ * Génère phases + tickets à partir des requirements
+ */
+export function generateTickets(
+  requirements: ExtractedRequirements,
+  deliverableType: string,
+  projectName: string,
+  operationMode: 'new_project' | 'feature_on_existing_repo' = 'new_project'
+): TicketingPlan {
+  const phases = generatePhases(deliverableType, operationMode);
+  const tickets = generateTicketsForPhases(phases, requirements, deliverableType, projectName, operationMode);
+
+  return { phases, tickets };
+}
+
+function generatePhases(deliverableType: string, operationMode: 'new_project' | 'feature_on_existing_repo' = 'new_project'): RoadmapPhase[] {
+  // Feature-on-existing mode: skip bootstrap, focus on implementation
+  if (operationMode === 'feature_on_existing_repo') {
+    return [
+      {
+        phase_id: 'P-01',
+        name: 'Analyse & Design',
+        objective: 'Analyser les besoins et concevoir la solution',
+        exit_criteria: [
+          'Architecture de la fonctionnalité définie',
+          'Composants à modifier/créer identifiés',
+          'Dépendances et impacts analysés',
+        ],
+      },
+      {
+        phase_id: 'P-02',
+        name: 'Implémentation Core',
+        objective: 'Implémenter la logique métier de la fonctionnalité',
+        exit_criteria: [
+          'Services/hooks implémentés',
+          'Types et interfaces définis',
+          'Tests unitaires ajoutés',
+        ],
+      },
+      {
+        phase_id: 'P-03',
+        name: 'Interface & Intégration',
+        objective: 'Créer l\'UI et intégrer à l\'existant',
+        exit_criteria: [
+          'Composants UI créés/modifiés',
+          'Intégration avec le reste de l\'app',
+          'Navigation et routing mis à jour',
+        ],
+      },
+      {
+        phase_id: 'P-04',
+        name: 'Tests & Documentation',
+        objective: 'Valider et documenter la fonctionnalité',
+        exit_criteria: [
+          'Tests d\'intégration passent',
+          'Documentation à jour',
+          'Code review effectué',
+        ],
+      },
+    ];
+  }
+
+  // New project mode: full bootstrap phases
+  const basePhases: RoadmapPhase[] = [
+    {
+      phase_id: 'P-01',
+      name: PHASE_NAMES.P01,
+      objective: 'Mettre en place la structure projet et les dépendances',
+      exit_criteria: [
+        'Repository initialisé',
+        'Dépendances installées',
+        'Configuration de base validée',
+      ],
+    },
+    {
+      phase_id: 'P-02',
+      name: PHASE_NAMES.P02,
+      objective: 'Implémenter les modèles de données et services métier',
+      exit_criteria: [
+        'Schémas de données définis',
+        'Services core implémentés',
+        'Tests unitaires passent',
+      ],
+    },
+    {
+      phase_id: 'P-03',
+      name: PHASE_NAMES.P03,
+      objective: 'Développer les API et intégrations',
+      exit_criteria: [
+        'Endpoints API créés',
+        'Intégrations tierces configurées',
+        'Documentation API à jour',
+      ],
+    },
+    {
+      phase_id: 'P-04',
+      name: PHASE_NAMES.P04,
+      objective: 'Créer l\'interface utilisateur',
+      exit_criteria: [
+        'Pages principales implémentées',
+        'Composants réutilisables créés',
+        'Navigation fonctionnelle',
+      ],
+    },
+  ];
+
+  // Phase Tests & Docs pour SaaS/App
+  if (deliverableType === 'saas' || deliverableType === 'app') {
+    basePhases.push({
+      phase_id: 'P-05',
+      name: PHASE_NAMES.P05,
+      objective: 'Assurer la qualité et documenter',
+      exit_criteria: [
+        'Tests end-to-end passent',
+        'Documentation utilisateur rédigée',
+        'README à jour',
+      ],
+    });
+  }
+
+  return basePhases;
+}
+
+function generateTicketsForPhases(
+  phases: RoadmapPhase[],
+  requirements: ExtractedRequirements,
+  deliverableType: string,
+  projectName: string,
+  operationMode: 'new_project' | 'feature_on_existing_repo' = 'new_project'
+): Ticket[] {
+  const tickets: Ticket[] = [];
+  let ticketCounter = 1;
+
+  for (const phase of phases) {
+    const phaseTickets = generateTicketsForPhase(
+      phase,
+      requirements,
+      deliverableType,
+      projectName,
+      ticketCounter,
+      operationMode
+    );
+    tickets.push(...phaseTickets);
+    ticketCounter += phaseTickets.length;
+  }
+
+  // Ajouter dépendances inter-phases
+  addDependencies(tickets);
+
+  return tickets;
+}
+
+function generateTicketsForPhase(
+  phase: RoadmapPhase,
+  requirements: ExtractedRequirements,
+  deliverableType: string,
+  projectName: string,
+  startCounter: number,
+  operationMode: 'new_project' | 'feature_on_existing_repo' = 'new_project'
+): Ticket[] {
+  const tickets: Ticket[] = [];
+
+  // Feature mode uses different ticket templates
+  if (operationMode === 'feature_on_existing_repo') {
+    return generateFeatureTickets(phase, requirements, deliverableType, projectName, startCounter);
+  }
+
+  // New project mode: original logic
+  switch (phase.phase_id) {
+    case 'P-01':
+      tickets.push(
+        createTicket(
+          startCounter,
+          phase.phase_id,
+          'epic',
+          'Setup projet et configuration',
+          'Initialiser le repository avec la stack technique et la configuration de base',
+          [],
+          [
+            'Repository git initialisé',
+            'package.json créé avec dépendances',
+            'Configuration TypeScript/ESLint validée',
+            'Build passe sans erreur',
+          ],
+          [
+            {
+              risk: 'Conflits de versions de dépendances',
+              mitigation: 'Utiliser les versions exactes du lock file',
+            },
+          ]
+        )
+      );
+      break;
+
+    case 'P-02':
+      tickets.push(
+        createTicket(
+          startCounter,
+          phase.phase_id,
+          'story',
+          'Définir les modèles de données',
+          'Créer les interfaces TypeScript et schémas de données pour les entités principales du projet',
+          [],
+          [
+            'Interfaces TypeScript créées',
+            'Validation des données implémentée',
+            'Types exportés et réutilisables',
+          ],
+          []
+        )
+      );
+
+      if (requirements.features.length > 0) {
+        tickets.push(
+          createTicket(
+            startCounter + 1,
+            phase.phase_id,
+            'task',
+            'Implémenter les services métier',
+            `Services pour: ${requirements.features.slice(0, 3).join(', ')}`,
+            [`T-${String(startCounter).padStart(3, '0')}`],
+            ['Services créés', 'Tests unitaires passent'],
+            []
+          )
+        );
+      }
+      break;
+
+    case 'P-03':
+      tickets.push(
+        createTicket(
+          startCounter,
+          phase.phase_id,
+          'story',
+          'Créer les API routes',
+          'Implémenter les endpoints API nécessaires pour le frontend',
+          [],
+          ['Endpoints créés', 'Validation des inputs', 'Gestion d\'erreurs'],
+          [
+            {
+              risk: 'API lentes ou timeout',
+              mitigation: 'Ajouter pagination et caching',
+            },
+          ]
+        )
+      );
+      break;
+
+    case 'P-04':
+      tickets.push(
+        createTicket(
+          startCounter,
+          phase.phase_id,
+          'epic',
+          'Développer l\'interface utilisateur',
+          `Créer l'UI pour ${projectName}`,
+          [],
+          ['Pages créées', 'Navigation fonctionnelle', 'Responsive'],
+          []
+        )
+      );
+
+      tickets.push(
+        createTicket(
+          startCounter + 1,
+          phase.phase_id,
+          'task',
+          'Créer les composants UI réutilisables',
+          'Développer les composants de base (boutons, inputs, cards, etc.)',
+          [`T-${String(startCounter).padStart(3, '0')}`],
+          ['Composants créés', 'Storybook/documentation', 'Accessibilité validée'],
+          []
+        )
+      );
+      break;
+
+    case 'P-05':
+      tickets.push(
+        createTicket(
+          startCounter,
+          phase.phase_id,
+          'task',
+          'Tests end-to-end',
+          'Implémenter les tests E2E pour les parcours critiques',
+          [],
+          ['Tests E2E passent', 'Coverage > 70%'],
+          []
+        )
+      );
+
+      tickets.push(
+        createTicket(
+          startCounter + 1,
+          phase.phase_id,
+          'task',
+          'Documentation utilisateur',
+          'Rédiger README, guides utilisateur, et documentation API',
+          [],
+          ['README complet', 'Guides rédigés', 'API documentée'],
+          []
+        )
+      );
+      break;
+  }
+
+  return tickets;
+}
+
+function createTicket(
+  counter: number,
+  phaseId: string,
+  type: 'epic' | 'story' | 'task',
+  title: string,
+  description: string,
+  dependencies: string[],
+  acceptanceCriteria: string[],
+  risks: TicketRisk[]
+): Ticket {
+  const ticketId = `T-${String(counter).padStart(3, '0')}`;
+  const promptRef = `PROMPT-T-${String(counter).padStart(3, '0')}`;
+
+  return {
+    ticket_id: ticketId,
+    phase_id: phaseId,
+    title,
+    type,
+    description,
+    dependencies,
+    acceptance_criteria: acceptanceCriteria,
+    risks,
+    claude_code_prompt_ref: promptRef,
+  };
+}
+
+/**
+ * Generate feature-specific tickets (no bootstrap)
+ */
+function generateFeatureTickets(
+  phase: RoadmapPhase,
+  requirements: ExtractedRequirements,
+  deliverableType: string,
+  projectName: string,
+  startCounter: number
+): Ticket[] {
+  const tickets: Ticket[] = [];
+  const feature = requirements.features[0] || requirements.objectives[0] || 'nouvelle fonctionnalité';
+
+  switch (phase.phase_id) {
+    case 'P-01': // Analyse & Design
+      tickets.push(
+        createTicket(
+          startCounter,
+          phase.phase_id,
+          'story',
+          `Analyser et designer: ${feature}`,
+          `Analyser les besoins, identifier les composants à modifier/créer, et concevoir l'architecture de la fonctionnalité`,
+          [],
+          [
+            'Architecture de la fonctionnalité définie',
+            'Composants/fichiers à modifier identifiés',
+            'Dépendances externes identifiées',
+            'Plan d\'intégration établi',
+          ],
+          []
+        )
+      );
+      break;
+
+    case 'P-02': // Implémentation Core
+      tickets.push(
+        createTicket(
+          startCounter,
+          phase.phase_id,
+          'story',
+          `Implémenter la logique: ${feature}`,
+          'Créer les hooks, services, types et logique métier de la fonctionnalité',
+          [],
+          [
+            'Types TypeScript créés',
+            'Hooks/services implémentés',
+            'Tests unitaires ajoutés',
+            'Validation des données en place',
+          ],
+          []
+        )
+      );
+      break;
+
+    case 'P-03': // Interface & Intégration
+      tickets.push(
+        createTicket(
+          startCounter,
+          phase.phase_id,
+          'epic',
+          `Créer l'interface: ${feature}`,
+          'Développer les composants UI et intégrer avec le reste de l\'application',
+          [],
+          [
+            'Composants UI créés',
+            'Intégration avec pages existantes',
+            'Navigation/routing mis à jour',
+            'State management configuré',
+          ],
+          []
+        )
+      );
+
+      if (requirements.features.length > 1) {
+        tickets.push(
+          createTicket(
+            startCounter + 1,
+            phase.phase_id,
+            'task',
+            'Intégrer les fonctionnalités secondaires',
+            `Ajouter: ${requirements.features.slice(1, 3).join(', ')}`,
+            [`T-${String(startCounter).padStart(3, '0')}`],
+            ['Fonctionnalités intégrées', 'UI cohérente'],
+            []
+          )
+        );
+      }
+      break;
+
+    case 'P-04': // Tests & Documentation
+      tickets.push(
+        createTicket(
+          startCounter,
+          phase.phase_id,
+          'task',
+          'Tests et validation',
+          'Ajouter tests d\'intégration, valider la fonctionnalité, effectuer code review',
+          [],
+          [
+            'Tests d\'intégration passent',
+            'Fonctionnalité testée manuellement',
+            'Code review effectué',
+            'Pas de régression',
+          ],
+          [
+            {
+              risk: 'Régressions sur fonctionnalités existantes',
+              mitigation: 'Tests de non-régression approfondis',
+            },
+          ]
+        )
+      );
+
+      tickets.push(
+        createTicket(
+          startCounter + 1,
+          phase.phase_id,
+          'task',
+          'Documentation',
+          'Mettre à jour la documentation technique et utilisateur',
+          [`T-${String(startCounter).padStart(3, '0')}`],
+          [
+            'README mis à jour',
+            'Commentaires code ajoutés',
+            'Documentation utilisateur complétée',
+          ],
+          []
+        )
+      );
+      break;
+  }
+
+  return tickets;
+}
+
+function addDependencies(tickets: Ticket[]): void {
+  // Ajouter des dépendances séquentielles simples au sein de chaque phase
+  for (let i = 1; i < tickets.length; i++) {
+    const current = tickets[i];
+    const previous = tickets[i - 1];
+
+    // Si même phase et pas déjà de dépendances, ajouter dépendance au précédent
+    if (current.phase_id === previous.phase_id && current.dependencies.length === 0) {
+      current.dependencies.push(previous.ticket_id);
+    }
+  }
+}

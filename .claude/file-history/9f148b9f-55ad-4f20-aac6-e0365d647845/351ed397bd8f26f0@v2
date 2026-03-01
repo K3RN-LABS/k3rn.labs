@@ -1,0 +1,71 @@
+/**
+ * Project Context Analyzer - Types
+ * Deterministic project analysis from GitHub repositories
+ */
+
+export interface ProjectContext {
+  framework: string | null;
+  language: string | null;
+  runtime: string | null;
+  package_manager: string | null;
+  architecture_style: string | null;
+  state_management: string | null;
+  orm: string | null;
+  database: string | null;
+  test_framework: string | null;
+  build_tool: string | null;
+  monorepo: boolean;
+  notes: string;
+}
+
+export interface GitHubRepoInfo {
+  owner: string;
+  repo: string;
+  branch: string;
+  default_branch: string;
+  size: number; // KB
+  language: string | null;
+}
+
+export interface GitHubTreeItem {
+  path: string;
+  mode: string;
+  type: 'blob' | 'tree';
+  sha: string;
+  size?: number;
+  url: string;
+}
+
+export interface PackageJson {
+  name?: string;
+  version?: string;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  scripts?: Record<string, string>;
+  workspaces?: string[] | { packages: string[] };
+  engines?: {
+    node?: string;
+    npm?: string;
+    [key: string]: string | undefined;
+  };
+}
+
+export interface AnalysisInput {
+  github_url: string;
+  branch?: string;
+  github_token?: string;
+}
+
+export interface AnalysisResult {
+  success: boolean;
+  context?: ProjectContext;
+  error?: string;
+  cached?: boolean;
+  analyzed_at?: string;
+}
+
+export interface DetectionSignal {
+  confidence: 'high' | 'medium' | 'low';
+  evidence: string;
+  value: string;
+}

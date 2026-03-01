@@ -1,0 +1,89 @@
+import { forwardRef, HTMLAttributes } from "react";
+import { cn } from "@/lib/utils";
+
+export interface CardProps extends HTMLAttributes<HTMLDivElement> {
+  hover?: boolean;
+}
+
+const Card = forwardRef<HTMLDivElement, CardProps>(
+  ({ className, hover = false, ...props }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          "bg-bg-base border border-neutral-800 rounded-xl transition-all duration-300",
+          hover && "hover:border-neutral-700 hover:shadow-lg",
+          className
+        )}
+        {...props}
+      />
+    );
+  }
+);
+Card.displayName = "Card";
+
+const CardHeader = forwardRef<
+  HTMLDivElement,
+  HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => {
+  return (
+    <div
+      ref={ref}
+      className={cn("p-6 border-b border-neutral-800", className)}
+      {...props}
+    />
+  );
+});
+CardHeader.displayName = "CardHeader";
+
+const CardContent = forwardRef<
+  HTMLDivElement,
+  HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => {
+  return <div ref={ref} className={cn("p-6", className)} {...props} />;
+});
+CardContent.displayName = "CardContent";
+
+const CardFooter = forwardRef<
+  HTMLDivElement,
+  HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => {
+  return (
+    <div
+      ref={ref}
+      className={cn("p-6 border-t border-neutral-800", className)}
+      {...props}
+    />
+  );
+});
+CardFooter.displayName = "CardFooter";
+
+const CardTitle = forwardRef<
+  HTMLHeadingElement,
+  HTMLAttributes<HTMLHeadingElement>
+>(({ className, ...props }, ref) => {
+  return (
+    <h3
+      ref={ref}
+      className={cn("text-xl font-semibold text-fg-primary", className)}
+      {...props}
+    />
+  );
+});
+CardTitle.displayName = "CardTitle";
+
+const CardDescription = forwardRef<
+  HTMLParagraphElement,
+  HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => {
+  return (
+    <p
+      ref={ref}
+      className={cn("text-sm text-fg-secondary mt-1", className)}
+      {...props}
+    />
+  );
+});
+CardDescription.displayName = "CardDescription";
+
+export { Card, CardHeader, CardContent, CardFooter, CardTitle, CardDescription };

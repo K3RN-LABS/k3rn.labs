@@ -1,0 +1,103 @@
+Ticket — Brancher n8n au kernel + unifier la source de vérité Experts (DB)
+Contexte (1 phrase)
+
+Aujourd’hui, k3rn.labs fonctionne, mais les pôles ne sont pas réellement exécutés via n8n (fallback OpenAI) et les experts ne sont pas une source de vérité DB, ce qui bloque l’architecture cible.
+
+Objectif de l’étape (ce que “done” veut dire)
+
+Toutes les invocations de pôles passent par n8n (workflow unique) et ne tombent plus en fallback.
+
+Les Experts sont 100% pilotés depuis la DB (seed + usage runtime), sans dépendance au registry hardcodé.
+
+Pourquoi on le fait maintenant
+
+n8n est le cœur du système (workflows, tools, scrapping, mémoire inter-pôle, orchestration). Tant qu’il n’est pas branché, on ne valide pas le vrai produit.
+
+L’incohérence “Experts hardcodés vs Experts DB” crée des bugs fantômes et rend l’évolution dangereuse.
+
+Scope demandé (ce que tu implémentes)
+A) n8n — workflow unique de routing par PoleCode
+
+But : Un seul workflow n8n reçoit toutes les requêtes “pôle”, puis route vers la bonne logique en fonction de poleCode.
+
+À faire :
+
+Créer un workflow n8n unique avec un Webhook Trigger (POST).
+
+Définir un payload standard minimal attendu (ex : dossierId, poleCode, messages, projectMemory, context, meta).
+
+Router dans n8n selon poleCode (switch/case ou équivalent), et exécuter la séquence propre au pôle.
+
+Retourner une réponse standardisée (texte + éventuellement “proposedCard”/actions).
+
+Enregistrer quelque part l’exécution (au minimum : executionId + status renvoyés au backend si possible).
+
+Important :
+
+L’objectif n’est pas de rendre chaque pôle “intelligent” maintenant : on veut d’abord brancher le flux et obtenir des retours n8n cohérents.
+
+B) DB — renseigner le webhook n8n dans les pôles
+
+But : Le backend doit pouvoir appeler n8n sans fallback.
+
+À faire :
+
+Mettre à jour la DB : renseigner Pole.n8nWebhookUrl pour pointer vers l’unique webhook du workflow n8n.
+
+Vérifier que toutes les invocations invokeN8nPole() utilisent bien ce champ et ne basculent plus sur OpenAI.
+
+Critère :
+
+Sur 10 appels consécutifs à des pôles variés : 0 fallback.
+
+C) Experts — passer la source de vérité en DB
+
+But : Le runtime doit charger les experts depuis la DB, pas depuis un registry en mémoire.
+
+À faire :
+
+Ajouter un mécanisme de seed idempotent (script) qui copie/synchronise EXPERTS_REGISTRY → table Expert en DB.
+
+Modifier le runtime pour que les routes / sessions experts s’appuient uniquement sur la DB.
+
+S’assurer que sur une DB fraîche, après seed, les 22 experts existent et sont utilisables.
+
+Critère :
+
+Les endpoints experts fonctionnent sans dépendre du code hardcodé, et l’UI affiche les experts correctement.
+
+Hors scope (ne pas faire maintenant)
+
+Streaming LLM / SSE
+
+Système complet Missions/Tasks
+
+Optimisation du scoring / seuil export
+
+Refonte UX / canvas
+
+Definition of Done (checklist)
+
+ Workflow n8n unique en prod, accessible via domaine AWS, webhook actif
+
+ Backend appelle ce webhook via Pole.n8nWebhookUrl (unique URL)
+
+ 1 test d’invocation par pôle (7) → exécution n8n confirmée (logs/UI n8n) + réponse reçue côté app
+
+ Fallback OpenAI pour pôles = 0 (sur un test batch)
+
+ Seed Experts → DB (idempotent)
+
+ Routes experts utilisent la DB uniquement
+
+ Rapport court : ce qui a été changé + où configurer si besoin
+
+Livrable attendu
+
+L’ID/nom du workflow n8n unique + URL webhook (prod)
+
+Confirmation DB : Pole.n8nWebhookUrl renseigné (unique)
+
+Confirmation DB : 22 experts présents + preuve via endpoint ou query
+
+Logs rapides des 7 invocations (une par pôle)

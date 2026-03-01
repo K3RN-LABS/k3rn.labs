@@ -1,0 +1,80 @@
+/**
+ * Skills Validation and Path Utilities
+ */
+
+import { existsSync } from 'fs';
+import { join, normalize, resolve } from 'path';
+import { SKILLS_BASE_PATH, SKILL_FILE_NAME } from './constants';
+
+/**
+ * Sanitize skill slug to prevent path traversal attacks
+ * Removes any path separators and parent directory references
+ */
+export function sanitizeSkillSlug(slug: string): string {
+  // Remove any path separators and parent directory references
+  return slug
+    .replace(/[\/\\]/g, '') // Remove / and \
+    .replace(/\.\./g, '') // Remove ..
+    .replace(/^\./, '') // Remove leading .
+    .trim();
+}
+
+/**
+ * Get the full path to a skill directory
+ */
+export function getSkillPath(slug: string): string {
+  const sanitized = sanitizeSkillSlug(slug);
+  return join(SKILLS_BASE_PATH, sanitized);
+}
+
+/**
+ * Get the full path to a skill's SKILL.md file
+ */
+export function getSkillFilePath(slug: string): string {
+  return join(getSkillPath(slug), SKILL_FILE_NAME);
+}
+
+/**
+ * Check if a skill folder exists
+ */
+export function skillExists(slug: string): boolean {
+  try {
+    const skillPath = getSkillPath(slug);
+    const skillFilePath = getSkillFilePath(slug);
+
+    // Verify both the directory and SKILL.md file exist
+    return existsSync(skillPath) && existsSync(skillFilePath);
+  } catch (error) {
+    console.error(`Error checking skill existence for "${slug}":`, error);
+    return false;
+  }
+}
+
+/**
+ * Validate a list of skill slugs and return only those that exist
+ * Also logs warnings for missing skills
+ */
+export function validateSkills(slugs: string[]): {
+  valid: string[];
+  invalid: string[];
+} {
+  const valid: string[] = [];
+  const invalid: string[] = [];
+
+  for (const slug of slugs) {
+    const sanitized = sanitizeSkillSlug(slug);
+
+    if (sanitized !== slug) {
+      console.warn(`⚠️  Skill slug "${slug}" was sanitized to "${sanitized}"`);
+    }
+
+    if (skillExists(sanitized)) {
+      valid.push(sanitized);
+    } else {
+      console.warn(`⚠️  Skill folder not found: .agent/skills/skills/${sanitized}/`);
+      invalid.push(sanitized);
+    }
+  }
+
+  return { valid, invalid };
+}

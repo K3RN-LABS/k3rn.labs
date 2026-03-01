@@ -1,0 +1,81 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/providers/auth-provider";
+import { createClient } from "@/lib/supabase/client";
+import type { Profile, ProfileUpdate } from "@/lib/types/profile";
+
+export function useProfile() {
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const supabase = createClient();
+
+  useEffect(() => {
+    if (!user) {
+      setProfile(null);
+      setIsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchProfile = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+
+        if (!cancelled) {
+          if (error && error.code !== "PGRST116") {
+            console.error("Profile fetch error:", error);
+          }
+          setProfile(data ?? null);
+        }
+      } catch (err) {
+        console.error("Profile fetch exception:", err);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    fetchProfile();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  const createProfile = useCallback(
+    async (profileData: ProfileUpdate) => {
+      if (!user) throw new Error("Not authenticated");
+      const { data, error } = await supabase
+        .from("profiles")
+        .insert({ id: user.id, ...profileData })
+        .select()
+        .single();
+      if (error) throw error;
+      setProfile(data);
+      return data;
+    },
+    [user?.id]
+  );
+
+  const updateProfile = useCallback(
+    async (updates: Partial<ProfileUpdate>) => {
+      if (!user) throw new Error("Not authenticated");
+      const { data, error } = await supabase
+        .from("profiles")
+        .update(updates)
+        .eq("id", user.id)
+        .select()
+        .single();
+      if (error) throw error;
+      setProfile(data);
+      return data;
+    },
+    [user?.id]
+  );
+
+  return { profile, isLoading, createProfile, updateProfile };
+}

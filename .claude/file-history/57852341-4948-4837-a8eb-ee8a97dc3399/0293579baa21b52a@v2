@@ -1,0 +1,129 @@
+"use client";
+
+import { Zap, TrendingUp } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { DecisionBadge } from "@/components/ui/decision-badge";
+import type { StoredProject } from "@/hooks/use-project";
+
+interface StructurationPanelProps {
+    project: StoredProject;
+}
+
+const AXIS_KEYS = ["problem", "market", "differentiation", "feasibility", "business", "founder_fit"] as const;
+
+function getStrengths(project: StoredProject) {
+    if (project.fullResult) {
+        return AXIS_KEYS
+            .map((key) => ({
+                key,
+                label: key.charAt(0).toUpperCase() + key.slice(1).replace("_", " "),
+                score: project.fullResult!.analysis[key].score,
+                justification: project.fullResult!.analysis[key].justification,
+            }))
+            .filter((a) => a.score >= 70);
+    }
+    return project.analysis.axes
+        .map((a) => ({
+            key: a.label.toLowerCase().replace(/\s+/g, "_"),
+            label: a.label,
+            score: a.score <= 10 ? a.score * 10 : a.score,
+            justification: a.justification || "",
+        }))
+        .filter((a) => a.score >= 70);
+}
+
+function getLevers(project: StoredProject) {
+    if (project.fullResult) {
+        return project.fullResult.levers;
+    }
+    return [];
+}
+
+export function StructurationPanel({ project }: StructurationPanelProps) {
+    const strengths = getStrengths(project);
+    const levers = getLevers(project);
+
+    return (
+        <aside className="w-72 bg-[#22242B] border-r border-[#3A3D45] flex flex-col shrink-0 overflow-y-auto">
+            {/* Score + Decision */}
+            <div className="p-5 border-b border-[#3A3D45]">
+                <div className="flex items-center justify-between mb-3">
+                    <div>
+                        <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Score Global</span>
+                        <div className={cn(
+                            "text-4xl font-bold tracking-tight mt-1",
+                            project.globalScore >= 70 ? "text-white" : "text-gray-400"
+                        )}>
+                            {project.globalScore}
+                        </div>
+                    </div>
+                    <DecisionBadge decision={project.recommendation} />
+                </div>
+            </div>
+
+            {/* Strengths (axes >= 70) */}
+            {strengths.length > 0 && (
+                <div className="p-5 border-b border-[#3A3D45]">
+                    <h3 className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-3 flex items-center gap-2">
+                        <TrendingUp className="w-3 h-3 text-emerald-400" />
+                        Forces
+                    </h3>
+                    <div className="space-y-3">
+                        {strengths.map((s) => (
+                            <div key={s.key} className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                                <div className="flex items-center justify-between mb-1">
+                                    <span className="text-xs font-medium text-emerald-400 uppercase tracking-wider">
+                                        {s.label}
+                                    </span>
+                                    <span className="text-sm font-mono text-white font-bold">
+                                        {s.score}
+                                    </span>
+                                </div>
+                                {s.justification && (
+                                    <p className="text-[11px] text-gray-400 leading-relaxed">{s.justification}</p>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Levers */}
+            {levers.length > 0 && (
+                <div className="p-5 border-b border-[#3A3D45]">
+                    <h3 className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-3 flex items-center gap-2">
+                        <Zap className="w-3 h-3 text-amber-400" />
+                        Leviers d&apos;action
+                    </h3>
+                    <div className="space-y-2">
+                        {levers.map((lever, i) => (
+                            <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-[#2F323A] border border-white/5">
+                                <span className={cn(
+                                    "text-[9px] font-bold uppercase tracking-wider shrink-0 mt-0.5 px-1.5 py-0.5 rounded",
+                                    lever.expected_impact === "HIGH" ? "bg-emerald-500/10 text-emerald-400" :
+                                    lever.expected_impact === "MEDIUM" ? "bg-amber-500/10 text-amber-400" :
+                                    "bg-gray-500/10 text-gray-400"
+                                )}>
+                                    {lever.expected_impact}
+                                </span>
+                                <span className="text-xs text-gray-300 leading-relaxed">{lever.action}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Synthesis */}
+            {project.analysis.synthesis && (
+                <div className="p-5 mt-auto">
+                    <h3 className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-2">
+                        Synthese
+                    </h3>
+                    <p className="text-xs text-gray-400 leading-relaxed italic">
+                        &ldquo;{project.analysis.synthesis}&rdquo;
+                    </p>
+                </div>
+            )}
+        </aside>
+    );
+}

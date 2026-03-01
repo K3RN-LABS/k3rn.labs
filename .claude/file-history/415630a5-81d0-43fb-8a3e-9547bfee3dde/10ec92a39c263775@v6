@@ -1,0 +1,509 @@
+import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, systemPreferences, dialog } from 'electron';
+import { join } from 'path';
+import { settingsManager, TranscriptionMode } from '../config/settings';
+import { windowManager } from './windowManager';
+import { globalShortcutManager } from './globalShortcuts';
+// import { audioCapture } from './audioCapture'; // Removed
+import { streamingTranscription } from './streamingTranscription';
+import { textPostProcessor } from './textPostProcessor';
+import { textInjection } from './textInjection';
+
+let tray: Tray | null = null;
+let settingsWindow: BrowserWindow | null = null;
+
+// Accumulated transcript across speech turns
+let currentTranscript = '';
+let isStreamingActive = false;
+
+// Tray pulse animation
+let trayPulseInterval: NodeJS.Timeout | null = null;
+let trayPulseState = false;
+
+// ─── Tray Icons ───────────────────────────────────────────
+
+function createTrayIcon(color: 'default' | 'recording' | 'processing') {
+    // 22x22 px template images for macOS menu bar
+    const size = 22;
+    const canvas = Buffer.alloc(size * size * 4); // RGBA
+
+    const colors: Record<string, [number, number, number, number]> = {
+        default: [180, 180, 180, 200],     // subtle gray
+        recording: [0, 220, 255, 255],     // cyan pulse
+        processing: [255, 200, 50, 255],   // amber
+    };
+
+    const [r, g, b, a] = colors[color];
+
+    // Draw a simple filled circle (center dot)
+    const cx = size / 2;
+    const cy = size / 2;
+    const radius = color === 'default' ? 4 : 5;
+
+    for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+            const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+            if (dist <= radius) {
+                const idx = (y * size + x) * 4;
+                canvas[idx] = r;
+                canvas[idx + 1] = g;
+                canvas[idx + 2] = b;
+                canvas[idx + 3] = a;
+            }
+        }
+    }
+
+    return nativeImage.createFromBuffer(canvas, { width: size, height: size });
+}
+
+function startTrayPulse() {
+    if (trayPulseInterval) return;
+    trayPulseState = false;
+
+    trayPulseInterval = setInterval(() => {
+        trayPulseState = !trayPulseState;
+        if (tray) {
+            tray.setImage(createTrayIcon(trayPulseState ? 'recording' : 'default'));
+        }
+    }, 500);
+
+    // Immediate first pulse
+    if (tray) tray.setImage(createTrayIcon('recording'));
+}
+
+function stopTrayPulse(processing = false) {
+    if (trayPulseInterval) {
+        clearInterval(trayPulseInterval);
+        trayPulseInterval = null;
+    }
+    if (tray) {
+        tray.setImage(createTrayIcon(processing ? 'processing' : 'default'));
+    }
+}
+
+// ─── Initialization ───────────────────────────────────────
+
+async function initialize() {
+    settingsManager.initializeFromEnv();
+
+    if (!settingsManager.hasApiKey()) {
+        console.log('No API key configured. User will need to set it in settings.');
+    }
+
+    // Request Accessibility permission on macOS (required for uiohook-napi global shortcuts)
+    if (process.platform === 'darwin') {
+        const trusted = systemPreferences.isTrustedAccessibilityClient(false);
+        if (!trusted) {
+            console.warn('[Main] Accessibility permission not granted. Requesting...');
+            systemPreferences.isTrustedAccessibilityClient(true); // triggers macOS prompt
+            dialog.showMessageBoxSync({
+                type: 'warning',
+                title: 'Accessibility Permission Required',
+                message: 'SPEECHY needs Accessibility access to detect your keyboard shortcut.',
+                detail: 'Please go to System Settings → Privacy & Security → Accessibility and enable SPEECHY (or Electron), then restart the app.',
+                buttons: ['OK'],
+            });
+        }
+    }
+
+    // Create overlay window (still needed for non-stealth mode)
+    await windowManager.createOverlayWindow();
+
+    // Wire keyboard shortcuts → recording functions
+    globalShortcutManager.setCallbacks(
+        () => startStreamingSession(),
+        () => stopStreamingSession(),
+    );
+    globalShortcutManager.register();
+
+    setupIPCHandlers();
+    setupStreamingHandlers();
+    createSystemTray();
+}
+
+// ─── Streaming Event Handlers ─────────────────────────────
+
+function setupStreamingHandlers() {
+    const isStealth = () => settingsManager.getSetting('stealthMode');
+
+    // Incremental transcript delta → send to UI if overlay visible
+    streamingTranscription.on('delta', (data: { text: string; itemId: string }) => {
+        if (!isStealth()) {
+            windowManager.sendToRenderer('transcript-delta', {
+                text: data.text,
+                itemId: data.itemId,
+            });
+        }
+    });
+
+    // Completed transcript for a speech turn
+    streamingTranscription.on('completed', (data: { text: string; itemId: string }) => {
+        console.log('[Main] Turn completed:', data.text);
+        currentTranscript += (currentTranscript ? ' ' : '') + data.text;
+
+        if (!isStealth()) {
+            windowManager.sendToRenderer('transcript-completed', {
+                text: data.text,
+                fullText: currentTranscript,
+                itemId: data.itemId,
+            });
+        }
+    });
+
+    streamingTranscription.on('speech_started', () => {
+        if (!isStealth()) {
+            windowManager.sendToRenderer('recording-state', { state: 'listening' });
+        }
+    });
+
+    streamingTranscription.on('speech_stopped', () => {
+        if (!isStealth()) {
+            windowManager.sendToRenderer('recording-state', { state: 'processing' });
+        }
+    });
+
+    streamingTranscription.on('connected', () => {
+        console.log('[Main] Streaming connected');
+    });
+
+    streamingTranscription.on('error', (data: { message: string }) => {
+        console.error('[Main] Streaming error:', data.message);
+        stopTrayPulse();
+        if (!isStealth()) {
+            windowManager.sendToRenderer('recording-error', { message: data.message });
+        }
+    });
+
+    // Audio capture is now handled via IPC from Renderer
+}
+
+// ─── Recording Session Control ────────────────────────────
+
+async function startStreamingSession() {
+    if (isStreamingActive) {
+        console.log('[Main] Session already active, ignoring duplicate start');
+        return;
+    }
+
+    const apiKey = settingsManager.getSetting('apiKey');
+    const language = settingsManager.getSetting('language');
+    const stealth = settingsManager.getSetting('stealthMode');
+
+    if (!apiKey) {
+        if (!stealth) {
+            windowManager.sendToRenderer('recording-error', {
+                message: 'No API key configured.',
+            });
+        }
+        return;
+    }
+
+    currentTranscript = '';
+    isStreamingActive = true;
+
+    // Start tray pulse (always, even with overlay)
+    startTrayPulse();
+
+    // Show overlay only if not stealth
+    if (!stealth) {
+        windowManager.show();
+        windowManager.sendToRenderer('recording-state', { state: 'listening' });
+    }
+
+    // Connect WebSocket
+    streamingTranscription.connect(apiKey, language);
+
+    // Start audio capture in Renderer
+    windowManager.sendToRenderer('start-capture');
+    console.log('[Main] Session started (stealth:', stealth, ')');
+}
+
+async function stopStreamingSession() {
+    isStreamingActive = false;
+    const stealth = settingsManager.getSetting('stealthMode');
+    const mode = settingsManager.getSetting('transcriptionMode') as TranscriptionMode;
+
+    // Stop audio capture in Renderer
+    windowManager.sendToRenderer('stop-capture');
+
+    // Switch tray to processing
+    stopTrayPulse(true);
+
+    if (!stealth) {
+        windowManager.sendToRenderer('recording-state', { state: 'processing' });
+    }
+
+    // Commit audio buffer so OpenAI processes any remaining audio
+    streamingTranscription.commitAudioBuffer();
+
+    // Wait for final deltas
+    setTimeout(async () => {
+        streamingTranscription.disconnect();
+
+        if (currentTranscript.trim()) {
+            try {
+                // Post-process based on active mode
+                const apiKey = settingsManager.getSetting('apiKey');
+                const ppSettings = settingsManager.getSetting('postProcessing');
+
+                const processedText = await textPostProcessor.processWithMode(
+                    currentTranscript.trim(),
+                    apiKey,
+                    mode,
+                    ppSettings,
+                );
+
+                // Inject into active app
+                await textInjection.injectText(processedText);
+
+                console.log(`[Main] Injected (${mode}):`, processedText);
+
+                if (!stealth) {
+                    windowManager.sendToRenderer('transcription-complete', {
+                        text: processedText,
+                    });
+                }
+            } catch (error: any) {
+                console.error('Injection failed:', error);
+                if (!stealth) {
+                    windowManager.sendToRenderer('recording-error', {
+                        message: 'Failed to inject: ' + error.message,
+                    });
+                }
+            }
+        }
+
+        // Restore tray to default
+        stopTrayPulse();
+
+        // Hide overlay
+        if (!stealth) {
+            setTimeout(() => windowManager.hide(), 600);
+        }
+
+        currentTranscript = '';
+    }, 800);
+}
+
+// ─── IPC Handlers ─────────────────────────────────────────
+
+function setupIPCHandlers() {
+    ipcMain.handle('get-settings', () => settingsManager.getSettings());
+    ipcMain.handle('update-settings', (_: any, updates: any) => {
+        settingsManager.updateSettings(updates);
+        // Rebuild tray menu when settings change (mode might change)
+        rebuildTrayMenu();
+        return { success: true };
+    });
+    ipcMain.handle('validate-api-key', (_: any, apiKey: string) => {
+        return { valid: settingsManager.validateApiKey(apiKey) };
+    });
+
+    ipcMain.on('start-recording', async () => {
+        await startStreamingSession();
+    });
+    ipcMain.on('stop-recording', async () => {
+        await stopStreamingSession();
+    });
+
+    // Audio streaming from Renderer
+    ipcMain.on('audio-chunk', (_event, chunk: ArrayBuffer) => {
+        if (isStreamingActive) {
+            streamingTranscription.sendAudioChunk(Buffer.from(chunk));
+        }
+    });
+
+    ipcMain.on('capture-error', async (_event, error: string) => {
+        console.error('[Main] Capture error from renderer:', error);
+        windowManager.sendToRenderer('recording-error', { message: error });
+        await stopStreamingSession();
+    });
+
+    ipcMain.on('open-settings', () => createSettingsWindow());
+
+    // Shortcut and recording mode updates
+    ipcMain.handle('update-shortcut', (_: any, keys: any) => {
+        settingsManager.updateSettings({ shortcutKeys: keys });
+        globalShortcutManager.updateShortcut(keys);
+        rebuildTrayMenu();
+        return { success: true };
+    });
+
+    ipcMain.handle('update-recording-mode', (_: any, mode: any) => {
+        settingsManager.updateSettings({ recordingMode: mode });
+        globalShortcutManager.setRecordingMode(mode);
+        rebuildTrayMenu();
+        return { success: true };
+    });
+}
+
+// ─── System Tray ──────────────────────────────────────────
+
+function createSystemTray() {
+    tray = new Tray(createTrayIcon('default'));
+    tray.setToolTip('SPEECHY');
+    rebuildTrayMenu();
+}
+
+function rebuildTrayMenu() {
+    if (!tray) return;
+
+    const currentMode = settingsManager.getSetting('transcriptionMode');
+    const stealth = settingsManager.getSetting('stealthMode');
+
+    const contextMenu = Menu.buildFromTemplate([
+        {
+            label: 'SPEECHY',
+            enabled: false,
+        },
+        { type: 'separator' },
+        {
+            label: 'Recording Mode',
+            submenu: [
+                {
+                    label: '🎤 Push-to-talk',
+                    type: 'radio',
+                    checked: settingsManager.getSetting('recordingMode') === 'push-to-talk',
+                    click: () => {
+                        settingsManager.setSetting('recordingMode', 'push-to-talk');
+                        globalShortcutManager.setRecordingMode('push-to-talk');
+                        rebuildTrayMenu();
+                    },
+                },
+                {
+                    label: '🔄 Toggle (hands-free)',
+                    type: 'radio',
+                    checked: settingsManager.getSetting('recordingMode') === 'toggle',
+                    click: () => {
+                        settingsManager.setSetting('recordingMode', 'toggle');
+                        globalShortcutManager.setRecordingMode('toggle');
+                        rebuildTrayMenu();
+                    },
+                },
+            ],
+        },
+        {
+            label: 'Transcription Mode',
+            submenu: [
+                {
+                    label: '📝 Raw — Brut',
+                    type: 'radio',
+                    checked: currentMode === 'raw',
+                    click: () => {
+                        settingsManager.setSetting('transcriptionMode', 'raw');
+                        rebuildTrayMenu();
+                    },
+                },
+                {
+                    label: '✨ Clean — Propre',
+                    type: 'radio',
+                    checked: currentMode === 'clean',
+                    click: () => {
+                        settingsManager.setSetting('transcriptionMode', 'clean');
+                        rebuildTrayMenu();
+                    },
+                },
+                {
+                    label: '💼 Rewrite — Pro',
+                    type: 'radio',
+                    checked: currentMode === 'rewrite',
+                    click: () => {
+                        settingsManager.setSetting('transcriptionMode', 'rewrite');
+                        rebuildTrayMenu();
+                    },
+                },
+            ],
+        },
+        { type: 'separator' },
+        {
+            label: stealth ? '👻 Stealth Mode ✓' : '🎯 Overlay Mode',
+            click: () => {
+                settingsManager.setSetting('stealthMode', !stealth);
+                rebuildTrayMenu();
+            },
+        },
+        { type: 'separator' },
+        {
+            label: 'Settings',
+            click: () => createSettingsWindow(),
+        },
+        {
+            label: 'Quit',
+            click: () => app.quit(),
+        },
+    ]);
+
+    tray.setContextMenu(contextMenu);
+}
+
+// ─── Settings Window ──────────────────────────────────────
+
+function createSettingsWindow() {
+    if (settingsWindow && !settingsWindow.isDestroyed()) {
+        settingsWindow.focus();
+        return;
+    }
+
+    settingsWindow = new BrowserWindow({
+        width: 600,
+        height: 700,
+        title: 'SPEECHY Settings',
+        resizable: false,
+        webPreferences: {
+            preload: join(__dirname, 'preload.js'),
+            contextIsolation: true,
+            nodeIntegration: false,
+        },
+    });
+
+    if (process.env.NODE_ENV === 'development') {
+        settingsWindow.loadURL('http://localhost:5174/settings.html');
+    } else {
+        settingsWindow.loadFile(join(__dirname, '../renderer/settings.html'));
+    }
+
+    settingsWindow.on('closed', () => {
+        settingsWindow = null;
+    });
+}
+
+// ─── Global Error Handling ────────────────────────────────
+
+process.on('uncaughtException', (error) => {
+    console.error('[Main] Uncaught exception (app kept alive):', error.message);
+});
+
+process.on('unhandledRejection', (reason) => {
+    console.error('[Main] Unhandled promise rejection (app kept alive):', reason);
+});
+
+// ─── App Lifecycle ────────────────────────────────────────
+
+app.whenReady().then(initialize);
+
+app.on('window-all-closed', () => {
+    // Keep running in tray — do not quit when all windows close
+});
+
+app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+        windowManager.createOverlayWindow();
+    }
+});
+
+app.on('before-quit', () => {
+    globalShortcutManager.unregister();
+    streamingTranscription.disconnect();
+    // audioCapture.cleanup(); // Removed
+    stopTrayPulse();
+});
+
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+    app.quit();
+} else {
+    app.on('second-instance', () => {
+        if (settingsWindow && !settingsWindow.isDestroyed()) {
+            settingsWindow.focus();
+        }
+    });
+}

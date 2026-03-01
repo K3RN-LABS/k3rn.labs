@@ -1,0 +1,186 @@
+# Sources Sync Diagnostic & Fix Plan
+
+## Diagnostic - Root Causes
+
+### 1. **Generic Error Masking** ❌
+**Location**: `src/app/api/sources/sync/route.ts:70`
+```typescript
+return NextResponse.json(
+  { error: 'Sync failed', details: error.message },
+  { status: 500 }
+);
+```
+**Problem**: UI only reads `error` field, ignores `details`
+
+**Location**: `src/app/sources/page.tsx:64`
+```typescript
+alert(`Sync failed: ${data.error}`);
+```
+**Problem**: No display of `details`, `indexed`, `errors` array, etc.
+
+---
+
+### 2. **Case-Sensitive Pattern Matching** ❌
+**Location**: `src/lib/sources/github-sync.ts:274`
+```typescript
+if (parts.length >= 2 && parts[parts.length - 1] === 'SKILL.md') {
+```
+**Problem**: Fails to match `skill.md`, `Skill.md`, `SKILL.MD`
+
+**Location**: `src/lib/sources/github-sync.ts:56-57`
+```typescript
+const skillFiles = tree.filter((item) =>
+  item.type === 'blob' && matchesPattern(item.path, patterns)
+);
+```
+**Problem**: Default patterns `['skills/*/SKILL.md', '**/SKILL.md']` too strict
+
+---
+
+### 3. **No Validation/Dry-Run** ❌
+**Missing**: Endpoint to preview what would be synced
+**Impact**: Can't diagnose why 0 skills are detected
+
+---
+
+### 4. **No Structured Error Model** ❌
+**Problem**: Errors logged to console, not returned to caller
+**Impact**:
+- No step-by-step tracking (fetch tree → parse files → write DB)
+- No scanned paths list
+- Can't distinguish rate-limit vs invalid repo vs parsing errors
+
+---
+
+### 5. **Local Source Not Implemented** ❌
+**Location**: `src/app/api/sources/sync/route.ts:50`
+```typescript
+case 'local':
+  return NextResponse.json({ error: 'Local source does not require sync' }, { status: 400 });
+```
+**Problem**: `.agent/skills` shows 0 skills because sync is disabled
+
+---
+
+## Implementation Plan
+
+### C1: Structured Error Model + Logging
+**Files**:
+- `src/lib/sources/types.ts` (NEW) - Error types, sync result types
+- `src/app/api/sources/sync/route.ts` - Return structured errors
+- `src/lib/sources/github-sync.ts` - Add step tracking
+
+**Changes**:
+```typescript
+interface SyncError {
+  step: 'fetch_tree' | 'parse_files' | 'write_db';
+  message: string;
+  httpStatus?: number;
+  paths?: string[];
+}
+
+interface SyncResult {
+  indexed: number;
+  updated: number;
+  removed: number;
+  errors: SyncError[];
+  scannedPaths: string[];
+  detectedFiles: string[];
+}
+```
+
+---
+
+### C2: Layout Auto-Detection + Recursive Scanner
+**Files**:
+- `src/lib/sources/github-sync.ts` - Case-insensitive matching
+- `src/lib/sources/skill-scanner.ts` (NEW) - Auto-detect layout
+
+**Features**:
+- Case-insensitive SKILL.md matching
+- Auto-detect patterns:
+  - `skills/*/SKILL.md`
+  - `.agent/skills/*/SKILL.md`
+  - `**/SKILL.md` (any depth)
+- Safeguards: max depth 10, max 1000 files
+
+---
+
+### C3: Validate/Dry-Run Endpoint
+**Files**:
+- `src/app/api/sources/[id]/validate/route.ts` (NEW)
+
+**Response**:
+```json
+{
+  "success": true,
+  "detected": [
+    {"path": "skills/react/SKILL.md", "slug": "react"},
+    {"path": "skills/vue/SKILL.md", "slug": "vue"}
+  ],
+  "scanned": 247,
+  "patterns": ["skills/*/SKILL.md", "**/SKILL.md"]
+}
+```
+
+---
+
+### C4: Local Source Implementation
+**Files**:
+- `src/lib/sources/local-sync.ts` (NEW)
+- `src/app/api/sources/sync/route.ts` - Call local sync
+
+**Logic**:
+- Check if `.agent/skills` exists
+- Scan recursively for SKILL.md
+- Index same as GitHub sources
+
+---
+
+### C5: UI Improvements
+**Files**:
+- `src/app/sources/page.tsx` - Result panel, error display
+
+**Features**:
+- Show indexed/updated/removed counts
+- Display errors array with steps
+- Show scanned paths count
+- "Validate" button before sync
+- Better error messages
+
+---
+
+## Verification Tests
+
+### Test 1: Valid GitHub Repo
+**Repo**: https://github.com/nextlevelbuilder/ui-ux-pro-max-skill
+**Expected**: Indexed Skills > 0
+
+### Test 2: Invalid Structure
+**Repo**: https://github.com/facebook/react (no SKILL.md files)
+**Expected**: 0 skills, scanned paths list, no crash
+
+### Test 3: Rate Limit (no token)
+**Expected**: Clear error "Rate limit exceeded (60/hour)"
+
+### Test 4: Local Folder Missing
+**Expected**: "Directory .agent/skills not found"
+
+---
+
+## File Modification Summary
+
+### New Files:
+1. `src/lib/sources/types.ts` - Shared types
+2. `src/lib/sources/skill-scanner.ts` - Layout detection
+3. `src/lib/sources/local-sync.ts` - Local indexing
+4. `src/app/api/sources/[id]/validate/route.ts` - Dry-run endpoint
+
+### Modified Files:
+1. `src/app/api/sources/sync/route.ts` - Better errors + local support
+2. `src/lib/sources/github-sync.ts` - Auto-detection + case-insensitive
+3. `src/app/sources/page.tsx` - UI improvements
+
+---
+
+**Ready to implement 5 atomic commits.**

@@ -1,0 +1,63 @@
+'use client';
+
+import type { Skills } from '@/lib/ticketpack/types';
+
+interface SkillsPanelProps {
+  skills: Skills;
+}
+
+export default function SkillsPanel({ skills }: SkillsPanelProps) {
+  return (
+    <div className="card">
+      <h3 className="h2" style={{ marginBottom: 'var(--sp-4)' }}>
+        Skills Recommandés
+      </h3>
+
+      {skills.selected.length > 0 && (
+        <div style={{ marginBottom: 'var(--sp-6)' }}>
+          <h4 className="input-label" style={{ marginBottom: 'var(--sp-2)' }}>
+            Sélectionnés ({skills.selected.length})
+          </h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
+            {skills.selected.map((skill) => (
+              <div
+                key={skill.skill_id}
+                className="skill-selected-card"
+              >
+                <p style={{ fontWeight: 600, color: 'var(--primary-700)' }}>{skill.name}</p>
+                <p className="text-small" style={{ marginTop: 'var(--sp-1)', color: 'var(--text-2)' }}>{skill.purpose}</p>
+                <p className="text-small" style={{ marginTop: 'var(--sp-1)', color: 'var(--text-2)' }}>
+                  <strong>Activation:</strong> {skill.activation}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <h4 className="input-label" style={{ marginBottom: 'var(--sp-2)' }}>
+          Tous les recommandés ({skills.recommended.length})
+        </h4>
+        <div className="skills-grid">
+          {skills.recommended.map((skill) => (
+            <div
+              key={skill.skill_id}
+              className="skill-rec-card"
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--sp-1)' }}>
+                <p className="text-small" style={{ fontWeight: 600 }}>
+                  Skill #{skill.skill_id}
+                </p>
+                <span className="pill pill-success">
+                  {Math.round(skill.score * 100)}%
+                </span>
+              </div>
+              <p className="text-small text-muted">{skill.rationale}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

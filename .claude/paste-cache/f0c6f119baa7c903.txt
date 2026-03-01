@@ -1,0 +1,27 @@
+{
+  "errorMessage": "Error in sub-node ‘LLM_RECEPTEUR’",
+  "errorDescription": "Could not get parameter",
+  "errorDetails": {},
+  "n8nDetails": {
+    "nodeName": "LLM_RECEPTEUR",
+    "nodeType": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+    "nodeVersion": 1.3,
+    "itemIndex": 0,
+    "time": "23/02/2026 13:23:19",
+    "n8nVersion": "2.7.5 (Self Hosted)",
+    "binaryDataMode": "database",
+    "stackTrace": [
+      "NodeOperationError: Error in sub-node LLM_RECEPTEUR",
+      "    at ExecuteContext.getInputConnectionData (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+exporter-trace-otlp_4dbefa9881a7c57a9e05a20ce4387c10/node_modules/n8n-core/src/execution-engine/node-execution-context/utils/get-input-connection-data.ts:522:11)",
+      "    at processTicksAndRejections (node:internal/process/task_queues:105:5)",
+      "    at ExecuteContext.getInputConnectionData (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+exporter-trace-otlp_4dbefa9881a7c57a9e05a20ce4387c10/node_modules/n8n-core/src/execution-engine/node-execution-context/execute-context.ts:186:10)",
+      "    at getChatModel (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/@n8n+n8n-nodes-langchain@file+packages+@n8n+nodes-langchain_25556d2df217b3ecea67b49c8dcb0d5a/node_modules/@n8n/n8n-nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/common.ts:345:26)",
+      "    at buildToolsAgentExecutionContext (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/@n8n+n8n-nodes-langchain@file+packages+@n8n+nodes-langchain_25556d2df217b3ecea67b49c8dcb0d5a/node_modules/@n8n/n8n-nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/V3/helpers/buildExecutionContext.ts:42:16)",
+      "    at ExecuteContext.toolsAgentExecute (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/@n8n+n8n-nodes-langchain@file+packages+@n8n+nodes-langchain_25556d2df217b3ecea67b49c8dcb0d5a/node_modules/@n8n/n8n-nodes-langchain/nodes/agents/Agent/agents/ToolsAgent/V3/execute.ts:39:27)",
+      "    at ExecuteContext.execute (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/@n8n+n8n-nodes-langchain@file+packages+@n8n+nodes-langchain_25556d2df217b3ecea67b49c8dcb0d5a/node_modules/@n8n/n8n-nodes-langchain/nodes/agents/Agent/V3/AgentV3.node.ts:139:10)",
+      "    at WorkflowExecute.executeNode (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+exporter-trace-otlp_4dbefa9881a7c57a9e05a20ce4387c10/node_modules/n8n-core/src/execution-engine/workflow-execute.ts:1039:8)",
+      "    at WorkflowExecute.runNode (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+exporter-trace-otlp_4dbefa9881a7c57a9e05a20ce4387c10/node_modules/n8n-core/src/execution-engine/workflow-execute.ts:1218:11)",
+      "    at /usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+exporter-trace-otlp_4dbefa9881a7c57a9e05a20ce4387c10/node_modules/n8n-core/src/execution-engine/workflow-execute.ts:1653:27"
+    ]
+  }
+}

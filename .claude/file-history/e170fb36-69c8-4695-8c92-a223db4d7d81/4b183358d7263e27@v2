@@ -1,0 +1,34 @@
+"use client";
+
+import { usePathname } from "next/navigation";
+
+export function Topbar() {
+  const pathname = usePathname();
+
+  const getPageTitle = () => {
+    if (pathname === "/dashboard") return "dashboard";
+    if (pathname === "/cortex") return "cortex";
+    if (pathname === "/projects") return "projects";
+    if (pathname === "/settings") return "settings";
+    if (pathname?.startsWith("/labs/")) {
+      const lab = pathname.split("/labs/")[1];
+      return `labs / ${lab}`;
+    }
+    return "k3rn";
+  };
+
+  return (
+    <header className="h-16 bg-zinc-900 border-b border-white/10 flex items-center justify-between px-8">
+      <div>
+        <h2 className="text-lg font-semibold text-white">{getPageTitle()}</h2>
+        <p className="text-xs text-zinc-500">contexte projet actif</p>
+      </div>
+      <div className="flex items-center gap-4">
+        <button className="px-3 py-1.5 text-sm text-zinc-400 hover:text-white transition-colors">
+          aide
+        </button>
+        <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10" />
+      </div>
+    </header>
+  );
+}

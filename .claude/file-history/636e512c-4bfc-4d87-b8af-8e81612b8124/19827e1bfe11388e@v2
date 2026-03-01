@@ -1,0 +1,119 @@
+/**
+ * Script pour exécuter la migration SQL de synchronisation user
+ * Usage: node scripts/run-migration.js
+ *
+ * Nécessite: SUPABASE_SERVICE_ROLE_KEY dans .env.local
+ */
+
+import { createClient } from '@supabase/supabase-js'
+import { readFileSync } from 'fs'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
+import dotenv from 'dotenv'
+
+// Load environment variables
+dotenv.config({ path: '.env.local' })
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error('❌ Erreur: NEXT_PUBLIC_SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY requis dans .env.local')
+  console.error('')
+  console.error('Pour obtenir votre SERVICE_ROLE_KEY :')
+  console.error('1. Aller sur https://supabase.com/dashboard')
+  console.error('2. Sélectionner votre projet')
+  console.error('3. Aller dans Settings > API')
+  console.error('4. Copier la clé "service_role" (secret)')
+  console.error('5. Ajouter dans .env.local : SUPABASE_SERVICE_ROLE_KEY=<votre_clé>')
+  process.exit(1)
+}
+
+// Create Supabase client with service role key
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+})
+
+async function runMigration() {
+  try {
+    console.log('🚀 Exécution de la migration SQL...')
+    console.log('')
+
+    // Read migration file
+    const migrationPath = join(__dirname, '..', 'supabase', 'migrations', '20260211_create_public_user_trigger.sql')
+    const sql = readFileSync(migrationPath, 'utf-8')
+
+    // Execute SQL
+    const { data, error } = await supabase.rpc('exec_sql', { sql_query: sql })
+
+    if (error) {
+      // Try direct query if rpc doesn't work
+      console.log('⚠️  Tentative d\'exécution directe...')
+
+      // Split into individual statements
+      const statements = sql
+        .split(';')
+        .map(s => s.trim())
+        .filter(s => s.length > 0 && !s.startsWith('--'))
+
+      for (let i = 0; i < statements.length; i++) {
+        const statement = statements[i] + ';'
+        console.log(`   Exécution statement ${i + 1}/${statements.length}...`)
+
+        const { error: stmtError } = await supabase.rpc('exec_sql', { sql_query: statement })
+
+        if (stmtError) {
+          console.error(`   ❌ Erreur: ${stmtError.message}`)
+        } else {
+          console.log(`   ✅ Statement ${i + 1} exécuté`)
+        }
+      }
+    } else {
+      console.log('✅ Migration SQL exécutée avec succès !')
+    }
+
+    console.log('')
+    console.log('🔍 Vérification des utilisateurs synchronisés...')
+
+    // Verify users were synced
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('id, email, created_at')
+      .limit(10)
+
+    if (usersError) {
+      console.error('❌ Erreur lors de la vérification:', usersError.message)
+    } else {
+      console.log(`✅ ${users?.length || 0} utilisateur(s) trouvé(s) dans public.users`)
+      if (users && users.length > 0) {
+        console.log('')
+        console.log('Utilisateurs synchronisés :')
+        users.forEach(u => {
+          console.log(`  - ${u.email} (ID: ${u.id.substring(0, 8)}...)`)
+        })
+      }
+    }
+
+    console.log('')
+    console.log('✅ Migration terminée avec succès !')
+    console.log('')
+    console.log('🧪 Testez maintenant :')
+    console.log('   1. Aller sur /capture')
+    console.log('   2. Saisir une nouvelle idée')
+    console.log('   3. Cliquer "Analyser"')
+    console.log('   4. Vérifier que le projet apparaît dans /workspace')
+    console.log('')
+
+  } catch (error) {
+    console.error('❌ Erreur inattendue:', error)
+    process.exit(1)
+  }
+}
+
+runMigration()

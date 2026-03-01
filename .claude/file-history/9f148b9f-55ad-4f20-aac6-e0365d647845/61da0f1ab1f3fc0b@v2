@@ -1,0 +1,62 @@
+# Changelog
+
+Toutes les modifications notables de ce projet seront documentées dans ce fichier.
+
+Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
+et ce projet adhère à [Semantic Versioning](https://semver.org/lang/fr/).
+
+## [1.1.0] - 2026-02-15
+
+### Ajouté
+- **TicketPack Generator** - Nouvelle fonctionnalité majeure
+  - Page `/ticketpack` pour générer des packs de tickets à partir d'une idée
+  - Génération automatique de: PRD, ADRs, Roadmap, Tickets, Prompts Claude Code, Runbook
+  - Recommandation automatique de skills via FTS5 basée sur le brief
+  - Export multi-fichiers (PRD, ADR, TICKETS, PROMPTS, etc.)
+  - Support de plusieurs types de livrables: SaaS, App, Landing Page, Feature, Bugfix
+
+- **Modèles TicketPack v1.0.0**
+  - Schéma JSON strict avec validation runtime
+  - Types TypeScript complets
+  - Templates Markdown pour tous les artefacts
+  - Prompts XML canoniques pour Claude Code
+
+- **Navigation globale**
+  - Header avec navigation Skills | TicketPack Generator
+  - Design cohérent sur toute l'application
+
+- **API Routes**
+  - `POST /api/ticketpack/generate` - Génération de pack
+  - `POST /api/ticketpack/export` - Export multi-fichiers
+
+### Modifié
+- Layout global: ajout de la navigation persistante
+- Page Skills: header simplifié (navigation déplacée)
+- Metadata: titre mis à jour "Wind Boost - Skills & TicketPack"
+
+### Technique
+- 23 nouveaux fichiers créés
+- Architecture modulaire: `src/lib/ticketpack/*`
+- Réutilisation du moteur FTS5 existant pour recommandations
+- Génération déterministe (IDs stables, ordre fixe)
+- Pas de dépendances externes ajoutées
+
+## [1.0.0] - 2026-02-15
+
+### Ajouté
+- Recherche de skills avec SQLite FTS5 et BM25 ranking
+- Filtres par catégorie, tags, et cards enrichies
+- Pages de détail des skills
+- Édition de Skill Cards (use_when, avoid_when, risk_level, etc.)
+- Stack Builder avec réorganisation
+- Export Markdown et JSON
+- Base de données: 622 skills indexés
+- Documentation complète (README, IMPLEMENTATION_SUMMARY)
+
+### Technique
+- Next.js 15 (App Router)
+- React 19
+- TypeScript strict
+- Tailwind CSS
+- SQLite avec better-sqlite3
+- FTS5 pour la recherche full-text

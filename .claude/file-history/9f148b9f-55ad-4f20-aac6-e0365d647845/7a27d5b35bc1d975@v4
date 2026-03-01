@@ -1,0 +1,135 @@
+/**
+ * Global App Store with localStorage persistence
+ * Manages state that should persist across page navigation
+ */
+
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import type { TicketPack } from '@/lib/ticketpack/types';
+
+/**
+ * Target repo context for feature-on-existing mode
+ */
+export interface TargetRepoContext {
+  githubUrl?: string;
+  branch?: string;
+  notes?: string;
+  packageJson?: string;
+  repoTree?: string;
+}
+
+/**
+ * TicketPack draft form state
+ */
+export interface TicketDraft {
+  brief: string;
+  projectName: string;
+  deliverableType: string;
+  sources: Array<{ type: 'text' | 'url'; content: string }>;
+  skillsStackJson: string;
+  operationMode: 'new_project' | 'feature_on_existing_repo';
+  targetRepoContext: TargetRepoContext;
+}
+
+/**
+ * App global state
+ */
+interface AppState {
+  // Skills Stack Builder
+  skillStack: number[];
+  addToStack: (skillId: number) => void;
+  removeFromStack: (skillId: number) => void;
+  reorderStack: (fromIndex: number, toIndex: number) => void;
+  clearStack: () => void;
+
+  // TicketPack Draft
+  ticketDraft: TicketDraft;
+  updateTicketDraft: (draft: Partial<TicketDraft>) => void;
+  clearTicketDraft: () => void;
+
+  // Generated TicketPack
+  generatedPack: TicketPack | null;
+  setGeneratedPack: (pack: TicketPack | null) => void;
+}
+
+const initialTicketDraft: TicketDraft = {
+  brief: '',
+  projectName: '',
+  deliverableType: 'saas',
+  sources: [],
+  skillsStackJson: '',
+  operationMode: 'new_project',
+  targetRepoContext: {},
+};
+
+/**
+ * Global app store with localStorage persistence
+ * Handles SSR gracefully by checking if we're in browser
+ */
+export const useAppStore = create<AppState>()(
+  persist(
+    (set, get) => ({
+      // Skills Stack State
+      skillStack: [],
+
+      addToStack: (skillId) =>
+        set((state) => {
+          if (state.skillStack.includes(skillId)) {
+            return state; // No change if already in stack
+          }
+          return { skillStack: [...state.skillStack, skillId] };
+        }),
+
+      removeFromStack: (skillId) =>
+        set((state) => ({
+          skillStack: state.skillStack.filter((id) => id !== skillId),
+        })),
+
+      reorderStack: (fromIndex, toIndex) =>
+        set((state) => {
+          const newStack = [...state.skillStack];
+          const [removed] = newStack.splice(fromIndex, 1);
+          newStack.splice(toIndex, 0, removed);
+          return { skillStack: newStack };
+        }),
+
+      clearStack: () => set({ skillStack: [] }),
+
+      // TicketPack Draft State
+      ticketDraft: initialTicketDraft,
+
+      updateTicketDraft: (draft) =>
+        set((state) => ({
+          ticketDraft: { ...state.ticketDraft, ...draft },
+        })),
+
+      clearTicketDraft: () => set({ ticketDraft: initialTicketDraft }),
+
+      // Generated Pack State
+      generatedPack: null,
+
+      setGeneratedPack: (pack) => set({ generatedPack: pack }),
+    }),
+    {
+      name: 'windboost-app-storage', // localStorage key
+      storage: createJSONStorage(() => {
+        // Only use localStorage in browser environment
+        if (typeof window !== 'undefined') {
+          return localStorage;
+        }
+        // Return a no-op storage for SSR
+        return {
+          getItem: () => null,
+          setItem: () => {},
+          removeItem: () => {},
+        };
+      }),
+      partialize: (state) => ({
+        // Only persist these fields
+        skillStack: state.skillStack,
+        ticketDraft: state.ticketDraft,
+        generatedPack: state.generatedPack,
+      }),
+    }
+  )
+);

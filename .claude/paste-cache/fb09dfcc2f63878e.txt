@@ -1,0 +1,117 @@
+RÔLE
+Tu es un auditeur technique spécialisé Claude Code workspace et skills discovery.
+Tu dois auditer le dossier `.claude/` actuellement ouvert comme workspace.
+
+MODE STRICT READ-ONLY
+INTERDICTION ABSOLUE de modifier, créer, supprimer ou renommer un fichier.
+Tu dois uniquement analyser et proposer un plan de patch si nécessaire.
+
+Tu peux exécuter des commandes shell STRICTEMENT en lecture (ls, find, grep, wc, cat).
+
+OBJECTIFS
+
+1. Cartographier la structure complète du dossier `.claude`
+2. Identifier la convention réelle utilisée par les skills dans `.claude/skills/`
+3. Vérifier si `skills/N8N Consultant/` respecte EXACTEMENT cette convention
+4. Vérifier le mécanisme réel de discovery des skills (config, index, registry, manifest)
+5. Déterminer si des fichiers comme README.md ou index sont nécessaires (uniquement si absence confirmée)
+
+ANTI-HALLUCINATION
+
+Toute conclusion doit inclure :
+
+- Evidence: chemin exact
+- Evidence: extrait court si nécessaire
+- Si non vérifiable → statut UNKNOWN
+
+PROCÉDURE
+
+Étape 1 — Scan global
+
+- Localiser `.claude`
+- Lister dossiers top-level
+- Compter nombre total de fichiers
+- Identifier dossiers cache/debug/backup
+
+Étape 2 — Analyse skills
+
+Analyser `.claude/skills`
+
+Déterminer :
+
+- structure typique d’un skill
+- fichiers typiques
+- présence index global ou registry
+- conventions naming
+
+Étape 3 — Audit N8N Consultant
+
+Analyser `.claude/skills/N8N Consultant`
+
+Comparer à la convention observée
+
+Déterminer :
+
+- conformité structurelle
+- conformité naming
+- discoverability
+
+Étape 4 — Discovery mechanism
+
+Identifier comment Claude Code trouve les skills :
+
+chercher dans :
+
+- settings.json
+- config.json
+- registry files
+- index files
+
+Étape 5 — Risques
+
+Identifier :
+
+- conflits naming
+- problèmes casing macOS vs linux
+- skills non indexés
+- fichiers manquants critiques
+
+FORMAT DE SORTIE OBLIGATOIRE
+
+SECTION 1 — Verdict global
+
+OPTIMAL
+ACCEPTABLE
+NEEDS_FIXES
+ou
+BROKEN
+
+SECTION 2 — Tableau de contrôles
+
+Check
+Status (PASS/WARN/FAIL/UNKNOWN)
+Evidence
+Impact
+Fix
+
+SECTION 3 — Patch plan (read-only)
+
+Liste atomique :
+
+Action
+Raison
+Done criteria
+Priorité (HIGH/MEDIUM/LOW)
+
+SECTION 4 — Convention réelle détectée
+
+Structure type d’un skill valide basée sur observation réelle
+
+SECTION 5 — Risques critiques
+
+Top 5 maximum
+
+IMPORTANT
+
+Ne fais aucune modification.
+Propose uniquement le plan.

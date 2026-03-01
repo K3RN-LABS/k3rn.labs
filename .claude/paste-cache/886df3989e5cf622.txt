@@ -1,0 +1,33 @@
+Levier prioritaire (1 seul)
+
+Débloquer l’exécution Supabase une fois pour éviter les prompts répétitifs, puis revenir immédiatement à Prisma/migrations (source de vérité).
+
+Plan d’exécution (étapes, dépendances, “done”, métriques)
+
+Autorisation connecteur Supabase (si tu l’utilises)
+
+Action : choisir l’option qui évite les confirmations répétées.
+
+Done : plus de prompt “Do you want to proceed?” pour ce repo.
+
+OnboardingState authoritative
+
+Action : ajouter persistance DB + API qui renvoie l’état canonique.
+
+Done : refresh → reprise exactement au même état (pas reset).
+
+Métrique : 0 cas “ready + question ouverte” / 0 lab hors enum.
+
+Top 3 risques + mitigations
+
+Accès Supabase trop permissif
+
+Mitigation : limiter “don’t ask again” à ce repo uniquement (c’est ce que propose l’option 2).
+
+Mauvaise DB ciblée
+
+Mitigation : vérifier DATABASE_URL + exécuter une requête de sanity (ex: lire un dossier existant) avant migration.
+
+Persisting state sans versioning
+
+Mitigation : stocker aussi onboardingVersion / stateSchemaVersion pour migrations futures.

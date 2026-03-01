@@ -1,0 +1,339 @@
+# TICKET 1 — Infrastructure DB K3rn.labs OS Personnel
+## Environnement : RDS PostgreSQL sur AWS eu-west-3 (Paris)
+
+---
+
+## Contexte
+
+Tu as reçu le fichier `k3rn-db-schema-xo-prompt.md` qui contient le schéma complet PostgreSQL pour K3rn.labs OS Personnel.
+
+L'instance RDS existante :
+- **Identifiant** : k3rnlab1-db
+- **Endpoint** : k3rnlab1-db.c564a0asark9.eu-west-3.rds.amazonaws.com
+- **Port** : 5432
+- **Moteur** : PostgreSQL (version à confirmer)
+- **VPC privé** : pas d'accès Internet direct — connexion via EC2 dans le même VPC
+- **Auth** : mot de passe (pas IAM)
+
+---
+
+## ÉTAPE 0 — Confirmer l'accès
+
+Tu dois te connecter à l'instance RDS via l'EC2 du même VPC (eu-west-3).
+
+```bash
+# Depuis l'EC2, tester la connexion RDS
+psql "host=k3rnlab1-db.c564a0asark9.eu-west-3.rds.amazonaws.com \
+      port=5432 \
+      dbname=postgres \
+      user=postgres \
+      sslmode=verify-full \
+      sslrootcert=/certs/global-bundle.pem"
+```
+
+Si le certificat SSL n'est pas présent :
+```bash
+# Télécharger le bundle AWS RDS
+wget https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -O /tmp/global-bundle.pem
+```
+
+Si la connexion échoue → vérifier que le Security Group de l'EC2 est bien dans les règles inbound du RDS (sg-0ab777cd64846dcbc ou sg-0120405dc3c069d1a).
+
+---
+
+## ÉTAPE 1 — Vérifier l'environnement
+
+```sql
+-- Version PostgreSQL (critique pour pgvector)
+SELECT version();
+
+-- pgvector déjà installé ?
+SELECT * FROM pg_available_extensions WHERE name = 'vector';
+
+-- Tables existantes (ne pas écraser v0-orch)
+\dt
+```
+
+**Résultat attendu** : PostgreSQL 13.11+ ou 14+ pour pgvector natif sur RDS.
+Si version < 13.11 → STOP et me le signaler avant de continuer.
+
+---
+
+## ÉTAPE 2 — Activer pgvector
+
+Sur RDS PostgreSQL, pgvector est disponible nativement — pas de compilation.
+Une seule commande SQL suffit :
+
+```sql
+-- Activer pgvector (disponible nativement sur RDS PostgreSQL 13.11+, 14.3+, 15+, 16+)
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Vérifier
+SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';
+```
+
+Si erreur "extension vector is not available" → la version PostgreSQL est trop ancienne.
+Dans ce cas : STOP et rapporter la version exacte.
+
+---
+
+## ÉTAPE 3 — Créer le schéma
+
+Exécuter dans l'ordre strict (dépendances FK) :
+
+```sql
+-- Sécurité : IF NOT EXISTS sur tout
+-- Ne jamais modifier les tables existantes de v0-orch
+-- Si conflit de nom → préfixer avec kern_ et signaler
+
+CREATE TABLE IF NOT EXISTS utilisateurs (
+    utilisateur_id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    telegram_id       BIGINT UNIQUE NOT NULL,
+    nom               VARCHAR(100),
+    role              VARCHAR(50) DEFAULT 'patron',
+    preferences       JSONB DEFAULT '{}',
+    created_at        TIMESTAMPTZ DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS projets (
+    projet_id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    utilisateur_id    UUID REFERENCES utilisateurs(utilisateur_id),
+    hashtag           VARCHAR(50) UNIQUE NOT NULL,
+    nom               VARCHAR(200) NOT NULL,
+    description       TEXT,
+    secteur           VARCHAR(100),
+    statut            VARCHAR(50) DEFAULT 'actif',
+    score_qualification FLOAT,
+    recommandation    VARCHAR(20),
+    brief_executif    TEXT,
+    metadonnees       JSONB DEFAULT '{}',
+    created_at        TIMESTAMPTZ DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+    session_id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    projet_id         UUID REFERENCES projets(projet_id),
+    utilisateur_id    UUID REFERENCES utilisateurs(utilisateur_id),
+    pole_actif        VARCHAR(50) DEFAULT 'XO',
+    etat              VARCHAR(50) DEFAULT 'ouvert',
+    resume_session    TEXT,
+    nb_messages       INT DEFAULT 0,
+    tokens_consommes  INT DEFAULT 0,
+    started_at        TIMESTAMPTZ DEFAULT NOW(),
+    last_activity     TIMESTAMPTZ DEFAULT NOW(),
+    closed_at         TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+    message_id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id        UUID REFERENCES sessions(session_id),
+    projet_id         UUID REFERENCES projets(projet_id),
+    role              VARCHAR(20) NOT NULL,
+    pole_emetteur     VARCHAR(50),
+    contenu           TEXT NOT NULL,
+    contenu_structure JSONB,
+    tokens_input      INT DEFAULT 0,
+    tokens_output     INT DEFAULT 0,
+    modele_utilise    VARCHAR(100),
+    latence_ms        INT,
+    created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS documents (
+    document_id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    projet_id         UUID REFERENCES projets(projet_id),
+    utilisateur_id    UUID REFERENCES utilisateurs(utilisateur_id),
+    type              VARCHAR(50),
+    titre             VARCHAR(300),
+    contenu_texte     TEXT,
+    contenu_structure JSONB,
+    format_source     VARCHAR(20),
+    version           INT DEFAULT 1,
+    est_archive       BOOLEAN DEFAULT FALSE,
+    created_at        TIMESTAMPTZ DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS decisions (
+    decision_id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    projet_id         UUID REFERENCES projets(projet_id),
+    session_id        UUID REFERENCES sessions(session_id),
+    type_decision     VARCHAR(100),
+    description       TEXT NOT NULL,
+    contexte          TEXT,
+    prise_par         VARCHAR(50) DEFAULT 'patron',
+    statut            VARCHAR(30) DEFAULT 'active',
+    created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS poles_activations (
+    activation_id     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id        UUID REFERENCES sessions(session_id),
+    projet_id         UUID REFERENCES projets(projet_id),
+    pole              VARCHAR(50) NOT NULL,
+    declenche_par     VARCHAR(50),
+    signal_input      TEXT,
+    tokens_consommes  INT DEFAULT 0,
+    succes            BOOLEAN DEFAULT TRUE,
+    created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS chunks_vectorises (
+    chunk_id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    projet_id         UUID REFERENCES projets(projet_id),
+    source_type       VARCHAR(50),
+    source_id         UUID,
+    contenu_texte     TEXT NOT NULL,
+    embedding         vector(1536),
+    metadonnees       JSONB DEFAULT '{}',
+    created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS logs_systeme (
+    log_id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id        UUID,
+    utilisateur_id    UUID,
+    agent             VARCHAR(50),
+    action            VARCHAR(100),
+    statut            VARCHAR(20),
+    details           JSONB DEFAULT '{}',
+    tokens_input      INT,
+    tokens_output     INT,
+    cout_estime_usd   FLOAT,
+    latence_ms        INT,
+    erreur_message    TEXT,
+    created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+---
+
+## ÉTAPE 4 — Créer les index
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_utilisateurs_telegram ON utilisateurs(telegram_id);
+CREATE INDEX IF NOT EXISTS idx_projets_utilisateur ON projets(utilisateur_id);
+CREATE INDEX IF NOT EXISTS idx_projets_hashtag ON projets(hashtag);
+CREATE INDEX IF NOT EXISTS idx_projets_statut ON projets(statut);
+CREATE INDEX IF NOT EXISTS idx_sessions_projet ON sessions(projet_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_utilisateur ON sessions(utilisateur_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_activite ON sessions(last_activity DESC);
+CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id);
+CREATE INDEX IF NOT EXISTS idx_messages_projet ON messages(projet_id);
+CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_decisions_projet ON decisions(projet_id);
+CREATE INDEX IF NOT EXISTS idx_logs_created ON logs_systeme(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_logs_agent ON logs_systeme(agent);
+CREATE INDEX IF NOT EXISTS idx_logs_statut ON logs_systeme(statut);
+CREATE INDEX IF NOT EXISTS idx_chunks_projet ON chunks_vectorises(projet_id);
+
+-- Index vectoriel pgvector (ivfflat — nécessite des données pour être optimal,
+-- créer maintenant mais il sera reconstruit après insertion des premiers chunks)
+CREATE INDEX IF NOT EXISTS idx_chunks_embedding ON chunks_vectorises
+    USING ivfflat (embedding vector_cosine_ops)
+    WITH (lists = 100);
+```
+
+---
+
+## ÉTAPE 5 — Créer les vues
+
+```sql
+CREATE OR REPLACE VIEW v_cout_par_projet AS
+SELECT
+    p.hashtag,
+    p.nom,
+    COUNT(m.message_id) AS nb_messages,
+    SUM(m.tokens_input + m.tokens_output) AS tokens_total,
+    ROUND((SUM(m.tokens_input + m.tokens_output) * 0.000003)::numeric, 4) AS cout_estime_usd
+FROM projets p
+LEFT JOIN messages m ON m.projet_id = p.projet_id
+GROUP BY p.projet_id, p.hashtag, p.nom;
+
+CREATE OR REPLACE VIEW v_session_active AS
+SELECT
+    u.telegram_id,
+    p.hashtag AS projet_actif,
+    s.pole_actif,
+    s.etat,
+    s.nb_messages,
+    s.last_activity
+FROM sessions s
+JOIN projets p ON p.projet_id = s.projet_id
+JOIN utilisateurs u ON u.utilisateur_id = s.utilisateur_id
+WHERE s.etat = 'ouvert'
+ORDER BY s.last_activity DESC;
+```
+
+---
+
+## ÉTAPE 6 — Insérer des données de test et valider
+
+```sql
+-- Insérer données test
+INSERT INTO utilisateurs (telegram_id, nom) VALUES (999999999, 'Patron Test');
+
+INSERT INTO projets (utilisateur_id, hashtag, nom, brief_executif)
+SELECT utilisateur_id, 'TestProjet', 'Projet de test TICKET 1', 'Brief de test.'
+FROM utilisateurs WHERE telegram_id = 999999999;
+
+INSERT INTO sessions (projet_id, utilisateur_id, pole_actif)
+SELECT p.projet_id, u.utilisateur_id, 'XO'
+FROM projets p JOIN utilisateurs u ON u.utilisateur_id = p.utilisateur_id
+WHERE p.hashtag = 'TestProjet';
+
+INSERT INTO messages (session_id, projet_id, role, pole_emetteur, contenu, tokens_input, tokens_output, modele_utilise)
+SELECT s.session_id, p.projet_id,
+       CASE WHEN gs.n % 2 = 0 THEN 'user' ELSE 'assistant' END,
+       'XO', 'Message test ' || gs.n, 100, 200, 'claude-sonnet-4-TICKET1-TEST'
+FROM sessions s
+JOIN projets p ON p.projet_id = s.projet_id
+CROSS JOIN generate_series(1,5) AS gs(n)
+WHERE p.hashtag = 'TestProjet';
+
+-- VALIDER REQUÊTE NIVEAU 1 (target < 50ms)
+EXPLAIN ANALYZE
+SELECT p.brief_executif, p.statut, m.role, m.pole_emetteur, m.contenu, m.created_at
+FROM projets p
+JOIN sessions s ON s.projet_id = p.projet_id
+JOIN messages m ON m.session_id = s.session_id
+WHERE p.hashtag = 'TestProjet'
+AND s.etat = 'ouvert'
+ORDER BY m.created_at DESC
+LIMIT 5;
+
+-- Valider les vues
+SELECT * FROM v_session_active;
+SELECT * FROM v_cout_par_projet;
+
+-- Nettoyer données test
+DELETE FROM messages WHERE modele_utilise = 'claude-sonnet-4-TICKET1-TEST';
+DELETE FROM sessions WHERE projet_id IN (SELECT projet_id FROM projets WHERE hashtag = 'TestProjet');
+DELETE FROM projets WHERE hashtag = 'TestProjet';
+DELETE FROM utilisateurs WHERE telegram_id = 999999999;
+```
+
+---
+
+## Critère de DONE
+
+- [ ] Connexion RDS établie depuis EC2
+- [ ] Version PostgreSQL confirmée (≥ 13.11)
+- [ ] pgvector activé (`extversion` retourné)
+- [ ] 9 tables créées sans erreur (`\dt`)
+- [ ] 2 vues créées sans erreur
+- [ ] Requête niveau 1 < 50ms (EXPLAIN ANALYZE)
+- [ ] Données test insérées et nettoyées
+- [ ] Tables v0-orch intactes
+
+## Output attendu
+
+Rapporter :
+1. Version PostgreSQL
+2. Version pgvector
+3. `\dt` — liste complète des tables
+4. Temps EXPLAIN ANALYZE requête niveau 1
+5. Conflits de nommage détectés (le cas échéant)
+6. Tout problème rencontré + solution appliquée

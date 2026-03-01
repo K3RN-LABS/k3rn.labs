@@ -1,0 +1,84 @@
+"""Structured logging with contextual fields (request_id, project_id, step_code, run_id)."""
+
+import logging
+import sys
+from contextvars import ContextVar
+from typing import Any
+
+from pythonjsonlogger import jsonlogger
+
+from app.config import settings
+
+# Context variables for structured logging
+request_id_var: ContextVar[str | None] = ContextVar("request_id", default=None)
+project_id_var: ContextVar[str | None] = ContextVar("project_id", default=None)
+step_code_var: ContextVar[str | None] = ContextVar("step_code", default=None)
+run_id_var: ContextVar[str | None] = ContextVar("run_id", default=None)
+
+
+class ContextFilter(logging.Filter):
+    """Inject context variables into log records."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.request_id = request_id_var.get()
+        record.project_id = project_id_var.get()
+        record.step_code = step_code_var.get()
+        record.run_id = run_id_var.get()
+        return True
+
+
+class CustomJsonFormatter(jsonlogger.JsonFormatter):
+    """JSON formatter with kern.labs specific fields."""
+
+    def add_fields(
+        self,
+        log_record: dict[str, Any],
+        record: logging.LogRecord,
+        message_dict: dict[str, Any],
+    ) -> None:
+        super().add_fields(log_record, record, message_dict)
+        log_record["level"] = record.levelname
+        log_record["logger"] = record.name
+
+        # Add contextual fields if present
+        if hasattr(record, "request_id") and record.request_id:
+            log_record["request_id"] = record.request_id
+        if hasattr(record, "project_id") and record.project_id:
+            log_record["project_id"] = record.project_id
+        if hasattr(record, "step_code") and record.step_code:
+            log_record["step_code"] = record.step_code
+        if hasattr(record, "run_id") and record.run_id:
+            log_record["run_id"] = record.run_id
+
+
+def setup_logging() -> None:
+    """Configure structured logging for the application."""
+    root_logger = logging.getLogger()
+    root_logger.setLevel(settings.log_level.upper())
+
+    # Remove existing handlers
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+
+    # Create console handler
+    handler = logging.StreamHandler(sys.stdout)
+
+    if settings.log_format == "json":
+        formatter = CustomJsonFormatter(
+            "%(asctime)s %(level)s %(logger)s %(message)s",
+            datefmt="%Y-%m-%dT%H:%M:%S",
+        )
+    else:
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            datefmt="%Y-%m-%dT%H:%M:%S",
+        )
+
+    handler.setFormatter(formatter)
+    handler.addFilter(ContextFilter())
+    root_logger.addHandler(handler)
+
+
+def get_logger(name: str) -> logging.Logger:
+    """Get a logger instance with structured logging configured."""
+    return logging.getLogger(name)

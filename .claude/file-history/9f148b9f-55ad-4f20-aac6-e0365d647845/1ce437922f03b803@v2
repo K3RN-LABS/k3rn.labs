@@ -1,0 +1,212 @@
+/**
+ * Orchestrateur principal de génération de TicketPack
+ */
+
+import type {
+  TicketPack,
+  TicketPackInput,
+  PRD,
+  ADR,
+  Runbook,
+  Skills,
+  Prompts,
+} from './types';
+import { TICKETPACK_VERSION, DEFAULT_STACK_BY_DELIVERABLE } from './constants';
+import { extractRequirements, generateSourceSummary } from './extractor';
+import { recommendSkills } from './recommender';
+import { generateTickets } from './ticketing';
+import { generateGlobalPrompt, generateTicketPrompts } from './prompts';
+
+/**
+ * Génère un TicketPack complet à partir de l'input utilisateur
+ */
+export async function generateTicketPack(input: TicketPackInput): Promise<TicketPack> {
+  // 1. Extraction des requirements
+  const requirements = extractRequirements(input.brief, input.sources);
+
+  // 2. Recommendation skills
+  const recommendedSkills = await recommendSkills(input.brief, input.deliverable_type, 10);
+
+  // 3. Stack technique (basée sur deliverable type)
+  const techStack = DEFAULT_STACK_BY_DELIVERABLE[input.deliverable_type] || [
+    'TypeScript',
+    'React',
+  ];
+
+  // 4. Génération des tickets et phases
+  const { phases, tickets } = generateTickets(
+    requirements,
+    input.deliverable_type,
+    input.project_name || 'Nouveau Projet'
+  );
+
+  // 5. Construction du projet
+  const project = {
+    name: input.project_name || 'Nouveau Projet',
+    repo: {
+      repo_name: slugify(input.project_name || 'nouveau-projet'),
+      important_paths: generateImportantPaths(input.deliverable_type),
+      notes: 'Généré automatiquement par Wind Boost TicketPack Generator',
+    },
+    deliverable_type: input.deliverable_type,
+  };
+
+  // 6. PRD
+  const prd: PRD = {
+    problem_statement: generateProblemStatement(input.brief, requirements),
+    goals: requirements.objectives.slice(0, 5),
+    non_goals: [],
+    scope: {
+      in_scope: requirements.features.slice(0, 5),
+      out_of_scope: [],
+    },
+    acceptance: {
+      definition_of_done: tickets
+        .slice(0, 3)
+        .flatMap((t) => t.acceptance_criteria)
+        .slice(0, 5),
+      quality_bar: [
+        'Code TypeScript strict sans erreurs',
+        'Tests unitaires passent',
+        'Build réussit sans warnings',
+        'Linting conforme',
+      ],
+    },
+    constraints: {
+      product: requirements.constraints.slice(0, 3),
+      technical: [`Stack imposée: ${techStack.join(', ')}`],
+      security: ['Pas de secrets en dur', 'Validation des inputs utilisateur'],
+    },
+  };
+
+  // 7. ADRs
+  const adrs: ADR[] = [
+    {
+      adr_id: 'ADR-001',
+      title: 'Choix de la Stack Technique',
+      status: 'accepted',
+      context: `Pour développer ${project.name} (${input.deliverable_type}), nous devons choisir une stack technique moderne et adaptée.`,
+      decision: `Utiliser ${techStack.join(', ')} comme stack principale.`,
+      alternatives: [
+        {
+          option: techStack[0],
+          pros: ['Moderne', 'Performant', 'Bien documenté'],
+          cons: ['Courbe d\'apprentissage'],
+        },
+      ],
+      consequences: [
+        'Développement rapide',
+        'Maintenance facilitée',
+        'Écosystème riche',
+      ],
+    },
+  ];
+
+  // 8. Skills
+  const skills: Skills = {
+    selected: recommendedSkills.slice(0, 5).map((s) => ({
+      skill_id: String(s.id),
+      name: s.name,
+      purpose: s.rationale,
+      activation: `Utiliser ce skill lors de: ${s.category}`,
+    })),
+    recommended: recommendedSkills.map((s) => ({
+      skill_id: String(s.id),
+      score: s.score,
+      rationale: s.rationale,
+    })),
+  };
+
+  // 9. Prompts
+  const prompts: Prompts = {
+    global_prompt: generateGlobalPrompt(project, techStack),
+    ticket_prompts: generateTicketPrompts(tickets, project, techStack),
+  };
+
+  // 10. Runbook
+  const runbook: Runbook = {
+    verification_commands: [
+      'npm install',
+      'npm run build',
+      'npm run lint',
+      'npm test',
+    ],
+    notes: [
+      'Vérifier chaque ticket avant de passer au suivant',
+      'Commiter après chaque ticket terminé',
+      'Exécuter les tests régulièrement',
+    ],
+  };
+
+  // 11. Meta
+  const meta = {
+    pack_id: generatePackId(),
+    created_at: new Date().toISOString(),
+    language: 'fr' as const,
+    target_llm: 'claude' as const,
+    target_mode: 'claude_code' as const,
+    source_summary: generateSourceSummary(input.brief, input.sources),
+  };
+
+  // 12. Assembler le pack
+  const pack: TicketPack = {
+    version: TICKETPACK_VERSION,
+    meta,
+    project,
+    prd,
+    adrs,
+    roadmap: { phases },
+    tickets,
+    skills,
+    prompts,
+    runbook,
+  };
+
+  return pack;
+}
+
+function generatePackId(): string {
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 6);
+  return `PACK-${timestamp}-${random}`.toUpperCase();
+}
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim();
+}
+
+function generateImportantPaths(deliverableType: string): string[] {
+  const basePaths = ['README.md', 'package.json', 'tsconfig.json'];
+
+  switch (deliverableType) {
+    case 'saas':
+    case 'app':
+      return [
+        ...basePaths,
+        'src/',
+        'src/app/',
+        'src/components/',
+        'src/lib/',
+        'public/',
+      ];
+    case 'landing_page':
+      return [...basePaths, 'src/', 'src/app/', 'src/components/', 'public/'];
+    case 'feature':
+    case 'bugfix':
+      return [...basePaths, 'src/'];
+    default:
+      return basePaths;
+  }
+}
+
+function generateProblemStatement(brief: string, requirements: any): string {
+  const firstObjective = requirements.objectives[0] || brief.slice(0, 100);
+  return `Le projet vise à ${firstObjective}. Cette solution répondra aux besoins exprimés dans le brief utilisateur.`;
+}

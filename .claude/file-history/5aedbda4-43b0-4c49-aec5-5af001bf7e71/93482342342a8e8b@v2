@@ -1,0 +1,171 @@
+"""Endpoints API pour la gestion des artefacts."""
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import Response
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_db
+from app.logging import get_logger
+from app.models import ArtifactType
+from app.schemas import ArtifactUploadResponse
+from app.services.artifact_service import (
+    detect_content_type,
+    download_artifact,
+    upload_artifact,
+)
+
+logger = get_logger(__name__)
+router = APIRouter(prefix="/artifacts", tags=["artifacts"])
+
+
+@router.post("/upload", response_model=ArtifactUploadResponse, status_code=201)
+async def upload_artifact_endpoint(
+    project_id: int = Form(..., description="ID du projet"),
+    artifact_type: str = Form(..., description="Type d'artefact (ex: BRAINSTORM_LOG)"),
+    file: UploadFile = File(..., description="Fichier à uploader"),
+    run_id: int | None = Form(None, description="ID du run (optionnel)"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Upload un artefact immuable avec calcul SHA-256.
+
+    - **project_id**: ID du projet (obligatoire)
+    - **artifact_type**: Type d'artefact (BRAINSTORM_LOG, etc.)
+    - **file**: Fichier à uploader
+    - **run_id**: ID du run associé (optionnel)
+
+    Returns:
+        Métadonnées de l'artefact créé avec SHA-256
+    """
+    try:
+        # Validation du type d'artefact
+        try:
+            artifact_type_enum = ArtifactType(artifact_type)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid artifact_type: {artifact_type}. "
+                f"Allowed values: {[t.value for t in ArtifactType]}",
+            )
+
+        # Lecture du contenu
+        content = await file.read()
+
+        if not content:
+            raise HTTPException(status_code=400, detail="File is empty")
+
+        # Détection/correction du content-type
+        content_type = detect_content_type(file.filename, file.content_type)
+
+        logger.info(
+            f"Uploading artifact: project_id={project_id}, "
+            f"type={artifact_type}, filename={file.filename}, "
+            f"size={len(content)} bytes"
+        )
+
+        # Upload de l'artefact
+        artifact = await upload_artifact(
+            db=db,
+            project_id=project_id,
+            artifact_type=artifact_type_enum,
+            filename=file.filename,
+            content=content,
+            content_type=content_type,
+            run_id=run_id,
+        )
+
+        return ArtifactUploadResponse(
+            id=artifact.id,
+            project_id=artifact.project_id,
+            artifact_type=artifact.artifact_type,
+            filename=artifact.filename,
+            content_type=artifact.content_type,
+            size_bytes=artifact.size_bytes,
+            sha256=artifact.sha256,
+            storage_key=artifact.storage_key,
+            created_at=artifact.created_at,
+        )
+
+    except ValueError as e:
+        logger.error(f"Upload failed: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error during upload: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/{artifact_id}/download")
+async def download_artifact_endpoint(
+    artifact_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Télécharge un artefact par son ID avec vérification d'intégrité SHA-256.
+
+    - **artifact_id**: ID de l'artefact à télécharger
+
+    Returns:
+        Contenu de l'artefact avec headers appropriés
+    """
+    try:
+        logger.info(f"Downloading artifact: id={artifact_id}")
+
+        # Téléchargement et vérification de l'intégrité
+        content, content_type, sha256 = await download_artifact(artifact_id, db)
+
+        logger.info(f"Artifact download successful: id={artifact_id}, sha256={sha256}")
+
+        # Réponse avec headers appropriés
+        return Response(
+            content=content,
+            media_type=content_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="artifact_{artifact_id}"',
+                "X-SHA256": sha256,
+            },
+        )
+
+    except ValueError as e:
+        logger.error(f"Download failed: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error during download: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/{artifact_id}/verify")
+async def verify_artifact_integrity(
+    artifact_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Vérifie l'intégrité d'un artefact sans le télécharger.
+
+    - **artifact_id**: ID de l'artefact à vérifier
+
+    Returns:
+        Résultat de la vérification d'intégrité
+    """
+    try:
+        logger.info(f"Verifying artifact integrity: id={artifact_id}")
+
+        # Téléchargement avec vérification implicite
+        _, _, sha256 = await download_artifact(artifact_id, db)
+
+        return {
+            "artifact_id": artifact_id,
+            "sha256": sha256,
+            "integrity": "verified",
+            "message": "Artifact integrity check passed",
+        }
+
+    except ValueError as e:
+        logger.error(f"Integrity check failed: {e}")
+        return {
+            "artifact_id": artifact_id,
+            "integrity": "failed",
+            "message": str(e),
+        }
+    except Exception as e:
+        logger.error(f"Unexpected error during integrity check: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")

@@ -1,0 +1,61 @@
+import { execSync } from 'child_process';
+
+/**
+ * Cross-platform text injection via clipboard + paste.
+ * On macOS: clipboard write → osascript Cmd+V (no native module needed)
+ * On Windows/Linux: clipboard write → robotjs Ctrl+V
+ */
+class TextInjection {
+    /**
+     * Inject text into the currently focused application
+     */
+    async injectText(text: string): Promise<void> {
+        try {
+            // Small delay to ensure focus is on target app
+            await this.delay(100);
+            await this.pasteViaClipboard(text);
+            console.log('[TextInjection] Injected', text.length, 'chars');
+        } catch (error) {
+            console.error('[TextInjection] Failed:', error);
+            throw new Error('Failed to insert text into application');
+        }
+    }
+
+    /**
+     * Paste text via clipboard (most reliable cross-platform method)
+     */
+    private async pasteViaClipboard(text: string): Promise<void> {
+        const { clipboard } = await import('electron');
+
+        // Save current clipboard
+        const previousClipboard = clipboard.readText();
+
+        try {
+            clipboard.writeText(text);
+            await this.delay(50);
+
+            if (process.platform === 'darwin') {
+                // Use osascript — no native module, relies on Accessibility permission
+                execSync(`osascript -e 'tell application "System Events" to keystroke "v" using {command down}'`);
+            } else {
+                // Windows / Linux: use robotjs
+                const robot = (await import('robotjs')).default;
+                robot.keyTap('v', 'control');
+            }
+
+            await this.delay(150);
+
+            // Restore previous clipboard
+            clipboard.writeText(previousClipboard);
+        } catch (error) {
+            clipboard.writeText(previousClipboard);
+            throw error;
+        }
+    }
+
+    private delay(ms: number): Promise<void> {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+}
+
+export const textInjection = new TextInjection();

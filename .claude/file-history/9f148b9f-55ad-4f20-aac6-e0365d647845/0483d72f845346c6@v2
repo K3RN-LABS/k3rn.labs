@@ -1,0 +1,33 @@
+import React from 'react';
+
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'dark' | 'secondary';
+  children: React.ReactNode;
+}
+
+/**
+ * k3rn.labs Button Component
+ *
+ * Variants:
+ * - primary: Green CTA (reserved for PRIMARY actions only)
+ * - dark: Default action (neutral ink-900)
+ * - secondary: Light with border
+ */
+export default function Button({
+  variant = 'dark',
+  children,
+  className = '',
+  ...props
+}: ButtonProps) {
+  const baseClass = 'btn';
+  const variantClass = variant;
+
+  return (
+    <button
+      className={`${baseClass} ${variantClass} ${className}`.trim()}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}

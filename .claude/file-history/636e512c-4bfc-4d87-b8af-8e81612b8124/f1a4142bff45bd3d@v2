@@ -1,0 +1,138 @@
+/**
+ * Test complet : Analyse + Sauvegarde en DB
+ */
+
+const API_BASE = 'http://localhost:3001'
+
+const testIdea = {
+  meta: {
+    schema_version: "1.0",
+    request_id: `test-${Date.now()}`,
+    timestamp: new Date().toISOString(),
+    language: "fr"
+  },
+  idea: {
+    idea_id: `idea-test-${Date.now()}`,
+    state: "CAPTURED"
+  },
+  inputs: {
+    text: {
+      content: "Une plateforme collaborative permettant aux freelances de gérer leurs tâches, suivre le temps passé sur chaque projet, et générer automatiquement des factures détaillées. L'outil inclurait un système de rappels intelligents, des templates de projets réutilisables, et une intégration avec les principaux outils de paiement.",
+      source: "typed",
+      length: 310
+    }
+  },
+  context: {
+    user_id: "test-user"
+  }
+}
+
+async function runTest() {
+  console.log('🧪 Test Complet : Capture → Analyse → Sauvegarde DB')
+  console.log('━'.repeat(60))
+  console.log('')
+
+  try {
+    // Step 1: Analyse
+    console.log('📊 Étape 1/2 : Analyse de l\'idée...')
+    console.log(`   Idée: "${testIdea.inputs.text.content.substring(0, 80)}..."`)
+    console.log('')
+
+    const analysisStart = Date.now()
+    const analysisResponse = await fetch(`${API_BASE}/api/analysis`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(testIdea)
+    })
+
+    if (!analysisResponse.ok) {
+      const errorText = await analysisResponse.text()
+      throw new Error(`Analyse échouée (${analysisResponse.status}): ${errorText}`)
+    }
+
+    const analysisData = await analysisResponse.json()
+    const analysisDuration = ((Date.now() - analysisStart) / 1000).toFixed(1)
+
+    console.log(`   ✅ Analyse réussie en ${analysisDuration}s`)
+    console.log(`   📈 Score global: ${analysisData.scores.global_score}/100`)
+    console.log(`   🎯 Décision: ${analysisData.decision}`)
+    console.log('')
+
+    // Step 2: Sauvegarde
+    console.log('💾 Étape 2/2 : Sauvegarde en base de données...')
+    console.log('')
+
+    const saveStart = Date.now()
+    const saveResponse = await fetch(`${API_BASE}/api/projects`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(analysisData)
+    })
+
+    if (!saveResponse.ok) {
+      const errorText = await saveResponse.text()
+      throw new Error(`Sauvegarde échouée (${saveResponse.status}): ${errorText}`)
+    }
+
+    const saveData = await saveResponse.json()
+    const saveDuration = ((Date.now() - saveStart) / 1000).toFixed(1)
+
+    console.log(`   ✅ Sauvegarde réussie en ${saveDuration}s`)
+    console.log(`   🆔 Project ID: ${saveData.projectId}`)
+    console.log('')
+
+    // Step 3: Vérification
+    console.log('🔍 Étape 3/3 : Vérification du projet...')
+    console.log('')
+
+    const verifyResponse = await fetch(`${API_BASE}/api/projects/${saveData.projectId}`)
+
+    if (!verifyResponse.ok) {
+      throw new Error(`Vérification échouée (${verifyResponse.status})`)
+    }
+
+    const project = await verifyResponse.json()
+
+    console.log(`   ✅ Projet récupéré depuis la DB`)
+    console.log(`   📝 Nom: ${project.name}`)
+    console.log(`   📊 Score: ${project.score}/100`)
+    console.log(`   🔄 Statut: ${project.status}`)
+    console.log(`   📅 Créé: ${new Date(project.created_at).toLocaleString('fr-FR')}`)
+    console.log('')
+
+    // Success summary
+    console.log('━'.repeat(60))
+    console.log('🎉 TEST RÉUSSI !')
+    console.log('━'.repeat(60))
+    console.log('')
+    console.log('✅ Toutes les étapes ont fonctionné :')
+    console.log('   1. ✅ Analyse de l\'idée')
+    console.log('   2. ✅ Sauvegarde en base de données')
+    console.log('   3. ✅ Récupération du projet')
+    console.log('   4. ✅ Pas d\'erreur foreign key !')
+    console.log('')
+    console.log(`🔗 Accéder au projet : ${API_BASE}/workspace/laboratoire-1-discovery/${saveData.projectId}`)
+    console.log(`🔗 Voir tous les projets : ${API_BASE}/workspace`)
+    console.log('')
+
+  } catch (error) {
+    console.error('')
+    console.error('━'.repeat(60))
+    console.error('❌ TEST ÉCHOUÉ')
+    console.error('━'.repeat(60))
+    console.error('')
+    console.error('Erreur:', error.message)
+    if (error.stack) {
+      console.error('')
+      console.error('Stack trace:')
+      console.error(error.stack)
+    }
+    process.exit(1)
+  }
+}
+
+runTest()

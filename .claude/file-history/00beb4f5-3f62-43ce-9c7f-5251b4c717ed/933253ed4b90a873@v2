@@ -1,0 +1,158 @@
+# N8N Consultant - Configuration Claude Code
+
+Ce projet configure un consultant expert en automatisation N8N avec accès au serveur MCP n8n-mcp et aux 7 skills N8N.
+
+## Installation Rapide
+
+### 1. Configurer le Serveur MCP
+
+Édite [.mcp.json](.mcp.json) et remplace les placeholders :
+
+```json
+{
+  "mcpServers": {
+    "n8n-mcp": {
+      "env": {
+        "N8N_API_URL": "https://ton-instance.app.n8n.cloud",
+        "N8N_API_KEY": "ta-clé-api-n8n"
+      }
+    }
+  }
+}
+```
+
+**Où trouver ces informations ?**
+- **URL** : L'URL de ton instance N8N
+  - Cloud : `https://ton-instance.app.n8n.cloud`
+  - Self-hosted : `http://localhost:5678` ou ton URL custom
+- **API Key** : Dans N8N → Settings → API → Create API Key
+
+**Mode Documentation Seule** (sans credentials) :
+Si tu ne configures pas les credentials, tu auras accès uniquement à la documentation des 1084 nodes et aux 2709 templates (lecture seule).
+
+### 2. Ouvrir le Projet dans Claude Code
+
+```bash
+cd "/Users/user/Desktop/N8N consultant"
+code .  # Si tu utilises VS Code avec l'extension Claude Code
+```
+
+Ou ouvre ce dossier directement dans Claude Code CLI.
+
+### 3. Vérifier que le MCP est Connecté
+
+Dans Claude Code, tape :
+```
+/mcp
+```
+
+Tu devrais voir `n8n-mcp` dans la liste des serveurs actifs avec les outils disponibles.
+
+## Structure du Projet
+
+```
+N8N consultant/
+├── README.md                              # Ce fichier
+├── CLAUDE.md                              # Configuration principale du consultant
+├── .mcp.json                              # Serveur MCP n8n-mcp
+├── .claude/
+│   ├── settings.json                      # Auto-approve des outils MCP
+│   └── skills/                            # 7 skills N8N
+│       ├── n8n-mcp-tools-expert.md        # Guide MCP (priorité haute)
+│       ├── n8n-expression-syntax.md       # Expressions {{ }}
+│       ├── n8n-workflow-patterns.md       # 5 patterns d'architecture
+│       ├── n8n-validation-expert.md       # Validation et debugging
+│       ├── n8n-node-configuration.md      # Config nodes + connexions AI
+│       ├── n8n-code-javascript.md         # Code JS patterns
+│       └── n8n-code-python.md             # Code Python limitations
+└── .vscode/
+    └── extensions.json                    # Extension Claude Code
+```
+
+## Capacités du Consultant
+
+### Documentation (avec ou sans credentials)
+- Accès à 1084 nodes N8N (537 core + 547 community)
+- 99% de couverture des propriétés
+- 2709 templates de workflows
+- 265 variantes d'outils AI
+- Performance : ~12ms par requête
+
+### Gestion de Workflows (nécessite credentials)
+- Créer des workflows complets
+- Modifier des workflows existants
+- Valider avant déploiement
+- Exécuter et tester
+- Activer/désactiver
+
+## Utilisation
+
+Pose simplement tes questions en français :
+
+**Exemples de requêtes :**
+- "Crée-moi un workflow qui envoie un email quand je reçois un webhook Stripe"
+- "Comment configurer un node HTTP Request avec authentification OAuth2 ?"
+- "Montre-moi un pattern de workflow AI avec RAG"
+- "Valide ce workflow avant que je le déploie en production"
+- "Trouve-moi des templates de workflows de synchronisation de base de données"
+
+Le consultant :
+1. Cherchera les nodes appropriés
+2. S'inspirera des templates existants
+3. Construira le workflow avec les bonnes pratiques
+4. Validera la configuration
+5. T'expliquera tout en français
+
+## Meilleures Pratiques
+
+### Sécurité
+- ⚠️ **Ne JAMAIS modifier directement un workflow de production**
+- Toujours tester dans un environnement de développement
+- Exporter des backups avant modifications majeures
+- Utiliser des credentials N8N (pas de clés en dur)
+
+### Performance
+- Le consultant utilise `get_node_essentials` (5KB) plutôt que la doc complète (100KB+)
+- Approche "template-first" : s'inspirer des 2709 templates existants
+- Validation multi-niveaux selon ton contexte (strict pour prod)
+
+### Skills Automatiques
+Les 7 skills dans `.claude/skills/` s'activent automatiquement selon ton besoin :
+- Expressions N8N
+- Outils MCP
+- Patterns de workflow
+- Validation
+- Configuration de nodes
+- Code JavaScript/Python
+
+## Ressources
+
+- **MCP Server** : [n8n-mcp GitHub](https://github.com/czlonkowski/n8n-mcp)
+- **Skills** : [n8n-skills GitHub](https://github.com/czlonkowski/n8n-skills)
+- **Hosted Service** : [dashboard.n8n-mcp.com](https://dashboard.n8n-mcp.com) (100 appels/jour gratuit)
+- **N8N Docs** : [docs.n8n.io](https://docs.n8n.io)
+
+## Dépannage
+
+### Le MCP ne se connecte pas
+1. Vérifie que `npx` fonctionne : `npx --version`
+2. Vérifie la syntaxe de `.mcp.json` (JSON valide)
+3. Regarde les logs : change `LOG_LEVEL` à `debug` dans `.mcp.json`
+4. Redémarre Claude Code
+
+### Erreur d'authentification N8N
+1. Vérifie que ton API Key est valide
+2. Vérifie l'URL de ton instance N8N (avec https://)
+3. Teste l'accès à l'API : `curl -H "X-N8N-API-KEY: ta-clé" https://ton-instance/api/v1/workflows`
+
+### Pas d'accès aux outils de gestion de workflows
+- C'est normal sans credentials configurées
+- Tu as accès à la documentation et aux templates
+- Configure `N8N_API_URL` et `N8N_API_KEY` pour débloquer la gestion
+
+## Support
+
+Pour toute question sur :
+- **n8n-mcp** : [Issues GitHub](https://github.com/czlonkowski/n8n-mcp/issues)
+- **n8n-skills** : [Issues GitHub](https://github.com/czlonkowski/n8n-skills/issues)
+- **N8N** : [Community Forum](https://community.n8n.io)

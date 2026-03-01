@@ -1,0 +1,243 @@
+
+// src/lib/workflow/service.ts
+// Workflow service using workflow_state JSONB in projects table
+
+import { prisma } from '@/lib/prisma'
+import { getLabDefinition, LabDefinition } from './definitions'
+import type { Prisma } from '@prisma/client'
+
+export interface WorkflowState {
+    current_lab: 'DISCOVERY' | 'STRUCTURATION'
+    current_step: number
+    completed_steps: string[]
+    started_at: string
+    lab_history: { lab: string; completed_at: string }[]
+}
+
+export interface VirtualWorkflow {
+    id: string
+    projectId: string
+    labNumber: number
+    currentStep: number
+    totalSteps: number
+    status: 'IN_PROGRESS' | 'COMPLETED' | 'PAUSED'
+    completedSteps: string[]
+    definition: LabDefinition
+}
+
+export class WorkflowService {
+
+    /**
+     * Get active workflow for a project.
+     */
+    static async getActiveWorkflow(projectId: string): Promise<VirtualWorkflow | null> {
+        const project = await prisma.projects.findUnique({
+            where: { id: projectId },
+            select: { workflow_state: true }
+        })
+
+        if (!project?.workflow_state) {
+            return null
+        }
+
+        const state = project.workflow_state as unknown as WorkflowState
+        const labNumber = state.current_lab === 'DISCOVERY' ? 1 : 2
+        const definition = getLabDefinition(labNumber)
+
+        // Determine status
+        let status: 'IN_PROGRESS' | 'COMPLETED' | 'PAUSED' = 'IN_PROGRESS'
+        if (state.completed_steps.length === definition.steps.length) {
+            status = 'COMPLETED'
+        }
+
+        return {
+            id: `workflow_${projectId}_lab${labNumber}`,
+            projectId,
+            labNumber,
+            currentStep: state.current_step,
+            totalSteps: definition.steps.length,
+            status,
+            completedSteps: state.completed_steps,
+            definition
+        }
+    }
+
+    /**
+     * Start a workflow for a project.
+     */
+    static async startWorkflow(projectId: string, labNumber: number): Promise<VirtualWorkflow> {
+        const project = await prisma.projects.findUnique({
+            where: { id: projectId },
+            select: { id: true, score: true, analysis_data: true }
+        })
+
+        if (!project) throw new Error('Project not found')
+
+        const definition = getLabDefinition(labNumber)
+
+        // Gate check for Lab 2
+        if (labNumber === 2) {
+            if (project.score < 50) {
+                throw new Error(`Score insuffisant (${project.score}/50) pour accéder au Lab 2`)
+            }
+        }
+
+        // Create workflow state
+        const labName = labNumber === 1 ? 'DISCOVERY' : 'STRUCTURATION'
+        const workflowState: WorkflowState = {
+            current_lab: labName,
+            current_step: 0,
+            completed_steps: [],
+            started_at: new Date().toISOString(),
+            lab_history: []
+        }
+
+        // Save workflow state to project
+        await prisma.projects.update({
+            where: { id: projectId },
+            data: {
+                workflow_state: JSON.parse(JSON.stringify(workflowState)) as Prisma.InputJsonValue,
+                updated_at: new Date()
+            }
+        })
+
+        return {
+            id: `workflow_${projectId}_lab${labNumber}`,
+            projectId,
+            labNumber,
+            currentStep: 0,
+            totalSteps: definition.steps.length,
+            status: 'IN_PROGRESS',
+            completedSteps: [],
+            definition
+        }
+    }
+
+    /**
+     * Advance workflow to next step.
+     */
+    static async advanceStep(
+        projectId: string,
+        userId: string
+    ): Promise<VirtualWorkflow> {
+        // Verify ownership
+        const project = await prisma.projects.findUnique({
+            where: { id: projectId },
+            select: {
+                id: true,
+                user_id: true,
+                workflow_state: true,
+                analysis_data: true,
+                phase: true
+            }
+        })
+
+        if (!project) throw new Error('Project not found')
+        if (project.user_id !== userId) throw new Error('Forbidden')
+        if (!project.workflow_state) throw new Error('No active workflow')
+
+        const state = project.workflow_state as unknown as WorkflowState
+        const labNumber = state.current_lab === 'DISCOVERY' ? 1 : 2
+        const definition = getLabDefinition(labNumber)
+
+        // Check if we've completed all steps
+        if (state.current_step >= definition.steps.length) {
+            throw new Error('Workflow already completed')
+        }
+
+        const currentStepDef = definition.steps[state.current_step]
+
+        // Gate check logic
+        if (currentStepDef.type === 'GATE_CHECK') {
+            const gateResult = await this.checkGate(projectId, labNumber)
+            if (!gateResult.allowed) {
+                throw new Error(gateResult.reason || 'Gate check failed')
+            }
+        }
+
+        // Mark current step as completed
+        const newCompletedSteps = [...state.completed_steps, currentStepDef.id]
+        const newCurrentStep = state.current_step + 1
+
+        // Check if workflow is completed
+        const isWorkflowComplete = newCurrentStep >= definition.steps.length
+
+        // Update project phase if moving between major phases
+        let newPhase = project.phase
+        if (isWorkflowComplete) {
+            if (labNumber === 1) {
+                // Completed Lab 1 (Discovery) → VALIDATION phase
+                newPhase = 'VALIDATION'
+            } else if (labNumber === 2) {
+                // Completed Lab 2 (Structuration) → EXECUTION phase
+                newPhase = 'EXECUTION'
+            }
+        }
+
+        // Update workflow state
+        const updatedState: WorkflowState = {
+            ...state,
+            current_step: newCurrentStep,
+            completed_steps: newCompletedSteps,
+            lab_history: isWorkflowComplete
+                ? [...state.lab_history, { lab: state.current_lab, completed_at: new Date().toISOString() }]
+                : state.lab_history
+        }
+
+        // Save to database
+        await prisma.projects.update({
+            where: { id: projectId },
+            data: {
+                workflow_state: JSON.parse(JSON.stringify(updatedState)) as Prisma.InputJsonValue,
+                phase: newPhase,
+                updated_at: new Date()
+            }
+        })
+
+        // Return updated workflow
+        return {
+            id: `workflow_${projectId}_lab${labNumber}`,
+            projectId,
+            labNumber,
+            currentStep: newCurrentStep,
+            totalSteps: definition.steps.length,
+            status: isWorkflowComplete ? 'COMPLETED' : 'IN_PROGRESS',
+            completedSteps: newCompletedSteps,
+            definition
+        }
+    }
+
+    /**
+     * Check gate requirements for a lab.
+     */
+    static async checkGate(projectId: string, targetLabNumber: number): Promise<{ allowed: boolean; reason?: string }> {
+        const project = await prisma.projects.findUnique({
+            where: { id: projectId },
+            select: { score: true, analysis_data: true }
+        })
+
+        if (!project) return { allowed: false, reason: 'Project not found' }
+
+        // Basic score check
+        if (targetLabNumber === 2) {
+            if (project.score < 50) {
+                return { allowed: false, reason: 'Score global insuffisant (< 50/100)' }
+            }
+        }
+
+        // Check decision recommendation from analysis_data
+        if (project.analysis_data) {
+            const analysisData = project.analysis_data as any
+            const recommendation = analysisData?.decision?.recommendation
+
+            if (recommendation === 'KILL' || recommendation === 'PARK') {
+                return {
+                    allowed: false,
+                    reason: `Recommendation ${recommendation} - enrichissement requis avant de continuer`
+                }
+            }
+        }
+
+        return { allowed: true }
+    }
+}

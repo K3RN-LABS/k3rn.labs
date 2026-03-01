@@ -1,0 +1,89 @@
+'use client';
+
+interface FiltersProps {
+  metadata: any;
+  category: string;
+  setCategory: (category: string) => void;
+  tags: string;
+  setTags: (tags: string) => void;
+  hasCard: boolean;
+  setHasCard: (hasCard: boolean) => void;
+}
+
+export default function Filters({
+  metadata,
+  category,
+  setCategory,
+  tags,
+  setTags,
+  hasCard,
+  setHasCard,
+}: FiltersProps) {
+  if (!metadata) {
+    return <div className="card">Loading filters...</div>;
+  }
+
+  return (
+    <div className="card">
+      <h3 className="h3" style={{ marginBottom: 'var(--sp-4)' }}>Filters</h3>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
+        <div>
+          <label className="input-label">
+            Category
+          </label>
+          <select
+            className="input"
+            style={{ width: '100%' }}
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="">All Categories</option>
+            {metadata.categories.map((cat: any) => (
+              <option key={cat.category} value={cat.category}>
+                {cat.category} ({cat.count})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="input-label">
+            Tags
+          </label>
+          <input
+            type="text"
+            className="input"
+            style={{ width: '100%' }}
+            placeholder="Filter by tag..."
+            value={tags}
+            onChange={(e) => setTags(e.target.value)}
+          />
+          <div style={{ marginTop: 'var(--sp-2)', display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-1)' }}>
+            {metadata.tags.slice(0, 20).map((tag: any) => (
+              <button
+                key={tag.tag}
+                className="pill"
+                onClick={() => setTags(tag.tag)}
+              >
+                {tag.tag} ({tag.count})
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+          <input
+            type="checkbox"
+            id="hasCard"
+            checked={hasCard}
+            onChange={(e) => setHasCard(e.target.checked)}
+          />
+          <label htmlFor="hasCard" className="text-small">
+            Only show skills with enriched Skill Cards
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+}

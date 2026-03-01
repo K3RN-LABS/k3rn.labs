@@ -1,0 +1,288 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
+import { CheckCircle2, RotateCcw, LayoutDashboard, BrainCircuit, AlertTriangle, XCircle, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useLanguageStore } from "@/store/language-store";
+
+interface AnalysisResult {
+    viabilityScore: number;
+    classification: string;
+    summary: string;
+    experts: {
+        role: string;
+        status: "VALIDATED" | "WARNING" | "CRITICAL";
+        analysis: string;
+    }[];
+    status?: number;
+    error?: string;
+    nextSteps?: string[];
+}
+
+export function AnalysisResults({
+    isActive,
+    onReset,
+    inputData
+}: {
+    isActive: boolean;
+    onReset: () => void;
+    inputData: { text: string; files: any[]; links: string[] };
+}) {
+    const router = useRouter();
+    const { t, currentLang } = useLanguageStore();
+    const [step, setStep] = useState(0);
+    const [logs, setLogs] = useState<string[]>([]);
+    const [showResult, setShowResult] = useState(false);
+    const [result, setResult] = useState<AnalysisResult | null>(null);
+    const [isDemoMode, setIsDemoMode] = useState(false);
+
+    // Experts definition with dynamic translations
+    const expertsList = [
+        { id: "SYS_INGEST", name: (t?.analysis?.experts as any)?.SYS_INGEST || "System Ingestion", role: "Telemetry" },
+        { id: "AGT_MA", name: (t?.analysis?.experts as any)?.AGT_MA || "Market Analyst", role: "Sentiment" },
+        { id: "AGT_FIN", name: (t?.analysis?.experts as any)?.AGT_FIN || "Financial Model", role: "P&L Projection" },
+        { id: "AGT_TECH", name: (t?.analysis?.experts as any)?.AGT_TECH || "Tech Feasibility", role: "Stack Audit" },
+        { id: "AGT_LEG", name: (t?.analysis?.experts as any)?.AGT_LEG || "Legal Compliance", role: "Risk Check" },
+        { id: "SYS_STRUCT", name: (t?.analysis?.experts as any)?.SYS_STRUCT || "Structuration", role: "Canvas Gen" },
+        { id: "SYS_SCORE", name: (t?.analysis?.experts as any)?.SYS_SCORE || "Viability Scoring", role: "Algo V4" },
+    ];
+
+    const getDemoResult = (): AnalysisResult => {
+        const d = (t?.analysis as any)?.demoResult;
+        return {
+            viabilityScore: 88,
+            classification: "INCUBATE",
+            summary: d?.summary || "Strong market potential detected. The core value proposition aligns with current 'No-Code' trends, but the monetization strategy needs refinement to unlock Series A potential.",
+            experts: [
+                {
+                    role: d?.experts?.strategist?.role || "Product Strategist",
+                    status: "VALIDATED",
+                    analysis: d?.experts?.strategist?.analysis || "Value proposition is clear and addresses a latent market need."
+                },
+                {
+                    role: d?.experts?.business?.role || "Business Model",
+                    status: "WARNING",
+                    analysis: d?.experts?.business?.analysis || "CAC/LTV ratio assumes viral growth. Conservative modeling recommended."
+                },
+                {
+                    role: d?.experts?.tech?.role || "Tech Architect",
+                    status: "VALIDATED",
+                    analysis: d?.experts?.tech?.analysis || "Stack choice (Next.js + Supabase) is optimal for rapid MVP scaling."
+                },
+            ],
+            nextSteps: d?.nextSteps || ["Refine pricing model", "Launch MVP in 4 weeks", "Start community building"]
+        };
+    };
+
+    const addLog = (msg: string) => setLogs(prev => [...prev.slice(-6), `> ${msg}`]);
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+    useEffect(() => {
+        if (!isActive) {
+            setStep(0);
+            setLogs([]);
+            setShowResult(false);
+            setResult(null);
+            setIsDemoMode(false);
+            return;
+        }
+
+        const runAnalysis = async () => {
+            setIsDemoMode(false);
+
+            // Step 1: Sequence Start
+            addLog(t?.analysis?.logs?.init || "Initialising Sequence...");
+            await delay(800);
+
+            // API Call Trigger
+            const apiCall = fetch("/api/analyze", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...inputData, lang: currentLang }),
+            }).then(async (res) => {
+                const data = await res.json();
+                if (res.status === 429 || data.error === "QUOTA_EXCEEDED") throw new Error("QUOTA_EXCEEDED");
+                if (!res.ok) throw new Error(data.details || "Analysis failed");
+                return data;
+            });
+
+            // Animate Experts
+            for (let i = 0; i < expertsList.length; i++) {
+                setStep(i + 1);
+                addLog(`[${expertsList[i].id}] Active: ${expertsList[i].name}...`);
+                await delay(300 + Math.random() * 300);
+            }
+
+            addLog(t?.analysis?.logs?.computing || "Computing Viability Matrix...");
+
+            try {
+                const data = await apiCall;
+                setResult(data);
+            } catch (error: any) {
+                console.warn("Analysis API failed:", error);
+                if (error.message === "QUOTA_EXCEEDED") {
+                    addLog(t?.analysis?.logs?.quotaWarning || "Quota Exceeded");
+                    setIsDemoMode(true);
+                    setResult(getDemoResult());
+                    toast.warning(t?.analysis?.logs?.demoMode || "Demo Mode", {
+                        description: t?.analysis?.logs?.demoDesc || "Quota reached"
+                    });
+                } else {
+                    addLog(t?.analysis?.logs?.error || "Critical Error");
+                    toast.error(t?.analysis?.logs?.analysisFailed || "Analysis Failed");
+                }
+            }
+
+            await delay(500);
+            setShowResult(true);
+        };
+
+        runAnalysis();
+    }, [isActive, inputData, currentLang, t]);
+
+    const handleOpenWorkspace = () => {
+        if (result) {
+            const workspaceData = {
+                ...inputData,
+                analysis: result,
+                timestamp: new Date().toISOString(),
+                isDemo: isDemoMode
+            };
+            localStorage.setItem("k3rn_active_project", JSON.stringify(workspaceData));
+        }
+        router.push("/workspace");
+    };
+
+    if (!isActive) return null;
+
+    return (
+        <div className="w-full max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out">
+            {!showResult ? (
+                // LOADING STATE (Phoenix Style)
+                <div className="bg-[#2F323A] rounded-xl shadow-2xl p-8 border border-white/5 flex flex-col items-center gap-8 min-h-[400px] justify-center relative overflow-hidden">
+                    {/* Background Pulse */}
+                    <div className="absolute inset-0 bg-[#F75105]/5 animate-pulse" />
+
+                    <div className="flex flex-col items-center gap-4 z-10">
+                        <div className="relative">
+                            <BrainCircuit className="w-16 h-16 text-[#F75105] animate-pulse" />
+                            <div className="absolute inset-0 bg-[#F75105] blur-xl opacity-20 animate-pulse" />
+                        </div>
+                        <h2 className="text-xl font-sans font-medium text-white tracking-widest uppercase">
+                            {t?.analysis?.title || "Committee Analysis"}
+                        </h2>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="w-full max-w-md h-1 bg-[#3A3D45] rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-[#F75105] transition-all duration-300 ease-out"
+                            style={{ width: `${(step / expertsList.length) * 100}%` }}
+                        />
+                    </div>
+
+                    {/* Console Logs */}
+                    <div className="w-full max-w-md h-32 font-mono text-xs text-gray-400 space-y-1.5 p-4 rounded-lg bg-black/20 border border-white/5 overflow-hidden">
+                        {logs.map((log, i) => (
+                            <p key={i} className="animate-in slide-in-from-left-2 fade-in">
+                                {log}
+                            </p>
+                        ))}
+                        <span className="w-2 h-4 bg-[#F75105] animate-blink block mt-1" />
+                    </div>
+                </div>
+            ) : (
+                // RESULT STATE (Phoenix Style)
+                <div className="bg-[#2F323A] rounded-xl shadow-2xl border-0 overflow-hidden ring-1 ring-white/5 animate-in zoom-in-95 duration-500">
+                    <div className="grid md:grid-cols-[280px_1fr] h-full min-h-[500px]">
+
+                        {/* Sidebar: Score */}
+                        <div className="bg-[#22242B] p-8 flex flex-col items-center justify-center text-center gap-6 border-r border-[#3A3D45] relative">
+                            {isDemoMode && (
+                                <div className="absolute top-0 left-0 w-full bg-[#F75105]/10 text-[#F75105] text-[10px] py-1 font-bold tracking-widest uppercase text-center">
+                                    {t?.analysis?.simulated || "Simulated"}
+                                </div>
+                            )}
+
+                            <div>
+                                <span className="text-gray-500 text-[10px] uppercase tracking-widest font-bold">
+                                    {t?.analysis?.viabilityScore || "Viability Score"}
+                                </span>
+                                <div className={cn(
+                                    "text-7xl font-sans font-bold tracking-tighter mt-2",
+                                    (result?.viabilityScore || 0) >= 70 ? "text-white" : "text-gray-400"
+                                )}>
+                                    {result?.viabilityScore || 0}<span className="text-2xl text-gray-600">%</span>
+                                </div>
+                            </div>
+
+                            <div className="px-3 py-1 bg-[#F75105]/10 rounded-full border border-[#F75105]/20">
+                                <span className="text-xs font-bold text-[#F75105] tracking-widest uppercase">
+                                    {result?.classification || "UNKNOWN"}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Main Content */}
+                        <div className="p-8 flex flex-col bg-[#2F323A]">
+                            <div className="flex-1 space-y-8">
+                                <div>
+                                    <h3 className="text-lg font-medium text-white mb-3 flex items-center gap-2">
+                                        <ArrowRight className="w-4 h-4 text-[#F75105]" />
+                                        {t?.analysis?.verdict || "Committee Verdict"}
+                                    </h3>
+                                    <p className="text-gray-300 text-sm leading-relaxed pl-6 border-l-2 border-[#3A3D45]">
+                                        "{result?.summary}"
+                                    </p>
+                                </div>
+
+                                <div className="grid gap-3">
+                                    {result?.experts?.map((expert, i) => (
+                                        <div key={i} className="flex items-start gap-4 p-4 rounded-lg bg-[#22242B]/50 border border-white/5 hover:border-[#F75105]/30 transition-colors group">
+                                            <div className="mt-0.5">
+                                                {expert.status === "VALIDATED" && <CheckCircle2 className="w-5 h-5 text-emerald-500" />}
+                                                {expert.status === "WARNING" && <AlertTriangle className="w-5 h-5 text-amber-500" />}
+                                                {expert.status === "CRITICAL" && <XCircle className="w-5 h-5 text-red-500" />}
+                                            </div>
+                                            <div>
+                                                <span className="text-xs text-gray-500 font-bold uppercase tracking-wider block mb-1 group-hover:text-white transition-colors">
+                                                    {expert.role}
+                                                </span>
+                                                <p className="text-sm text-gray-400 leading-snug">
+                                                    {expert.analysis}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="pt-8 mt-6 flex gap-4 border-t border-[#3A3D45]">
+                                <Button
+                                    onClick={onReset}
+                                    variant="ghost"
+                                    className="text-gray-400 hover:text-white hover:bg-white/5"
+                                >
+                                    <RotateCcw className="w-4 h-4 mr-2" />
+                                    {t?.analysis?.newAnalysis || "New Analysis"}
+                                </Button>
+                                <div className="flex-1" />
+                                <Button
+                                    onClick={handleOpenWorkspace}
+                                    className="bg-[#F75105] hover:bg-[#F78E21] text-white font-medium shadow-lg hover:shadow-[#F75105]/20 rounded-lg px-6"
+                                >
+                                    <LayoutDashboard className="w-4 h-4 mr-2" />
+                                    {t?.analysis?.openWorkspace || "Open Workspace"}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}

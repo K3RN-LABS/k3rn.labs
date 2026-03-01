@@ -1,0 +1,58 @@
+/**
+ * Format a date into a relative time string in French
+ * Examples: "Il y a 2 jours", "Il y a 3 semaines", "Il y a 1 mois"
+ */
+export function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffInMs = now.getTime() - date.getTime();
+  const diffInSeconds = Math.floor(diffInMs / 1000);
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  const diffInDays = Math.floor(diffInHours / 24);
+  const diffInWeeks = Math.floor(diffInDays / 7);
+  const diffInMonths = Math.floor(diffInDays / 30);
+  const diffInYears = Math.floor(diffInDays / 365);
+
+  if (diffInSeconds < 60) {
+    return "Il y a quelques secondes";
+  } else if (diffInMinutes < 60) {
+    return `Il y a ${diffInMinutes} minute${diffInMinutes > 1 ? "s" : ""}`;
+  } else if (diffInHours < 24) {
+    return `Il y a ${diffInHours} heure${diffInHours > 1 ? "s" : ""}`;
+  } else if (diffInDays < 7) {
+    return `Il y a ${diffInDays} jour${diffInDays > 1 ? "s" : ""}`;
+  } else if (diffInWeeks < 4) {
+    return `Il y a ${diffInWeeks} semaine${diffInWeeks > 1 ? "s" : ""}`;
+  } else if (diffInMonths < 12) {
+    return `Il y a ${diffInMonths} mois`;
+  } else {
+    return `Il y a ${diffInYears} an${diffInYears > 1 ? "s" : ""}`;
+  }
+}
+
+/**
+ * Format a date into a readable French date string
+ * Example: "15 janvier 2024"
+ */
+export function formatDate(date: Date): string {
+  const months = [
+    "janvier",
+    "février",
+    "mars",
+    "avril",
+    "mai",
+    "juin",
+    "juillet",
+    "août",
+    "septembre",
+    "octobre",
+    "novembre",
+    "décembre",
+  ];
+
+  const day = date.getDate();
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+
+  return `${day} ${month} ${year}`;
+}

@@ -1,0 +1,13 @@
+Actuellement, il y a un problème en fait par rapport par rapport aux propositions.
+Donc, une fois que l'analyse est affichée avec le résultat (le verdict d'analyse), on a trois boutons :
+- Un qui affiche "Enrichissement disponible". C'est un bouton qui ne respecte pas totalement la charte graphique branding.
+- Un bouton "Nouvelle analyse".
+- Un bouton "Ouvrir workspace".
+On a vraiment trois boutons affichés : "Enrichissement disponible", "Nouvelle analyse" et "Ouvrir workspace".
+L'or "Enrichissement disponible" n'amène à rien, parce qu'il dit que aucun enrichissement est nécessaire.
+Et quand je mets "Ouvrir workspace", en fait on n'arrive pas sur le workspace. On arrive dans les dossiers, on arrive dans les dossiers projets.
+Donc, là, il y a une confusion, même au niveau de la page elle s'appelle "Workspace" dans la barre de recherche.
+Je pense qu'il y a effectivement un problème ici. Donc, du coup, je ne peux pas accéder aux workspaces.
+Ah, si, ici, ok, ok. On se sent travers après dessus. Ouais, donc tu vois, en effet, il y a un problème de redirection.
+Je pense ça devrait pas à emmener vers le workspace, mais vers les dossiers. Donc, dossier projet est d'ailleurs il faudrait que tu analyses la page en question, parce que au niveau design branding, ça c'est, je pense, qu'on peut faire mieux.
+Vraiment, reste à l'aise.

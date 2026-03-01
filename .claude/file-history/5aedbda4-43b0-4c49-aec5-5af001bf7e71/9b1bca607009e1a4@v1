@@ -1,0 +1,92 @@
+"""Schémas Pydantic pour la validation et sérialisation."""
+
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+# Project schemas
+class ProjectBase(BaseModel):
+    """Schéma de base pour un projet."""
+
+    name: str = Field(..., max_length=255)
+    description: str | None = None
+
+
+class ProjectCreate(ProjectBase):
+    """Schéma pour la création d'un projet."""
+
+    pass
+
+
+class ProjectResponse(ProjectBase):
+    """Schéma de réponse pour un projet."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+
+# Artifact schemas
+class ArtifactUploadResponse(BaseModel):
+    """Schéma de réponse pour l'upload d'un artefact."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    project_id: int
+    artifact_type: str
+    filename: str
+    content_type: str
+    size_bytes: int
+    sha256: str
+    storage_key: str
+    created_at: datetime
+
+
+class ArtifactResponse(ArtifactUploadResponse):
+    """Schéma de réponse complet pour un artefact."""
+
+    run_id: int | None = None
+
+
+# Run schemas
+class RunCreate(BaseModel):
+    """Schéma pour la création d'un run."""
+
+    run_id: str = Field(..., max_length=100)
+    step_code: str = Field(..., max_length=100)
+    provider: str | None = Field(None, max_length=100)
+
+
+class RunResponse(BaseModel):
+    """Schéma de réponse pour un run."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    run_id: str
+    step_code: str
+    provider: str | None
+    status: str
+    started_at: datetime
+    completed_at: datetime | None
+    error_message: str | None
+
+
+# StepExecution schemas
+class StepExecutionResponse(BaseModel):
+    """Schéma de réponse pour une step execution."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    project_id: int
+    step_code: str
+    current_state: str
+    last_run_id: int | None
+    created_at: datetime
+    updated_at: datetime

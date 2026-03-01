@@ -1,0 +1,119 @@
+import { NextRequest, NextResponse } from 'next/server';
+import type { TicketPack } from '@/lib/ticketpack/types';
+import {
+  generatePRDMarkdown,
+  generateADRMarkdown,
+  generateRoadmapMarkdown,
+  generateTicketMarkdown,
+  generateRunbookMarkdown,
+  generateRiskRegisterMarkdown,
+  generateStackRecommendationMarkdown,
+} from '@/lib/ticketpack/templates';
+
+export const dynamic = 'force-dynamic';
+
+export async function POST(request: NextRequest) {
+  try {
+    const pack: TicketPack = await request.json();
+
+    // Générer tous les fichiers
+    const files = generateExportFiles(pack);
+
+    // Pour l'instant, retourner un objet avec tous les fichiers
+    // Le client pourra les télécharger individuellement
+    return NextResponse.json({
+      pack_id: pack.meta.pack_id,
+      files,
+    });
+  } catch (error) {
+    console.error('Export error:', error);
+    return NextResponse.json(
+      {
+        error: 'Erreur lors de l\'export',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+function generateExportFiles(pack: TicketPack): Record<string, string> {
+  const files: Record<string, string> = {};
+
+  // PRD
+  files['PRD.md'] = generatePRDMarkdown(pack.prd, pack.project);
+
+  // ADRs
+  pack.adrs.forEach((adr, i) => {
+    files[`ADR/${adr.adr_id}-${slugify(adr.title)}.md`] = generateADRMarkdown(adr);
+  });
+
+  // Roadmap
+  files['ROADMAP.md'] = generateRoadmapMarkdown(pack.roadmap);
+
+  // Tickets
+  pack.tickets.forEach((ticket) => {
+    files[`TICKETS/${ticket.ticket_id}-${slugify(ticket.title)}.md`] =
+      generateTicketMarkdown(ticket);
+  });
+
+  // Prompts
+  files['PROMPTS/GLOBAL_PROMPT.xml'] = pack.prompts.global_prompt;
+  pack.prompts.ticket_prompts.forEach((prompt) => {
+    files[`PROMPTS/${prompt.prompt_id}.xml`] = prompt.content;
+  });
+
+  // Runbook
+  files['RUNBOOK.md'] = generateRunbookMarkdown(pack.runbook);
+
+  // Risk Register
+  files['RISK_REGISTER.md'] = generateRiskRegisterMarkdown(pack.tickets);
+
+  // Stack Recommendation
+  const techStack = pack.adrs.find((adr) => adr.adr_id === 'ADR-001')
+    ? extractStackFromADR(pack.adrs[0])
+    : [];
+  files['STACK_RECOMMENDATION.md'] = generateStackRecommendationMarkdown(
+    techStack,
+    pack.skills.recommended.slice(0, 10).map((s) => ({
+      name: pack.skills.selected.find((sel) => sel.skill_id === s.skill_id)?.name || s.skill_id,
+      score: s.score,
+      rationale: s.rationale,
+    }))
+  );
+
+  // Manifest
+  files['MANIFEST.json'] = JSON.stringify(
+    {
+      pack_id: pack.meta.pack_id,
+      project_name: pack.project.name,
+      created_at: pack.meta.created_at,
+      files: Object.keys(files).sort(),
+    },
+    null,
+    2
+  );
+
+  return files;
+}
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim()
+    .slice(0, 50);
+}
+
+function extractStackFromADR(adr: any): string[] {
+  // Extraction simple de la stack depuis la décision de l'ADR
+  const matches = adr.decision.match(/Utiliser (.+?) comme/);
+  if (matches && matches[1]) {
+    return matches[1].split(',').map((s: string) => s.trim());
+  }
+  return ['Next.js', 'React', 'TypeScript'];
+}

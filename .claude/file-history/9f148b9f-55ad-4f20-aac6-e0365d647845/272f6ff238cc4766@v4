@@ -1,0 +1,47 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+
+export default function Navigation() {
+  const pathname = usePathname();
+
+  const isActive = (path: string) => pathname === path;
+
+  return (
+    <nav className="topbar">
+      <div className="topbar-container">
+        <div className="topbar-content">
+          <div className="topbar-left">
+            <Link href="/" className="topbar-logo">
+              Wind Boost
+            </Link>
+
+            <div className="topbar-nav">
+              <Link
+                href="/"
+                className={isActive('/') ? 'nav-link active' : 'nav-link'}
+              >
+                Skills
+              </Link>
+
+              <Link
+                href="/sources"
+                className={isActive('/sources') ? 'nav-link active' : 'nav-link'}
+              >
+                Sources
+              </Link>
+
+              <Link
+                href="/ticketpack"
+                className={isActive('/ticketpack') ? 'nav-link active' : 'nav-link'}
+              >
+                TicketPack Generator
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
+}

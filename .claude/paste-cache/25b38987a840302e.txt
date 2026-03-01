@@ -1,0 +1,76 @@
+OBJECTIF: Implémenter TICKET_00.1 — SEP Foundation (Zep) + Deterministic Router v0 pour k3rn.labs dans n8n.
+
+CONTRAINTES:
+- Un seul workflow: "K3rn.labs — Core Engine (v0)"
+- Pas de sub-workflows, pas de toolWorkflow, pas de pôles.
+- Le workflow doit être stateless: aucune dépendance à Window Buffer Memory pour la persistance.
+- Toute persistance passe par Zep via HTTP Request nodes.
+- Commits atomiques: 1 commit = 1 ticket (ici uniquement TICKET_00.1). Ne rien refactorer d’autre.
+
+NODES A CREER (ordre strict):
+1) Chat Trigger node nommé "INPUT" (aucune config spéciale)
+2) Code node nommé "SESSION_RESOLVER"
+   - output JSON:
+     {
+       "user_id": "boss",
+       "thread_id": "k3rn:default",
+       "message": {{$json.chatInput}},
+       "timestamp": new Date().toISOString()
+     }
+3) HTTP Request node nommé "SEP_RETRIEVE"
+   - POST {ZEP_BASE_URL}/api/v2/memory/query
+   - Headers: Authorization: Bearer {ZEP_API_KEY}
+   - JSON body:
+     {
+       "user_id": "{{ $json.user_id }}",
+       "thread_id": "{{ $json.thread_id }}",
+       "query": "{{ $json.message }}",
+       "top_k": 8
+     }
+4) AI Agent node nommé "CERVEAU++"
+   - model: OpenAI gpt-4o-mini
+   - timeout: 200000ms
+   - System prompt: classificateur pur, renvoie uniquement JSON:
+     {
+       "route": "ideation|strategy|market|finance|default",
+       "summary": "...",
+       "language": "fr|en"
+     }
+   - User prompt:
+     Message user: {{ $('SESSION_RESOLVER').item.json.message }}
+     SEP context: {{ $json }}   (l’output de SEP_RETRIEVE)
+5) Code node nommé "PARSE_ROUTE"
+   - parse le JSON string éventuel de CERVEAU++ pour produire un objet JSON propre
+6) Switch node nommé "ROUTER"
+   - route sur $json.route (ideation/strategy/market/finance/default)
+   - Pour v0: toutes les branches redirigent vers DEFAULT_RESPONSE (pas de pôles)
+7) AI Agent node "DEFAULT_RESPONSE"
+   - model: OpenAI gpt-4o
+   - timeout: 200000ms
+   - System prompt: répondre de façon structurée, orientée décision, et poser UNE question suivante.
+   - User prompt:
+     Original: {{ $('SESSION_RESOLVER').item.json.message }}
+     SEP: {{ $('SEP_RETRIEVE').item.json }}
+     Route: {{ $('PARSE_ROUTE').item.json }}
+8) HTTP Request node "SEP_APPEND"
+   - POST {ZEP_BASE_URL}/api/v2/memory
+   - Headers: Authorization: Bearer {ZEP_API_KEY}
+   - JSON body:
+     {
+       "user_id": "{{ $('SESSION_RESOLVER').item.json.user_id }}",
+       "thread_id": "{{ $('SESSION_RESOLVER').item.json.thread_id }}",
+       "messages": [
+         {"role":"user","content":"{{ $('SESSION_RESOLVER').item.json.message }}"},
+         {"role":"assistant","content":"{{ $('DEFAULT_RESPONSE').item.json.output }}"}
+       ],
+       "metadata": {
+         "workflow":"K3rn.labs — Core Engine (v0)",
+         "route":"{{ $('PARSE_ROUTE').item.json.route }}",
+         "version":"0.1"
+       }
+     }
+
+VALIDATION:
+- Exécuter un test message: "J’ai une idée de projet: ..."
+- Vérifier: SEP_RETRIEVE appelé, CERVEAU++ route=ideation, DEFAULT_RESPONSE répond, SEP_APPEND écrit.
+- Corriger tout "Invalid URL" / parsing JSON / mauvais mapping n8n avant de conclure.

@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K3RN.LABS — Maquette A : Command Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* ═══════════════════════════════════════════════════════════════
+           K3RN.LABS CANONICAL DESIGN TOKENS
+           ═══════════════════════════════════════════════════════════════ */
+        :root {
+            --bg-primary: #000000;
+            --bg-secondary: #0F0F0F;
+            --bg-card: #1A1A1A;
+            --bg-card-hover: #22242B;
+            --surface-1: #2F323A;
+            --surface-2: #5D5C5B;
+            --border-subtle: rgba(255,255,255,0.05);
+            --border-default: rgba(255,255,255,0.1);
+            --border-strong: rgba(255,255,255,0.2);
+            --text-primary: #FAFAFA;
+            --text-secondary: #A1A1AA;
+            --text-muted: #71717A;
+            --brand-primary: #F75105;
+            --brand-secondary: #F78E21;
+            --shadow-glow: 0 0 30px rgba(247,81,5,0.3);
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+            --radius-2xl: 24px;
+            --radius-full: 9999px;
+            --space-1: 4px;
+            --space-2: 8px;
+            --space-3: 12px;
+            --space-4: 16px;
+            --space-6: 24px;
+            --space-8: 32px;
+            --space-12: 48px;
+            --space-16: 64px;
+            --color-go: #22C55E;
+            --color-explore: #F59E0B;
+            --color-park: #6B7280;
+            --color-kill: #EF4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overflow-x: hidden;
+        }
+
+        ::selection {
+            background: rgba(247,81,5,0.3);
+            color: white;
+        }
+
+        /* ═══════ HEADER ═══════ */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            width: 100%;
+            border-bottom: 1px solid var(--border-subtle);
+            background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .header-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 64px;
+            padding: 0 var(--space-8);
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: var(--space-6);
+        }
+        .logo {
+            width: 32px;
+            height: 32px;
+            background: var(--brand-primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 14px;
+            color: white;
+            transition: transform 0.5s;
+        }
+        .logo:hover { transform: rotate(180deg); }
+        .nav-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--border-default);
+        }
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: var(--space-6);
+        }
+        .nav-link {
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 20px 0;
+            position: relative;
+            transition: color 0.2s;
+        }
+        .nav-link:hover { color: var(--text-primary); }
+        .nav-link.active {
+            color: var(--brand-primary);
+        }
+        .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--brand-primary);
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+        .header-btn {
+            padding: 6px 12px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            background: transparent;
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .header-btn:hover {
+            color: var(--text-primary);
+            border-color: var(--border-strong);
+            background: var(--bg-card);
+        }
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-full);
+            background: var(--surface-1);
+            border: 1px solid var(--border-default);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        /* ═══════ MAIN LAYOUT ═══════ */
+        .main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: var(--space-12) var(--space-8) var(--space-16);
+        }
+
+        /* ═══════ CARD BASE ═══════ */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-2xl);
+            padding: var(--space-8);
+            transition: all 0.3s;
+        }
+        .card:hover {
+            border-color: var(--border-strong);
+        }
+
+        /* ═══════ HERO BAND ═══════ */
+        .hero-band {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-8);
+        }
+        .hero-greeting h1 {
+            font-size: 2rem;
+            font-weight: 300;
+            color: var(--text-primary);
+            margin-bottom: var(--space-2);
+            letter-spacing: -0.01em;
+        }
+        .hero-greeting p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            font-weight: 400;
+            margin-bottom: var(--space-6);
+        }
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-3) var(--space-6);
+            background: var(--brand-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            background: var(--brand-secondary);
+            box-shadow: var(--shadow-glow);
+            transform: translateY(-1px);
+        }
+        .hero-score {
+            text-align: right;
+        }
+        .hero-score .score-value {
+            font-size: 3.5rem;
+            font-weight: 300;
+            color: var(--text-primary);
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+        }
+        .hero-score .score-unit {
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin-left: 2px;
+        }
+        .hero-score .score-trend {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--color-go);
+            margin-top: var(--space-2);
+        }
+        .hero-score .score-label {
+            font-size: 0.625rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: var(--space-2);
+        }
+
+        /* ═══════ MIDDLE ROW (Distribution + Recent) ═══════ */
+        .middle-row {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: var(--space-6);
+            margin-bottom: var(--space-6);
+        }
+
+        /* Distribution Card */
+        .decision-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-3);
+            margin-bottom: var(--space-6);
+        }
+        .decision-cell {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-xl);
+            padding: var(--space-4);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+        .decision-cell:hover {
+            border-color: var(--border-default);
+            background: var(--bg-card-hover);
+        }
+        .decision-cell .cell-accent {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+        }
+        .decision-cell .cell-label {
+            font-size: 0.625rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: var(--space-2);
+        }
+        .decision-cell .cell-count {
+            font-size: 1.75rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .stat-bar {
+            margin-bottom: var(--space-4);
+        }
+        .stat-bar-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: var(--space-2);
+            display: flex;
+            justify-content: space-between;
+        }
+        .stat-bar-track {
+            height: 6px;
+            background: var(--surface-1);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+        }
+        .stat-bar-fill {
+            height: 100%;
+            border-radius: var(--radius-full);
+            transition: width 1s ease-out;
+        }
+        .total-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            padding-top: var(--space-4);
+            border-top: 1px solid var(--border-subtle);
+        }
+        .total-label strong {
+            color: var(--text-secondary);
+        }
+
+        /* Recent Projects */
+        .section-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--brand-primary);
+            margin-bottom: var(--space-6);
+        }
+        .project-row {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+            padding: var(--space-4) var(--space-4);
+            border-bottom: 1px solid var(--border-subtle);
+            border-left: 3px solid transparent;
+            transition: all 0.2s;
+            cursor: pointer;
+            border-radius: 0 var(--radius-md) var(--radius-md) 0;
+        }
+        .project-row:last-child { border-bottom: none; }
+        .project-row:hover {
+            background: var(--bg-secondary);
+            border-left-width: 4px;
+        }
+        .project-row .project-title {
+            flex: 1;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .project-row .project-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        .project-row .project-score {
+            font-size: 1rem;
+            font-weight: 300;
+            font-variant-numeric: tabular-nums;
+            color: var(--text-primary);
+            min-width: 56px;
+            text-align: right;
+        }
+        .project-row .project-score .unit {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: var(--radius-full);
+            font-size: 0.625rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            border: 1px solid;
+        }
+        .badge-go { background: rgba(34,197,94,0.1); color: #4ade80; border-color: rgba(34,197,94,0.2); }
+        .badge-explore { background: rgba(245,158,11,0.1); color: #fbbf24; border-color: rgba(245,158,11,0.2); }
+        .badge-park { background: rgba(107,114,128,0.1); color: #9ca3af; border-color: rgba(107,114,128,0.2); }
+        .badge-kill { background: rgba(239,68,68,0.1); color: #f87171; border-color: rgba(239,68,68,0.2); }
+
+        .link-arrow {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            margin-top: var(--space-6);
+            transition: all 0.2s;
+        }
+        .link-arrow:hover {
+            color: var(--text-primary);
+        }
+        .link-arrow:hover .arrow {
+            transform: translateX(4px);
+        }
+        .arrow {
+            transition: transform 0.2s;
+        }
+
+        /* ═══════ TIMELINE ═══════ */
+        .timeline { margin-top: 0; }
+        .timeline-group-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: var(--space-4);
+            margin-top: var(--space-6);
+        }
+        .timeline-group-label:first-child { margin-top: 0; }
+        .timeline-event {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-3);
+            padding: var(--space-2) 0;
+        }
+        .timeline-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: var(--radius-full);
+            margin-top: 5px;
+            flex-shrink: 0;
+        }
+        .timeline-dot.recent { background: var(--brand-primary); }
+        .timeline-dot.old {
+            background: transparent;
+            border: 1.5px solid var(--text-muted);
+        }
+        .timeline-time {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            min-width: 48px;
+            flex-shrink: 0;
+        }
+        .timeline-text {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        .timeline-text .highlight-go { color: var(--color-go); font-weight: 600; }
+        .timeline-text .highlight-kill { color: var(--color-kill); font-weight: 600; }
+        .timeline-text .highlight-explore { color: var(--color-explore); font-weight: 600; }
+        .timeline-text strong { color: var(--text-primary); font-weight: 500; }
+
+        /* ═══════ LABEL MAQUETTE ═══════ */
+        .maquette-label {
+            position: fixed;
+            top: var(--space-6);
+            right: var(--space-6);
+            z-index: 100;
+            background: var(--brand-primary);
+            color: white;
+            padding: var(--space-2) var(--space-4);
+            border-radius: var(--radius-full);
+            font-size: 0.625rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            box-shadow: var(--shadow-glow);
+        }
+
+        /* ═══════ ANIMATIONS ═══════ */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes countUp {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .animate-in {
+            animation: fadeInUp 0.6s ease-out forwards;
+            opacity: 0;
+        }
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
+
+        /* ═══════ RESPONSIVE ═══════ */
+        @media (max-width: 1024px) {
+            .middle-row { grid-template-columns: 1fr; }
+            .hero-band { flex-direction: column; align-items: flex-start; gap: var(--space-6); }
+            .hero-score { text-align: left; }
+        }
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .main { padding: var(--space-6) var(--space-4); }
+            .card { padding: var(--space-6); border-radius: var(--radius-xl); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="maquette-label">Maquette A / Command Center</div>
+
+    <!-- HEADER -->
+    <header class="header">
+        <div class="header-inner">
+            <div class="header-left">
+                <div class="logo">K</div>
+                <div class="nav-divider"></div>
+                <nav class="nav-links">
+                    <a href="#" class="nav-link">Capture</a>
+                    <a href="#" class="nav-link active">Dashboard</a>
+                    <a href="#" class="nav-link">Dossiers</a>
+                </nav>
+            </div>
+            <div class="header-right">
+                <button class="header-btn">FR</button>
+                <div class="avatar">TK</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="main">
+
+        <!-- HERO BAND -->
+        <div class="card hero-band animate-in">
+            <div class="hero-greeting">
+                <h1>Bienvenue, Thomas.</h1>
+                <p>3 projets en cours. 1 necessite votre attention.</p>
+                <button class="btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Nouvelle Idee
+                </button>
+            </div>
+            <div class="hero-score">
+                <div class="score-label">Score Portefeuille</div>
+                <div class="score-value">64<span class="score-unit">/100</span></div>
+                <div class="score-trend">+4 pts</div>
+            </div>
+        </div>
+
+        <!-- MIDDLE ROW -->
+        <div class="middle-row">
+            <!-- Distribution -->
+            <div class="card animate-in delay-1">
+                <div class="section-label">Distribution</div>
+                <div class="decision-grid">
+                    <div class="decision-cell">
+                        <div class="cell-accent" style="background: var(--color-go)"></div>
+                        <div class="cell-label">Go</div>
+                        <div class="cell-count" style="color: var(--color-go)">2</div>
+                    </div>
+                    <div class="decision-cell">
+                        <div class="cell-accent" style="background: var(--color-explore)"></div>
+                        <div class="cell-label">Explore</div>
+                        <div class="cell-count" style="color: var(--color-explore)">1</div>
+                    </div>
+                    <div class="decision-cell">
+                        <div class="cell-accent" style="background: var(--color-park)"></div>
+                        <div class="cell-label">Park</div>
+                        <div class="cell-count" style="color: var(--color-park)">1</div>
+                    </div>
+                    <div class="decision-cell">
+                        <div class="cell-accent" style="background: var(--color-kill)"></div>
+                        <div class="cell-label">Kill</div>
+                        <div class="cell-count" style="color: var(--color-kill)">1</div>
+                    </div>
+                </div>
+
+                <div class="stat-bar">
+                    <div class="stat-bar-label">
+                        <span>Score Moyen</span>
+                        <span style="color: var(--text-secondary)">64/100</span>
+                    </div>
+                    <div class="stat-bar-track">
+                        <div class="stat-bar-fill" style="width: 64%; background: linear-gradient(90deg, var(--brand-primary), var(--brand-secondary))"></div>
+                    </div>
+                </div>
+
+                <div class="stat-bar">
+                    <div class="stat-bar-label">
+                        <span>Confiance Moyenne</span>
+                        <span style="color: var(--color-explore)">MEDIUM</span>
+                    </div>
+                    <div class="stat-bar-track">
+                        <div class="stat-bar-fill" style="width: 55%; background: var(--color-explore)"></div>
+                    </div>
+                </div>
+
+                <div class="total-label">Total : <strong>5 projets</strong></div>
+            </div>
+
+            <!-- Recent Projects -->
+            <div class="card animate-in delay-2">
+                <div class="section-label">Projets Recents</div>
+
+                <div class="project-row" style="border-left-color: var(--color-go)">
+                    <div class="project-title">Drone Fleet SaaS Platform</div>
+                    <div class="project-score">92<span class="unit">/100</span></div>
+                    <span class="badge badge-go">GO</span>
+                    <div class="project-meta">Il y a 2h</div>
+                </div>
+
+                <div class="project-row" style="border-left-color: var(--color-go)">
+                    <div class="project-title">Quantum Encryption Key</div>
+                    <div class="project-score">88<span class="unit">/100</span></div>
+                    <span class="badge badge-go">GO</span>
+                    <div class="project-meta">Il y a 6j</div>
+                </div>
+
+                <div class="project-row" style="border-left-color: var(--color-explore)">
+                    <div class="project-title">AI Film Script Generator</div>
+                    <div class="project-score">78<span class="unit">/100</span></div>
+                    <span class="badge badge-explore">EXPLORE</span>
+                    <div class="project-meta">Il y a 3j</div>
+                </div>
+
+                <div class="project-row" style="border-left-color: var(--color-kill)">
+                    <div class="project-title">NFT Patent Marketplace</div>
+                    <div class="project-score">38<span class="unit">/100</span></div>
+                    <span class="badge badge-kill">KILL</span>
+                    <div class="project-meta">Attention requise</div>
+                </div>
+
+                <div class="project-row" style="border-left-color: var(--color-park)">
+                    <div class="project-title">MeowNet - Social Network for Cats</div>
+                    <div class="project-score">22<span class="unit">/100</span></div>
+                    <span class="badge badge-park">PARK</span>
+                    <div class="project-meta">Il y a 5j</div>
+                </div>
+
+                <a href="#" class="link-arrow">
+                    Voir tous les dossiers <span class="arrow">&rarr;</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- TIMELINE -->
+        <div class="card animate-in delay-3">
+            <div class="section-label">Timeline d'Activite</div>
+
+            <div class="timeline">
+                <div class="timeline-group-label">Aujourd'hui</div>
+
+                <div class="timeline-event">
+                    <div class="timeline-dot recent"></div>
+                    <div class="timeline-time">14:32</div>
+                    <div class="timeline-text">Analyse terminee &mdash; <strong>"Drone Fleet SaaS"</strong> &rarr; <span class="highlight-go">GO</span> (92/100)</div>
+                </div>
+
+                <div class="timeline-event">
+                    <div class="timeline-dot recent"></div>
+                    <div class="timeline-time">14:30</div>
+                    <div class="timeline-text">Nouvelle idee capturee &mdash; <strong>"Drone Fleet SaaS"</strong></div>
+                </div>
+
+                <div class="timeline-event">
+                    <div class="timeline-dot recent"></div>
+                    <div class="timeline-time">11:05</div>
+                    <div class="timeline-text">Enrichissement demande &mdash; <strong>"AI Film Script Generator"</strong></div>
+                </div>
+
+                <div class="timeline-group-label">Hier</div>
+
+                <div class="timeline-event">
+                    <div class="timeline-dot old"></div>
+                    <div class="timeline-time">09:15</div>
+                    <div class="timeline-text">Analyse terminee &mdash; <strong>"NFT Patent Marketplace"</strong> &rarr; <span class="highlight-kill">KILL</span> (38/100)</div>
+                </div>
+
+                <div class="timeline-event">
+                    <div class="timeline-dot old"></div>
+                    <div class="timeline-time">08:44</div>
+                    <div class="timeline-text">Nouvelle idee capturee &mdash; <strong>"NFT Patent Marketplace"</strong></div>
+                </div>
+
+                <div class="timeline-group-label">Il y a 5 jours</div>
+
+                <div class="timeline-event">
+                    <div class="timeline-dot old"></div>
+                    <div class="timeline-time">16:20</div>
+                    <div class="timeline-text">Idee parkee &mdash; <strong>"MeowNet"</strong> (score trop faible)</div>
+                </div>
+
+                <div class="timeline-event">
+                    <div class="timeline-dot old"></div>
+                    <div class="timeline-time">10:02</div>
+                    <div class="timeline-text">Analyse terminee &mdash; <strong>"Quantum Encryption Key"</strong> &rarr; <span class="highlight-go">GO</span> (88/100)</div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+</body>
+</html>

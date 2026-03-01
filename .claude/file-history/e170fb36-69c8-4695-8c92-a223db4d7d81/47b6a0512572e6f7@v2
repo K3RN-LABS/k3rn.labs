@@ -1,0 +1,123 @@
+/**
+ * Mock data for homepage
+ */
+
+export const mockProjects = [
+  {
+    id: "1",
+    title: "MediTrack Pro",
+    description:
+      "Application mobile de santé connectée pour le suivi des patients et la téléconsultation",
+    thumbnail: null,
+    completionRate: 85,
+    features: 12,
+    status: "package-ready" as const,
+    createdAt: new Date("2024-01-15"),
+  },
+  {
+    id: "2",
+    title: "SaaSify",
+    description:
+      "Plateforme SaaS B2B pour la gestion de projets collaboratifs avec IA",
+    thumbnail: null,
+    completionRate: 60,
+    features: 8,
+    status: "draft" as const,
+    createdAt: new Date("2024-02-01"),
+  },
+  {
+    id: "3",
+    title: "EcoMarket",
+    description:
+      "Marketplace locale pour produits bio et circuits courts avec livraison",
+    thumbnail: null,
+    completionRate: 92,
+    features: 15,
+    status: "package-ready" as const,
+    createdAt: new Date("2023-12-10"),
+  },
+];
+
+export const bmadSteps = [
+  {
+    icon: "🎯",
+    title: "Business Model",
+    description:
+      "Définir la vision, le marché cible, la proposition de valeur et le modèle de monétisation",
+  },
+  {
+    icon: "💡",
+    title: "Brainstorming",
+    description:
+      "Explorer les idées, identifier les fonctionnalités clés et prioriser les features MVP",
+  },
+  {
+    icon: "🏗️",
+    title: "System",
+    description:
+      "Concevoir l'architecture technique, choisir la stack et définir les flux de données",
+  },
+  {
+    icon: "🎨",
+    title: "Mockups",
+    description:
+      "Créer les wireframes, définir l'UX/UI et valider l'expérience utilisateur",
+  },
+  {
+    icon: "📋",
+    title: "Analyse",
+    description:
+      "Analyser les risques, estimer la charge et définir le roadmap de développement",
+  },
+  {
+    icon: "🚀",
+    title: "Execution",
+    description:
+      "Structurer le développement avec prompts séquencés et context files optimisés",
+  },
+  {
+    icon: "📦",
+    title: "Deliverables",
+    description:
+      "Générer le package complet : documentation, code starter et guide de déploiement",
+  },
+];
+
+export const deliverables = [
+  {
+    icon: "📁",
+    title: "Context Files",
+    description:
+      "Fichiers de contexte optimisés pour alimenter l'IA à chaque étape du projet",
+    items: [
+      "Business context (vision, marché, monétisation)",
+      "Technical context (stack, architecture, data models)",
+      "UX context (user flows, wireframes, design system)",
+      "Project roadmap et user stories détaillées",
+    ],
+  },
+  {
+    icon: "🎯",
+    title: "Prompts Séquencés",
+    description:
+      "Séquences de prompts prêts à l'emploi pour guider le développement étape par étape",
+    items: [
+      "Prompts de setup (init projet, config, deps)",
+      "Prompts de développement (features par feature)",
+      "Prompts de tests et debugging",
+      "Prompts de déploiement et monitoring",
+    ],
+  },
+  {
+    icon: "🚀",
+    title: "Starter Kit",
+    description:
+      "Code de base structuré et documentation pour démarrer le développement immédiatement",
+    items: [
+      "Architecture de dossiers et structure de code",
+      "Configuration complète (env, CI/CD, etc.)",
+      "Documentation technique et guide de contribution",
+      "Exemples de composants et patterns",
+    ],
+  },
+];

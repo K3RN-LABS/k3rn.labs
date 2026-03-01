@@ -1,0 +1,298 @@
+export type Locale = 'FR' | 'EN' | 'ES';
+
+export const dictionary = {
+    FR: {
+        common: {
+            appName: 'k3rn.labs',
+            ideationMode: 'MODE_IDÉATION',
+            analysisPhase: 'Phase d\'Analyse',
+            ignite: 'Igniter',
+            processing: 'Traitement...',
+            consulting: 'Consultation du Conseil...',
+        },
+        auth: {
+            signIn: 'Se connecter',
+            signUp: 'S\'inscrire',
+            email: 'Email',
+            password: 'Mot de passe',
+            submit: 'Continuer',
+            noAccount: 'Pas de compte ?',
+            hasAccount: 'Déjà un compte ?',
+            library: 'Bibliothèque',
+            settings: 'Paramètres',
+            logout: 'Déconnexion',
+        },
+        capture: {
+            hero: 'Que construisons-nous ?',
+            placeholder: 'Décrivez votre idée, concept, ou collez une pensée brute...',
+            attachFile: 'Joindre un fichier',
+            addLink: 'Ajouter un lien',
+            voiceInput: 'Entrée vocale',
+            helper: 'Appuyez sur Cmd + Entrée pour soumettre',
+            submit: 'Soumettre',
+        },
+        workspace: {
+            ideaPrefix: 'Idée #',
+            dossier: {
+                title: 'Dossier',
+                sourceMaterials: 'Matériaux Sources',
+                research: 'Recherche',
+                analysisQuality: 'Qualité d\'Analyse',
+            },
+            canvas: {
+                coreAxiom: 'Axiome Central',
+                opportunity: 'Opportunité',
+                loading: 'Chargement du contexte...',
+                defaultContext: 'Entrée d\'idée brute introuvable. Utilisation du contexte par défaut.',
+            },
+            chat: {
+                title: 'Conseil en Direct',
+                replyPlaceholder: 'Répondre au conseil...',
+                experts: {
+                    ava: {
+                        role: 'Structure',
+                        msg: 'J\'ai extrait 3 axiomes centraux de votre entrée. L\'intégrité structurelle semble solide mais manque d\'une boucle de rétention.'
+                    },
+                    marcus: {
+                        role: 'Vision',
+                        msg: 'D\'accord. La vision est audacieuse, mais nous devons définir "l\'Avantage Injuste" plus clairement dans la phase 2.'
+                    }
+                },
+                today: 'AUJOURD\'HUI'
+            }
+        },
+        analysis: {
+            title: 'Analyse du Comité',
+            viabilityScore: 'Score de Viabilité',
+            simulated: 'Simulé',
+            classification: 'Classification',
+            verdict: 'Verdict du Comité',
+            newAnalysis: 'Nouvelle analyse',
+            openWorkspace: 'Ouvrir Workspace',
+            logs: {
+                init: 'Initialisation de la séquence...',
+                computing: 'Calcul de la matrice de viabilité...',
+                quotaWarning: '[ATTENTION] Quota API atteint. Passage en simulation.',
+                error: '[CRITIQUE] Échec du protocole d\'analyse.',
+                apiError: 'Erreur API',
+                demoMode: 'Mode Démo Activé',
+                demoDesc: 'Quota API atteint. Simulation.',
+                analysisFailed: 'Erreur d\'analyse'
+            },
+            experts: {
+                SYS_INGEST: 'Ingestion Système',
+                AGT_MA: 'Analyste Marché',
+                AGT_FIN: 'Modèle Financier',
+                AGT_TECH: 'Faisabilité Tech',
+                AGT_LEG: 'Conformité Légale',
+                SYS_STRUCT: 'Structuration',
+                SYS_SCORE: 'Viabilité'
+            },
+            demoResult: {
+                summary: "Fort potentiel de marché détecté. La proposition de valeur s'aligne avec les tendances 'No-Code' actuelles, mais la stratégie de monétisation nécessite des ajustements pour débloquer une Série A.",
+                experts: {
+                    strategist: { role: "Stratège Produit", analysis: "La proposition de valeur est claire et répond à un besoin latent du marché." },
+                    business: { role: "Modèle Économique", analysis: "Le ratio CAC/LTV suppose une croissance virale. Une modélisation prudente est recommandée." },
+                    tech: { role: "Architecte Technique", analysis: "Le choix de la stack (Next.js + Supabase) est optimal pour un MVP rapide." }
+                },
+                nextSteps: ["Affiner le modèle de prix", "Lancer le MVP en 4 semaines", "Débuter la construction communautaire"]
+            }
+        }
+    },
+    EN: {
+        common: {
+            appName: 'k3rn.labs',
+            ideationMode: 'IDEATION_MODE',
+            analysisPhase: 'Analysis Phase',
+            ignite: 'Ignite',
+            processing: 'Processing...',
+            consulting: 'Consulting the Council...',
+        },
+        auth: {
+            signIn: 'Sign In',
+            signUp: 'Sign Up',
+            email: 'Email',
+            password: 'Password',
+            submit: 'Continue',
+            noAccount: 'No account?',
+            hasAccount: 'Already have an account?',
+            library: 'Library',
+            settings: 'Settings',
+            logout: 'Logout',
+        },
+        capture: {
+            hero: 'What are we building?',
+            placeholder: 'Describe your idea, concept, or paste a raw thought...',
+            attachFile: 'Attach File',
+            addLink: 'Add Link',
+            voiceInput: 'Voice Input',
+            helper: 'Press Cmd + Enter to submit',
+            submit: 'Submit',
+        },
+        workspace: {
+            ideaPrefix: 'Idea #',
+            dossier: {
+                title: 'Dossier',
+                sourceMaterials: 'Source Materials',
+                research: 'Research',
+                analysisQuality: 'Analysis Quality',
+            },
+            canvas: {
+                coreAxiom: 'Core Axiom',
+                opportunity: 'Opportunity',
+                loading: 'Loading context...',
+                defaultContext: 'Raw idea input not found. Using default context seed.',
+            },
+            chat: {
+                title: 'Live Council',
+                replyPlaceholder: 'Reply to council...',
+                experts: {
+                    ava: {
+                        role: 'Structure',
+                        msg: 'I\'ve extracted 3 core axioms from your input. The structural integrity seems sound but lacks a retention loop.'
+                    },
+                    marcus: {
+                        role: 'Vision',
+                        msg: 'Agreed. The vision is bold, but we need to define the "Unfair Advantage" more clearly in phase 2.'
+                    }
+                },
+                today: 'TODAY'
+            }
+        },
+        analysis: {
+            title: 'Committee Analysis',
+            viabilityScore: 'Viability Score',
+            simulated: 'Simulated',
+            classification: 'Classification',
+            verdict: 'Committee Verdict',
+            newAnalysis: 'New Analysis',
+            openWorkspace: 'Open Workspace',
+            logs: {
+                init: 'Initialising Sequence...',
+                computing: 'Computing Viability Matrix...',
+                quotaWarning: '[WARNING] API Quota Exceeded. Switching to Simulation.',
+                error: '[CRITICAL] Analysis Protocol Failed.',
+                apiError: 'API Error',
+                demoMode: 'Demo Mode Activated',
+                demoDesc: 'API Quota reached. Simulation active.',
+                analysisFailed: 'Analysis Failed'
+            },
+            experts: {
+                SYS_INGEST: 'System Ingestion',
+                AGT_MA: 'Market Analyst',
+                AGT_FIN: 'Financial Model',
+                AGT_TECH: 'Tech Feasibility',
+                AGT_LEG: 'Legal Compliance',
+                SYS_STRUCT: 'Structuration',
+                SYS_SCORE: 'Viability Scoring'
+            },
+            demoResult: {
+                summary: "Strong market potential detected. The core value proposition aligns with current 'No-Code' trends, but the monetization strategy needs refinement to unlock Series A potential.",
+                experts: {
+                    strategist: { role: "Product Strategist", analysis: "Value proposition is clear and addresses a latent market need." },
+                    business: { role: "Business Model", analysis: "CAC/LTV ratio assumes viral growth. Conservative modeling recommended." },
+                    tech: { role: "Tech Architect", analysis: "Stack choice (Next.js + Supabase) is optimal for rapid MVP scaling." }
+                },
+                nextSteps: ["Refine pricing model", "Launch MVP in 4 weeks", "Start community building"]
+            }
+        }
+    },
+    ES: {
+        common: {
+            appName: 'k3rn.labs',
+            ideationMode: 'MODO_IDEACIÓN',
+            analysisPhase: 'Fase de Análisis',
+            ignite: 'Encender',
+            processing: 'Procesando...',
+            consulting: 'Consultando al Consejo...',
+        },
+        auth: {
+            signIn: 'Iniciar Sesión',
+            signUp: 'Registrarse',
+            email: 'Correo',
+            password: 'Contraseña',
+            submit: 'Continuar',
+            noAccount: '¿No tienes cuenta?',
+            hasAccount: '¿Ya tienes cuenta?',
+            library: 'Biblioteca',
+            settings: 'Configuración',
+            logout: 'Cerrar Sesión',
+        },
+        capture: {
+            hero: '¿Qué estamos construyendo?',
+            placeholder: 'Describe tu idea, concepto o pega un pensamiento crudo...',
+            attachFile: 'Adjuntar archivo',
+            addLink: 'Añadir enlace',
+            voiceInput: 'Entrada de voz',
+            helper: 'Presiona Cmd + Enter para enviar',
+            submit: 'Enviar',
+        },
+        workspace: {
+            ideaPrefix: 'Idea #',
+            dossier: {
+                title: 'Expediente',
+                sourceMaterials: 'Materiales Fuente',
+                research: 'Investigación',
+                analysisQuality: 'Calidad del Análisis',
+            },
+            canvas: {
+                coreAxiom: 'Axioma Central',
+                opportunity: 'Oportunidad',
+                loading: 'Cargando contexto...',
+                defaultContext: 'Entrada de idea cruda no encontrada. Usando contexto predeterminado.',
+            },
+            chat: {
+                title: 'Consejo en Vivo',
+                replyPlaceholder: 'Responder al consejo...',
+                experts: {
+                    ava: {
+                        role: 'Estructura',
+                        msg: 'He extraído 3 axiomas centrales de tu entrada. La integridad estructural parece sólida pero carece de un bucle de retención.'
+                    },
+                    marcus: {
+                        role: 'Visión',
+                        msg: 'De acuerdo. La visión es audaz, pero necesitamos definir la "Ventaja Injusta" más claramente en la fase 2.'
+                    }
+                },
+                today: 'HOY'
+            }
+        },
+        analysis: {
+            title: 'Análisis del Comité',
+            viabilityScore: 'Puntuación de Viabilidad',
+            simulated: 'Simulado',
+            classification: 'Clasificación',
+            verdict: 'Veredicto del Comité',
+            newAnalysis: 'Nuevo Análisis',
+            openWorkspace: 'Abrir Espacio de Trabajo',
+            logs: {
+                init: 'Iniciando Secuencia...',
+                computing: 'Calculando Matriz de Viabilidad...',
+                quotaWarning: '[ADVERTENCIA] Cuota API excedida. Cambiando a Simulación.',
+                error: '[CRÍTICO] Fallo del Protocolo de Análisis.',
+                apiError: 'Error de API',
+                demoMode: 'Modo Demo Activado',
+                demoDesc: 'Cuota API alcanzada. Simulación activa.',
+                analysisFailed: 'Análisis Fallido'
+            },
+            experts: {
+                SYS_INGEST: 'Ingestión del Sistema',
+                AGT_MA: 'Analista de Mercado',
+                AGT_FIN: 'Modelo Financiero',
+                AGT_TECH: 'Viabilidad Técnica',
+                AGT_LEG: 'Cumplimiento Legal',
+                SYS_STRUCT: 'Estructuración',
+                SYS_SCORE: 'Puntuación de Viabilidad'
+            },
+            demoResult: {
+                summary: "Fuerte potencial de mercado detectado. La propuesta de valor se alinea con las tendencias actuales de 'No-Code', pero la estrategia de monetización necesita refinamiento.",
+                experts: {
+                    strategist: { role: "Estratega de Producto", analysis: "La propuesta de valor es clara y aborda una necesidad latente." },
+                    business: { role: "Modelo de Negocio", analysis: "El ratio CAC/LTV asume crecimiento viral. Se recomienda modelado conservador." },
+                    tech: { role: "Arquitecto Técnico", analysis: "La elección del stack (Next.js + Supabase) es óptima para escalar el MVP." }
+                },
+                nextSteps: ["Refinar modelo de precios", "Lanzar MVP en 4 semanas", "Iniciar construcción de comunidad"]
+            }
+        }
+    }
+};

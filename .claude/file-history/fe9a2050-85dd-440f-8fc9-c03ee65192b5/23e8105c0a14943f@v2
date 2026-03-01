@@ -1,0 +1,234 @@
+/**
+ * K3RN.LABS — POST /api/analysis
+ * Analyse canonique d'une idée via Claude API
+ *
+ * Pipeline :
+ * 1. Validation input (JSON Schema)
+ * 2. Assemblage prompt (system + orchestrator + experts + constraints)
+ * 3. Appel Claude API
+ * 4. Parsing réponse JSON
+ * 5. Validation output LLM (JSON Schema)
+ * 6. Calcul score global (formule canonique serveur)
+ * 7. Détermination décision (logique serveur)
+ * 8. Détection enrichissement
+ * 9. Retour réponse conforme
+ */
+
+import { NextResponse } from 'next/server';
+import Anthropic from '@anthropic-ai/sdk';
+import { validateAnalysisInput, validateLlmRawOutput } from '@/lib/analysis/validators';
+import { calculateGlobalScore } from '@/lib/analysis/scoring';
+import { determineDecision } from '@/lib/analysis/decision';
+import { computeEnrichmentDecision } from '@/lib/analysis/enrichment';
+import { CANONICAL_WEIGHTS, SCHEMA_VERSION } from '@/lib/analysis/constants';
+import { assembleSystemPrompt, buildUserMessage, CURRENT_VERSION } from '@/lib/analysis/prompts/registry';
+import type { AnalysisOutput, AnalysisAxes, ApiError } from '@/lib/analysis/types';
+
+// ─── Claude API client ──────────────────────────────────────────
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
+
+const AI_MODEL = process.env.AI_MODEL || 'claude-opus-4-20250918';
+const AI_TEMPERATURE = parseFloat(process.env.AI_TEMPERATURE || '0.2');
+const AI_TIMEOUT_MS = parseInt(process.env.AI_TIMEOUT_MS || '30000', 10);
+
+// ═══════════════════════════════════════════════════════════════════
+// POST /api/analysis
+// ═══════════════════════════════════════════════════════════════════
+
+export async function POST(req: Request) {
+  const startTime = Date.now();
+
+  try {
+    // ─── 1. Parse request body ──────────────────────────────────
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return errorResponse(400, 'INPUT_SCHEMA_INVALID', 'Request body is not valid JSON');
+    }
+
+    // ─── 2. Validate input against canonical schema ─────────────
+    const inputValidation = validateAnalysisInput(body);
+    if (!inputValidation.valid) {
+      return errorResponse(400, 'INPUT_SCHEMA_INVALID', inputValidation.errors!.join('; '));
+    }
+
+    const input = inputValidation.data!;
+
+    // ─── 3. Check idea state ────────────────────────────────────
+    if (input.idea.state !== 'CAPTURED' && input.idea.state !== 'ANALYZED') {
+      return errorResponse(409, 'IDEA_STATE_CONFLICT', `Idea state "${input.idea.state}" is not valid for initial analysis`);
+    }
+
+    // ─── 4. Assemble prompts ────────────────────────────────────
+    const systemPrompt = assembleSystemPrompt(CURRENT_VERSION);
+    const userMessage = buildUserMessage({
+      text: input.inputs.text?.content,
+      links: input.inputs.links,
+      files: input.inputs.files,
+      experienceLevel: input.context?.experience_level,
+    });
+
+    // ─── 5. Call Claude API ─────────────────────────────────────
+    let llmResponse: string;
+    try {
+      const message = await anthropic.messages.create({
+        model: AI_MODEL,
+        max_tokens: 4096,
+        temperature: AI_TEMPERATURE,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userMessage }],
+      });
+
+      // Extract text content
+      const textBlock = message.content.find((block) => block.type === 'text');
+      if (!textBlock || textBlock.type !== 'text') {
+        return errorResponse(500, 'ANALYSIS_OUTPUT_INVALID', 'LLM returned no text content');
+      }
+      llmResponse = textBlock.text;
+    } catch (error: unknown) {
+      const err = error as Error & { status?: number };
+      if (err.status === 429) {
+        return errorResponse(429, 'AI_RATE_LIMITED', 'AI API rate limit exceeded');
+      }
+      if (err.name === 'TimeoutError' || err.message?.includes('timeout')) {
+        return errorResponse(504, 'AI_TIMEOUT', 'AI analysis timed out');
+      }
+      console.error('Claude API error:', err);
+      return errorResponse(500, 'AI_CALL_FAILED', `Claude API error: ${err.message}`);
+    }
+
+    // ─── 6. Parse JSON response ─────────────────────────────────
+    let parsedLlm: unknown;
+    try {
+      // Handle potential markdown code block wrapping
+      let jsonStr = llmResponse.trim();
+      if (jsonStr.startsWith('```json')) {
+        jsonStr = jsonStr.slice(7);
+      } else if (jsonStr.startsWith('```')) {
+        jsonStr = jsonStr.slice(3);
+      }
+      if (jsonStr.endsWith('```')) {
+        jsonStr = jsonStr.slice(0, -3);
+      }
+      parsedLlm = JSON.parse(jsonStr.trim());
+    } catch {
+      console.error('LLM JSON parse error. Raw response:', llmResponse.substring(0, 500));
+      return errorResponse(500, 'ANALYSIS_OUTPUT_INVALID', 'LLM output is not valid JSON');
+    }
+
+    // ─── 7. Validate LLM output against schema ─────────────────
+    const llmValidation = validateLlmRawOutput(parsedLlm);
+    if (!llmValidation.valid) {
+      console.error('LLM output validation errors:', llmValidation.errors);
+      return errorResponse(500, 'ANALYSIS_OUTPUT_INVALID', `LLM output does not match schema: ${llmValidation.errors!.join('; ')}`);
+    }
+
+    const llmData = llmValidation.data!;
+
+    // ─── 8. Calculate global score (canonical formula, SERVER-SIDE) ──
+    const analysis = llmData.analysis as AnalysisAxes;
+    const globalScore = calculateGlobalScore(analysis);
+
+    // ─── 9. Determine decision (canonical rules, SERVER-SIDE) ───
+    const decisionResult = determineDecision(
+      globalScore,
+      analysis,
+      llmData.decision.confidence_level
+    );
+
+    // ─── 10. Detect enrichment triggers ─────────────────────────
+    const enrichment = computeEnrichmentDecision(
+      analysis,
+      globalScore,
+      llmData.decision.confidence_level
+    );
+
+    // ─── 11. Determine inputs_used ──────────────────────────────
+    const inputsUsed: ('text' | 'voice' | 'link' | 'file')[] = [];
+    if (input.inputs.text) {
+      inputsUsed.push(input.inputs.text.source === 'voice_transcript' ? 'voice' : 'text');
+    }
+    if (input.inputs.links && input.inputs.links.length > 0) {
+      inputsUsed.push('link');
+    }
+    if (input.inputs.files && input.inputs.files.length > 0) {
+      inputsUsed.push('file');
+    }
+
+    // ─── 12. Assemble canonical output ──────────────────────────
+    const analysisId = crypto.randomUUID();
+
+    const output: AnalysisOutput = {
+      meta: {
+        schema_version: SCHEMA_VERSION,
+        analysis_id: analysisId,
+        timestamp: new Date().toISOString(),
+        orchestrator_version: `v${CURRENT_VERSION.replace('v', '')}`,
+        model: AI_MODEL,
+      },
+      idea: {
+        idea_id: input.idea.idea_id,
+        title: llmData.idea.title,
+        raw_summary: llmData.idea.raw_summary,
+        inputs_used: inputsUsed.length > 0 ? inputsUsed : ['text'],
+      },
+      analysis,
+      scores: {
+        global_score: globalScore,
+        weights: CANONICAL_WEIGHTS,
+      },
+      decision: {
+        recommendation: decisionResult.recommendation,
+        confidence_level: llmData.decision.confidence_level,
+        summary: llmData.decision.summary,
+      },
+      risks: llmData.risks as AnalysisOutput['risks'],
+      levers: llmData.levers as AnalysisOutput['levers'],
+      enrichment,
+      lab_orientation: llmData.lab_orientation as AnalysisOutput['lab_orientation'],
+    };
+
+    // ─── 13. Log for traceability ───────────────────────────────
+    const duration = Date.now() - startTime;
+    console.log(JSON.stringify({
+      event: 'analysis_complete',
+      request_id: input.meta.request_id,
+      analysis_id: analysisId,
+      prompt_version: CURRENT_VERSION,
+      model: AI_MODEL,
+      schema_version: SCHEMA_VERSION,
+      global_score: globalScore,
+      recommendation: decisionResult.recommendation,
+      enrichment_required: enrichment.required,
+      duration_ms: duration,
+      success: true,
+    }));
+
+    return NextResponse.json(output, { status: 200 });
+
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('Unexpected analysis error:', err);
+    return errorResponse(500, 'INTERNAL_ERROR', `Unexpected error: ${err.message}`);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ERROR HELPER
+// ═══════════════════════════════════════════════════════════════════
+
+function errorResponse(status: number, code: string, message: string): NextResponse<ApiError> {
+  return NextResponse.json(
+    {
+      error: {
+        code,
+        message,
+        details: { schema_version: SCHEMA_VERSION },
+      },
+    },
+    { status }
+  );
+}

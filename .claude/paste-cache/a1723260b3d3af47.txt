@@ -1,0 +1,11 @@
+Comme tu peux le voir sur la page workspace, il y a une section de bienvenu qui dit "Bonjour Thomas". Thomas est un prénom par défaut, parce qu'on n'a pas encore initié dans le système l'enregistrement du prénom de l'entité de la personne de l'utilisateur.
+
+Ce qui va se passer, c'est qu'on pourra lors de l'inscription demander le nom de la personne ou de l'entité, si la personne s'inscrit comme une entreprise ou comme une personne physique (un particulier). Admettra le nom qu'elle veut donner à son laboratoire.
+
+Il faudrait également qu'on puisse pour une personne qui a déjà un compte qu'elle puisse changer ce genre d'information dans les paramètres, qu'on peut retrouver en cliquant sur le bouton de l'utilisateur dans le header à droite.
+
+On a le bouton qui permet d'ouvrir un petit menu, notamment pour se rendre dans la bibliothèque et/ou dans les paramètres.
+
+Tu vas changer dans ce menu "Bibliothèque par projet", "Bibliothèque projet" ou "Dossier projet". Celui qui colle le plus avec ce qu'il y a déjà d'implémenté.
+
+Et si on clique sur "Paramètres", effectivement, une page "Paramètres" s'ouvre avec des paramétrages et des configurations de base pour configurer un profil. 

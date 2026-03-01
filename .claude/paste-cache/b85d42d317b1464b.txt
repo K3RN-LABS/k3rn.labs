@@ -1,0 +1,47 @@
+TICKET_00.2A — SEP Postgres Migration (atomic)
+
+OBJECTIF
+Créer les tables nécessaires au SEP dans la base PostgreSQL RDS déjà connectée via credential Postgres dans n8n.
+
+CONTRAINTES
+- Ne modifier aucun autre node.
+- Ne pas refactorer le workflow existant.
+- Ajouter un seul node temporaire nommé "SEP_MIGRATION".
+- Utiliser le credential Postgres déjà configuré.
+- Exécuter uniquement ce node.
+- Ne pas changer l’architecture actuelle.
+
+ACTIONS A FAIRE
+
+1) Dupliquer le node "SEP_RETRIEVE"
+2) Renommer le duplicata en "SEP_MIGRATION"
+3) Operation: Execute Query
+4) Remplacer la requête par :
+
+CREATE TABLE IF NOT EXISTS sep_threads (
+  thread_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  title TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS sep_messages (
+  id BIGSERIAL PRIMARY KEY,
+  thread_id TEXT NOT NULL REFERENCES sep_threads(thread_id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
+  role TEXT NOT NULL,
+  content TEXT NOT NULL,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_sep_messages_thread
+ON sep_messages(thread_id, created_at DESC);
+
+5) Exécuter uniquement le node "SEP_MIGRATION"
+6) Confirmer succès
+7) Ne rien supprimer pour l’instant
+
+VALIDATION
+Retour attendu : succès sans erreur.

@@ -1,0 +1,149 @@
+// lib/auth-helpers.ts
+// Reusable authentication and authorization helpers for API routes
+
+import { createClient } from '@/lib/supabase/server'
+import { prisma } from '@/lib/prisma'
+import type { User } from '@supabase/supabase-js'
+
+/**
+ * Get the authenticated user from Supabase
+ * @throws Error if user is not authenticated
+ * @returns Authenticated user object
+ */
+export async function getAuthUser(): Promise<User> {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+        throw new Error('Unauthorized')
+    }
+
+    return user
+}
+
+/**
+ * Verify that a user owns a project
+ * @param projectId - The project ID to check
+ * @param userId - The user ID to verify ownership
+ * @throws Error if project not found or user is not the owner
+ * @returns The project if ownership is verified
+ */
+export async function verifyProjectOwnership(projectId: string, userId: string) {
+    const project = await prisma.projects.findUnique({
+        where: { id: projectId },
+    })
+
+    if (!project) {
+        throw new Error('Project not found')
+    }
+
+    if (project.user_id !== userId) {
+        throw new Error('Forbidden')
+    }
+
+    return project
+}
+
+/**
+ * Verify that a user owns a card (via workspace.project ownership)
+ * @param cardId - The card ID to check
+ * @param userId - The user ID to verify ownership
+ * @throws Error if card not found or user is not the owner
+ * @returns The card with workspace and project if ownership is verified
+ */
+export async function verifyCardOwnership(cardId: string, userId: string) {
+    const card = await prisma.cards.findUnique({
+        where: { id: cardId },
+        include: {
+            workspaces: {
+                include: {
+                    projects: true,
+                },
+            },
+        },
+    })
+
+    if (!card) {
+        throw new Error('Card not found')
+    }
+
+    if (card.workspaces.projects.user_id !== userId) {
+        throw new Error('Forbidden')
+    }
+
+    return card
+}
+
+/**
+ * Verify that a user owns a workspace
+ * @param workspaceId - The workspace ID to check
+ * @param userId - The user ID to verify ownership
+ * @throws Error if workspace not found or user is not the owner
+ * @returns The workspace with project if ownership is verified
+ */
+export async function verifyWorkspaceOwnership(workspaceId: string, userId: string) {
+    const workspace = await prisma.workspaces.findUnique({
+        where: { id: workspaceId },
+        include: {
+            projects: true,
+        },
+    })
+
+    if (!workspace) {
+        throw new Error('Workspace not found')
+    }
+
+    if (workspace.projects.user_id !== userId) {
+        throw new Error('Forbidden')
+    }
+
+    return workspace
+}
+
+/**
+ * Verify that a user owns a conversation
+ * @param conversationId - The conversation ID to check
+ * @param userId - The user ID to verify ownership
+ * @throws Error if conversation not found or user is not the owner
+ * @returns The conversation with project if ownership is verified
+ */
+export async function verifyConversationOwnership(conversationId: string, userId: string) {
+    const conversation = await prisma.conversations.findUnique({
+        where: { id: conversationId },
+        include: {
+            projects: true,
+        },
+    })
+
+    if (!conversation) {
+        throw new Error('Conversation not found')
+    }
+
+    if (conversation.projects.user_id !== userId) {
+        throw new Error('Forbidden')
+    }
+
+    return conversation
+}
+
+/**
+ * Handle auth errors consistently across API routes
+ * @param error - The error to handle
+ * @returns Response with appropriate status code
+ */
+export function handleAuthError(error: unknown): Response {
+    if (error instanceof Error) {
+        if (error.message === 'Unauthorized') {
+            return new Response('Unauthorized', { status: 401 })
+        }
+        if (error.message === 'Forbidden') {
+            return new Response('Forbidden', { status: 403 })
+        }
+        if (error.message.includes('not found')) {
+            return new Response('Not found', { status: 404 })
+        }
+    }
+
+    console.error('Auth error:', error)
+    return new Response('Internal Server Error', { status: 500 })
+}

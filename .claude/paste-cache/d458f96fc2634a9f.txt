@@ -1,0 +1,198 @@
+<prompt>
+  <meta>
+    <project>Wind Boost</project>
+    <mode>Claude Code</mode>
+    <intent>Align Skills Stack ↔ TicketPack + Agent-resolved Skill Activation + FTS5 UI/UX search fix</intent>
+    <commit_policy>atomic_per_business_block</commit_policy>
+  </meta>
+
+  <task_context>
+    <role>Senior Full-Stack Engineer</role>
+    <objective>
+      Aligner les deux pages du SaaS (Skills Explorer + TicketPack Generator) pour:
+      1) Permettre l’import d’un stack skills (JSON/MD) dans TicketPack.
+      2) Remplacer l’export catalogue par un export activable: skill_stack.activation.xml (+ JSON minimal).
+      3) Injecter ce bloc skills activable dans TicketPack.prompts.global_prompt sans inclure les contenus complets des skills.
+      4) Faire résoudre/activer les skills dynamiquement par Claude via exploration du repo (.agent/skills/{slug}).
+      5) Corriger le bug FTS5: recherches courtes "UI" / "UX" doivent renvoyer des résultats.
+    </objective>
+
+    <definition_of_done>
+      <item>Page Skills: export inclut skill_stack.activation.xml + un JSON minimal (skills ids/slugs/priorities).</item>
+      <item>Page TicketPack: section “Skills stack (optionnel)” permet coller/importer le JSON minimal exporté.</item>
+      <item>TicketPack generator: si skills fournies, elles sont injectées dans global_prompt sous forme protocolaire (agent-resolved), sans inline SKILL.md.</item>
+      <item>Claude Code reçoit un protocole clair: aller lire .agent/skills/{slug}/SKILL.md + références pertinentes uniquement.</item>
+      <item>Recherche FTS5 renvoie des résultats pour UI/UX (short tokens) sans casser les recherches existantes.</item>
+      <item>Build passe.</item>
+      <item>Commits atomiques respectés (1 bloc métier = 1 commit; pas de mélange UI/logic/outillage).</item>
+    </definition_of_done>
+  </task_context>
+
+  <repo_context>
+    <known_stack>
+      Next.js 15 (App Router) + React 19 + TypeScript + Tailwind
+      SQLite (better-sqlite3) + FTS5
+      API: src/app/api/*
+    </known_stack>
+
+    <paths_to_review priority="critical">
+      <path>.agent/skills/</path>
+      <path>src/app/api/search/</path>
+      <path>src/lib/db.ts</path>
+
+      <path>src/app/api/export/</path>
+      <path>src/components/StackPanel.tsx (ou composant stack builder)</path>
+      <path>src/components/ResultsList.tsx</path>
+
+      <path>src/app/api/ticketpack/generate/route.ts</path>
+      <path>src/lib/ticketpack/prompts.ts</path>
+      <path>src/components/ticketpack/InputForm.tsx</path>
+      <path>src/app/ticketpack/page.tsx</path>
+
+      <path>Skills/ (si utilisé)</path>
+    </paths_to_review>
+  </repo_context>
+
+  <global_rules>
+    <rule id="1">Ne pas injecter le contenu complet des skills dans les prompts. Uniquement: slug + priorité + protocole de résolution.</rule>
+    <rule id="2">La résolution des skills doit se faire par navigation repo (.agent/skills/{slug}/SKILL.md), lecture ciblée, budget de contexte strict.</rule>
+    <rule id="3">Ne pas refactor massivement. Ajouter des modules et relier les flux avec changements minimaux.</rule>
+    <rule id="4">FTS5: corriger UI/UX sans dégrader la pertinence globale. Ajouter tests/smoke minimal si possible.</rule>
+    <rule id="5">Commits atomiques obligatoires:
+      - un commit par bloc ci-dessous
+      - pas de mélange UI/logic/outillage.
+    </rule>
+  </global_rules>
+
+  <business_blocks>
+
+    <!-- BLOCK 1: Skill Stack Export v2 (JSON minimal + activation XML) -->
+    <block id="1">
+      <name>Skill Stack Export v2: JSON minimal + activation XML</name>
+
+      <requirements>
+        <item>Ajouter un nouvel export JSON minimal (ex: skill_stack.min.json) contenant uniquement: version, skills[{id,slug,priority}]</item>
+        <item>Ajouter un nouvel export: skill_stack.activation.xml (agent-resolved).</item>
+        <item>Conserver exports existants MD/JSON “catalogue” (pas de breaking change), mais exposer un bouton/option “Export (Claude Code)” ou “Export Activation”.</item>
+      </requirements>
+
+      <activation_xml_spec>
+        <![CDATA[
+<skills_context mode="agent-resolved">
+  <skills>
+    <skill slug="3d-web-experience" priority="primary"/>
+    <skill slug="ab-test-setup" priority="support"/>
+  </skills>
+
+  <resolution_protocol>
+    <step>For each skill, navigate to .agent/skills/{slug}/</step>
+    <step>Read SKILL.md first.</step>
+    <step>If a reference/ folder exists, read only files that are directly required for the current ticket.</step>
+    <step>Extract: activation steps, constraints, stop conditions. Apply them while implementing.</step>
+    <step>Do not load unrelated skills or the full catalogue. Keep context minimal.</step>
+  </resolution_protocol>
+
+  <stop_conditions>
+    <stop>If the slug folder does not exist, STOP and report missing skill mapping.</stop>
+    <stop>If instructions conflict, STOP and ask for precedence (primary over support unless specified).</stop>
+  </stop_conditions>
+</skills_context>
+        ]]>
+      </activation_xml_spec>
+
+      <implementation_notes>
+        <item>Il faut pouvoir mapper id → slug. Utiliser la DB (skills table) si slug/identifier existe, sinon dériver du name + normalisation (mais préférer DB).</item>
+        <item>Si la page skills stocke déjà un “id”, réutiliser.</item>
+      </implementation_notes>
+
+      <commit_message>feat(skills): add activation exports (min json + activation xml)</commit_message>
+    </block>
+
+    <!-- BLOCK 2: TicketPack Import Skills Stack (paste JSON) + injection global_prompt -->
+    <block id="2">
+      <name>TicketPack: Import skills stack JSON + injection skills_context</name>
+
+      <requirements>
+        <item>Ajouter à la page /ticketpack une section “Skills stack (optionnel)” permettant de coller le JSON minimal exporté depuis la page Skills.</item>
+        <item>Parser/valider côté client (validation simple) puis envoyer au endpoint generate.</item>
+        <item>Modifier TicketPack generator pour accepter selectedSkills (liste id/slug/priority).</item>
+        <item>Dans src/lib/ticketpack/prompts.ts: injecter le bloc skills_context mode="agent-resolved" dans global_prompt, et référencer le protocole de résolution.</item>
+        <item>Ne pas charger SKILL.md dans le prompt global. Seulement slugs + protocole.</item>
+      </requirements>
+
+      <ui_spec>
+        <item>Textarea “Coller un skills stack JSON”</item>
+        <item>Bouton “Valider / Prévisualiser” (facultatif) affichant la liste des slugs + priorités</item>
+        <item>Si JSON absent: génération continue avec reco skills automatique existante (si déjà implémentée), sinon aucun skill injecté.</item>
+      </ui_spec>
+
+      <commit_message>feat(ticketpack): allow skills stack import and inject agent-resolved skills_context</commit_message>
+    </block>
+
+    <!-- BLOCK 3: Optional bridge UX (copy from Skills page) using localStorage -->
+    <block id="3">
+      <name>Bridge UX minimal (optionnel): localStorage handoff</name>
+
+      <requirements>
+        <item>Quand l’utilisateur exporte un stack (JSON minimal), stocker aussi une copie dans localStorage (key: windboost.skillStack.min.v1).</item>
+        <item>Sur /ticketpack, bouton “Importer depuis Skills” qui lit localStorage et remplit la textarea.</item>
+      </requirements>
+
+      <rule>
+        Ne pas rendre TicketPack dépendant de localStorage: c’est un convenience layer seulement.
+      </rule>
+
+      <commit_message>feat(ux): add localStorage handoff between skills and ticketpack</commit_message>
+    </block>
+
+    <!-- BLOCK 4: Fix FTS5 search for short tokens (UI/UX) -->
+    <block id="4">
+      <name>Fix FTS5 short-token search (UI/UX)</name>
+
+      <diagnosis_required>
+        <item>Identifier pourquoi "UI" / "UX" renvoie 0 résultat: tokenization, min token length, query builder, MATCH usage.</item>
+        <item>Inspecter l’implémentation /api/search: comment construit la requête FTS.</item>
+      </diagnosis_required>
+
+      <fix_spec>
+        <item>Supporter la recherche de tokens courts via stratégie:
+          - fallback LIKE sur name/tags quand query.length &lt;= 2
+          - ou utiliser prefix query (UI*) si compatible
+          - ou normaliser query (lowercase) + quotes
+        </item>
+        <item>Ne pas casser la pertinence BM25 existante.</item>
+        <item>Ajouter un mini smoke test manuel documenté (ou petit test utilitaire si existant).</item>
+      </fix_spec>
+
+      <commit_message>fix(search): support short queries (UI/UX) with safe fallback</commit_message>
+    </block>
+
+  </business_blocks>
+
+  <verification>
+    <commands>
+      <command>npm run build</command>
+      <command>npm run dev</command>
+    </commands>
+    <manual_smoke>
+      <item>Skills page: rechercher “UI” puis “UX” → vérifier résultats.</item>
+      <item>Construire un stack (2 skills), exporter JSON minimal + activation XML.</item>
+      <item>/ticketpack: coller JSON minimal, générer pack, vérifier que global_prompt contient skills_context.</item>
+      <item>Exporter ticketpack et vérifier fichiers générés.</item>
+    </manual_smoke>
+  </verification>
+
+  <output_format>
+    <response>
+      <section name="analysis">Diagnostic repo + décisions clés (mapping id→slug, stratégie FTS5).</section>
+      <section name="plan">Plan par blocs + fichiers impactés (avant coding).</section>
+      <section name="implementation">Exécution bloc par bloc (respect commits atomiques).</section>
+      <section name="commits">Liste commits (hash + message).</section>
+      <section name="verification">Résultats build + smoke tests.</section>
+    </response>
+  </output_format>
+
+  <prefill_assistant>
+    <response><section name="analysis">
+  </prefill_assistant>
+</prompt>

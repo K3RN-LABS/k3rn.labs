@@ -1,0 +1,99 @@
+<prompt>
+  <task_context>
+    <role>Senior Full-Stack Engineer</role>
+    <objective>
+      Add a production-grade "Skill Sources" subsystem to Wind Boost so the app
+      can index skills beyond the local .agent folder when deployed online.
+      Implement index-only ingestion from GitHub repositories (no scraping of SkillsMP),
+      with provenance, licensing metadata, and deterministic sync jobs.
+    </objective>
+    <constraints>
+      <rule>Do NOT scrape SkillsMP (Terms forbid systematic scraping).</rule>
+      <rule>Default to index-only: store metadata + repo_url + license; do not mirror SKILL.md content unless explicitly enabled later.</rule>
+      <rule>Atomic commits: one business block per commit. Stop if scope mixes.</rule>
+      <rule>Keep existing local skills workflow working unchanged.</rule>
+    </constraints>
+  </task_context>
+
+  <repo_focus>
+    <important_paths>
+      <path>src/lib/db.ts</path>
+      <path>src/app/api/search/route.ts</path>
+      <path>src/app/api/metadata/route.ts</path>
+      <path>src/lib/parser.ts</path>
+      <path>src/app/page.tsx</path>
+      <path>src/components/</path>
+    </important_paths>
+  </repo_focus>
+
+  <block id="1">
+    <title>DB schema: skill_sources + external_skill_refs</title>
+    <requirements>
+      <item>Add tables:
+        - skill_sources(id, name, type, config_json, terms_url, enabled, last_sync_at)
+        - external_skill_refs(id, source_id, slug, name, description, tags_json, triggers_json, license, repo_url, version, sha, last_seen_at)
+      </item>
+      <item>Ensure search can query both local skills and external_skill_refs (union results with a source flag).</item>
+      <item>Migration strategy: add SQL in a deterministic init step (same approach as current db bootstrap).</item>
+    </requirements>
+    <commit_message>feat(sources): add DB tables for skill sources and external refs</commit_message>
+  </block>
+
+  <block id="2">
+    <title>GitHub repo ingestion (index-only)</title>
+    <requirements>
+      <item>Create an API route POST /api/sources/sync that accepts:
+        { sourceId } and runs a deterministic sync.</item>
+      <item>Ingestion method:
+        - Given a GitHub repo URL in source config
+        - Fetch repository tree via GitHub API (unauth if possible; support token via env if configured)
+        - Discover SKILL.md files (or skills/*/SKILL.md patterns)
+        - Parse frontmatter + key fields into external_skill_refs
+        - Store repo_url, license if detectable, sha/commit
+      </item>
+      <item>Do not download optional scripts/templates; metadata only.</item>
+      <item>Track last_seen_at and prune removed skills for that source.</item>
+    </requirements>
+    <commit_message>feat(sources): implement github repo index-only ingestion</commit_message>
+  </block>
+
+  <block id="3">
+    <title>UI: manage sources</title>
+    <requirements>
+      <item>Add /sources page:
+        - list sources (Local + GitHub)
+        - create GitHub source by pasting repo URL + optional token note
+        - enable/disable
+        - sync now button
+        - show last sync + number of indexed skills
+      </item>
+      <item>In Skills search results, mark external skills with a badge (e.g. "GitHub") and include repo_url in the detail view.</item>
+    </requirements>
+    <commit_message>feat(ui): add sources management page and external skill badges</commit_message>
+  </block>
+
+  <block id="4">
+    <title>Resolution protocol integration (prompts)</title>
+    <requirements>
+      <item>When exporting activation-xml or injecting skills_context into TicketPack:
+        - if skill is external, include repo_url and instruct Claude Code to clone/install and read SKILL.md at runtime.
+      </item>
+      <item>Add stop conditions: if repo unavailable or license incompatible, stop and report.</item>
+    </requirements>
+    <commit_message>chore(prompts): add external skill resolution protocol</commit_message>
+  </block>
+
+  <verification>
+    <item>npm run build passes</item>
+    <item>Add a GitHub source pointing to a small public skills repo; sync; search returns results marked external.</item>
+    <item>Export activation-xml includes repo_url for external skills.</item>
+  </verification>
+
+  <output_format>
+    <response>
+      <section name="analysis"/>
+      <section name="commits"/>
+      <section name="verification"/>
+    </response>
+  </output_format>
+</prompt>

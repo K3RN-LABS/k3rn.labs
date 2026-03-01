@@ -1,0 +1,256 @@
+"use client";
+
+import { useState } from "react";
+import { motion } from "framer-motion";
+import Link from "next/link";
+import Header from "@/components/Header";
+import BrainDumpInput from "@/components/BrainDumpInput";
+import ProjectCard from "@/components/ProjectCard";
+import FeatureCard from "@/components/FeatureCard";
+import DeliverableCard from "@/components/DeliverableCard";
+import Button from "@/components/ui/Button";
+import { fadeInUp, staggerContainer } from "@/lib/animations";
+import { mockProjects, bmadSteps, deliverables } from "@/lib/mock-data";
+
+export default function HomePage() {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleBrainDump = async (text: string) => {
+    setIsLoading(true);
+    console.log("Brain dump submitted:", text);
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    setIsLoading(false);
+    // TODO: Redirect to project creation flow
+  };
+
+  return (
+    <div className="min-h-screen">
+      <Header />
+
+      {/* Hero Section */}
+      <section className="relative overflow-hidden">
+        {/* Gradient background */}
+        <div
+          className="absolute inset-0 bg-gradient-radial from-orange-500/10 via-transparent to-transparent"
+          style={{
+            background:
+              "radial-gradient(circle at 50% 0%, rgba(249,115,22,0.08) 0%, transparent 50%)",
+          }}
+        />
+
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-32 lg:py-40 relative">
+          <motion.div
+            variants={staggerContainer}
+            initial="initial"
+            animate="animate"
+            className="max-w-5xl mx-auto text-center space-y-8"
+          >
+            {/* Title */}
+            <motion.h1
+              variants={fadeInUp}
+              className="text-5xl sm:text-7xl lg:text-8xl font-extrabold text-fg-primary leading-tight"
+            >
+              Idée. Structure. Code.
+            </motion.h1>
+
+            {/* Subtitle */}
+            <motion.p
+              variants={fadeInUp}
+              className="text-xl sm:text-2xl text-fg-secondary max-w-3xl mx-auto leading-relaxed"
+            >
+              Transformez votre idée en projet structuré prêt pour le
+              développement. Méthodologie BMAD, prompts séquencés et context
+              files optimisés pour l&apos;IA.
+            </motion.p>
+
+            {/* Brain Dump Input */}
+            <motion.div variants={fadeInUp} className="pt-8">
+              <BrainDumpInput onSubmit={handleBrainDump} isLoading={isLoading} />
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Features BMAD Section */}
+      <section className="py-20 sm:py-32">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Section Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl sm:text-5xl font-bold text-fg-primary mb-4">
+              Méthodologie BMAD
+            </h2>
+            <p className="text-lg text-fg-secondary max-w-2xl mx-auto">
+              Une approche structurée en 7 étapes pour transformer votre idée en
+              projet prêt à développer
+            </p>
+          </motion.div>
+
+          {/* Features Grid */}
+          <motion.div
+            variants={staggerContainer}
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true, margin: "-100px" }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
+            {bmadSteps.map((step, index) => (
+              <FeatureCard
+                key={index}
+                icon={step.icon}
+                title={step.title}
+                description={step.description}
+                index={index}
+              />
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Projects Gallery */}
+      <section className="py-20 sm:py-32 bg-gradient-to-b from-transparent via-neutral-950/50 to-transparent">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Section Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl sm:text-5xl font-bold text-fg-primary mb-4">
+              Projets Exemples
+            </h2>
+            <p className="text-lg text-fg-secondary max-w-2xl mx-auto">
+              Découvrez des projets structurés avec k3rn, prêts pour le
+              développement
+            </p>
+          </motion.div>
+
+          {/* Projects Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            {mockProjects.map((project) => (
+              <ProjectCard
+                key={project.id}
+                id={project.id}
+                title={project.title}
+                description={project.description}
+                thumbnail={project.thumbnail}
+                completionRate={project.completionRate}
+                features={project.features}
+                status={project.status}
+                createdAt={project.createdAt}
+              />
+            ))}
+          </div>
+
+          {/* CTA Button */}
+          <div className="text-center">
+            <Link href="/projects">
+              <Button variant="secondary" size="lg">
+                Voir tous les projets
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Deliverables Showcase */}
+      <section className="py-20 sm:py-32">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Section Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl sm:text-5xl font-bold text-fg-primary mb-4">
+              Ce que vous recevez
+            </h2>
+            <p className="text-lg text-fg-secondary max-w-2xl mx-auto">
+              Un package complet pour démarrer le développement avec l&apos;IA
+            </p>
+          </motion.div>
+
+          {/* Deliverables Grid */}
+          <motion.div
+            variants={staggerContainer}
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true, margin: "-100px" }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+          >
+            {deliverables.map((deliverable, index) => (
+              <DeliverableCard
+                key={index}
+                icon={deliverable.icon}
+                title={deliverable.title}
+                description={deliverable.description}
+                items={deliverable.items}
+                index={index}
+              />
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* CTA Final */}
+      <section className="py-20 sm:py-32 bg-gradient-to-b from-transparent via-orange-500/5 to-transparent">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="max-w-3xl mx-auto text-center space-y-8"
+          >
+            <h2 className="text-4xl sm:text-6xl font-bold text-fg-primary">
+              Prêt à transformer ton idée ?
+            </h2>
+            <p className="text-xl text-fg-secondary">
+              Commence maintenant et obtiens ton package complet en quelques
+              minutes
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+              <Button variant="primary" size="lg" className="min-w-[240px]">
+                Commencer maintenant
+              </Button>
+              <Link href="#features">
+                <Button variant="secondary" size="lg" className="min-w-[240px]">
+                  En savoir plus
+                </Button>
+              </Link>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-neutral-800 py-12">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 via-orange-600 to-orange-700 flex items-center justify-center">
+                <span className="text-white font-bold text-sm">k3</span>
+              </div>
+              <span className="text-lg font-semibold text-fg-primary">
+                k3rn
+              </span>
+            </div>
+            <p className="text-sm text-fg-tertiary">
+              © 2024 k3rn. Tous droits réservés.
+            </p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}

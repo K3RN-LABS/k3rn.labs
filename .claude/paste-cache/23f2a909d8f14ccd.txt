@@ -1,0 +1,695 @@
+# K3RN.LABS — SCHÉMA DB + SYSTEM PROMPT XO
+## Fondations de l'OS Personnel d'Intelligence Opérationnelle
+
+**Version** : 1.0 | **Stack** : PostgreSQL + pgvector | **Date** : 2026-02
+
+---
+
+## PARTIE 1 — SCHÉMA DE BASE DE DONNÉES
+
+### Vue d'ensemble des tables
+
+```
+utilisateurs
+    └──► projets
+              └──► sessions
+                       └──► messages
+              └──► documents
+              └──► decisions
+              └──► poles_activations
+logs_systeme
+chunks_vectorises (pgvector)
+```
+
+---
+
+### TABLE : utilisateurs
+
+```sql
+CREATE TABLE utilisateurs (
+    utilisateur_id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    telegram_id       BIGINT UNIQUE NOT NULL,
+    nom               VARCHAR(100),
+    role              VARCHAR(50) DEFAULT 'patron',   -- patron | collaborateur
+    preferences       JSONB DEFAULT '{}',             -- langue, ton, format_prefere
+    created_at        TIMESTAMPTZ DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index
+CREATE INDEX idx_utilisateurs_telegram ON utilisateurs(telegram_id);
+```
+
+---
+
+### TABLE : projets
+
+```sql
+CREATE TABLE projets (
+    projet_id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    utilisateur_id    UUID REFERENCES utilisateurs(utilisateur_id),
+    hashtag           VARCHAR(50) UNIQUE NOT NULL,    -- ex: 'Striv', 'K3rn'
+    nom               VARCHAR(200) NOT NULL,
+    description       TEXT,
+    secteur           VARCHAR(100),
+    statut            VARCHAR(50) DEFAULT 'actif',    -- actif | pause | archive | go_labo
+    score_qualification FLOAT,                        -- 0-100, issu de l'évaluation
+    recommandation    VARCHAR(20),                    -- GO | PIVOT | NO-GO | null
+    brief_executif    TEXT,                           -- résumé 500 tokens max
+    metadonnees       JSONB DEFAULT '{}',             -- données structurées flexibles
+    created_at        TIMESTAMPTZ DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index
+CREATE INDEX idx_projets_utilisateur ON projets(utilisateur_id);
+CREATE INDEX idx_projets_hashtag ON projets(hashtag);
+CREATE INDEX idx_projets_statut ON projets(statut);
+```
+
+---
+
+### TABLE : sessions
+
+```sql
+CREATE TABLE sessions (
+    session_id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    projet_id         UUID REFERENCES projets(projet_id),
+    utilisateur_id    UUID REFERENCES utilisateurs(utilisateur_id),
+    pole_actif        VARCHAR(50) DEFAULT 'XO',       -- XO | STRATEGIE | FINANCE | MARKETING | PRODUIT | RISK
+    etat              VARCHAR(50) DEFAULT 'ouvert',   -- ouvert | en_pause | ferme
+    resume_session    TEXT,                           -- résumé compressé de la session (≤800 tokens)
+    nb_messages       INT DEFAULT 0,
+    tokens_consommes  INT DEFAULT 0,
+    started_at        TIMESTAMPTZ DEFAULT NOW(),
+    last_activity     TIMESTAMPTZ DEFAULT NOW(),
+    closed_at         TIMESTAMPTZ
+);
+
+-- Index
+CREATE INDEX idx_sessions_projet ON sessions(projet_id);
+CREATE INDEX idx_sessions_utilisateur ON sessions(utilisateur_id);
+CREATE INDEX idx_sessions_activite ON sessions(last_activity DESC);
+```
+
+---
+
+### TABLE : messages
+
+```sql
+CREATE TABLE messages (
+    message_id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id        UUID REFERENCES sessions(session_id),
+    projet_id         UUID REFERENCES projets(projet_id),
+    role              VARCHAR(20) NOT NULL,            -- user | assistant | system
+    pole_emetteur     VARCHAR(50),                     -- XO | STRATEGIE | FINANCE | etc.
+    contenu           TEXT NOT NULL,
+    contenu_structure JSONB,                           -- version JSON si output structuré
+    tokens_input      INT DEFAULT 0,
+    tokens_output     INT DEFAULT 0,
+    modele_utilise    VARCHAR(100),                    -- gpt-4o | claude-sonnet-4 | etc.
+    latence_ms        INT,
+    created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index
+CREATE INDEX idx_messages_session ON messages(session_id);
+CREATE INDEX idx_messages_projet ON messages(projet_id);
+CREATE INDEX idx_messages_created ON messages(created_at DESC);
+```
+
+---
+
+### TABLE : documents
+
+```sql
+CREATE TABLE documents (
+    document_id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    projet_id         UUID REFERENCES projets(projet_id),
+    utilisateur_id    UUID REFERENCES utilisateurs(utilisateur_id),
+    type              VARCHAR(50),                     -- fiche_concept | rapport | brainstorming | note | fichier_externe
+    titre             VARCHAR(300),
+    contenu_texte     TEXT,                           -- contenu brut
+    contenu_structure JSONB,                          -- version structurée (fiche concept, etc.)
+    format_source     VARCHAR(20),                    -- texte | pdf | markdown | audio_transcrit
+    version           INT DEFAULT 1,
+    est_archive       BOOLEAN DEFAULT FALSE,
+    created_at        TIMESTAMPTZ DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index
+CREATE INDEX idx_documents_projet ON documents(projet_id);
+CREATE INDEX idx_documents_type ON documents(type);
+```
+
+---
+
+### TABLE : decisions
+
+```sql
+CREATE TABLE decisions (
+    decision_id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    projet_id         UUID REFERENCES projets(projet_id),
+    session_id        UUID REFERENCES sessions(session_id),
+    type_decision     VARCHAR(100),                   -- pivot | go | no-go | orientation | validation
+    description       TEXT NOT NULL,
+    contexte          TEXT,                           -- pourquoi cette décision
+    prise_par         VARCHAR(50) DEFAULT 'patron',   -- patron | XO (si délégué)
+    statut            VARCHAR(30) DEFAULT 'active',   -- active | supersedee | annulee
+    created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index
+CREATE INDEX idx_decisions_projet ON decisions(projet_id);
+```
+
+---
+
+### TABLE : poles_activations
+
+```sql
+CREATE TABLE poles_activations (
+    activation_id     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id        UUID REFERENCES sessions(session_id),
+    projet_id         UUID REFERENCES projets(projet_id),
+    pole              VARCHAR(50) NOT NULL,           -- STRATEGIE | FINANCE | MARKETING | PRODUIT | RISK
+    declenche_par     VARCHAR(50),                    -- hashtag | XO_inference | menu
+    signal_input      TEXT,                           -- le hashtag ou signal qui a déclenché
+    tokens_consommes  INT DEFAULT 0,
+    succes            BOOLEAN DEFAULT TRUE,
+    created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+---
+
+### TABLE : chunks_vectorises (pgvector)
+
+```sql
+-- Nécessite : CREATE EXTENSION vector;
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE chunks_vectorises (
+    chunk_id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    projet_id         UUID REFERENCES projets(projet_id),
+    source_type       VARCHAR(50),                    -- message | document | decision | resume_session
+    source_id         UUID,                           -- ID de la source
+    contenu_texte     TEXT NOT NULL,                  -- le chunk en clair
+    embedding         vector(1536),                   -- text-embedding-3-small OpenAI
+    metadonnees       JSONB DEFAULT '{}',             -- pole, date, pertinence
+    created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index vectoriel pour recherche sémantique rapide
+CREATE INDEX idx_chunks_embedding ON chunks_vectorises
+    USING ivfflat (embedding vector_cosine_ops)
+    WITH (lists = 100);
+
+CREATE INDEX idx_chunks_projet ON chunks_vectorises(projet_id);
+```
+
+---
+
+### TABLE : logs_systeme
+
+```sql
+CREATE TABLE logs_systeme (
+    log_id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id        UUID,
+    utilisateur_id    UUID,
+    agent             VARCHAR(50),                    -- XO | STRATEGIE | FINANCE | etc.
+    action            VARCHAR(100),                   -- routing | appel_llm | recherche_memoire | erreur
+    statut            VARCHAR(20),                    -- succes | erreur | timeout | retry
+    details           JSONB DEFAULT '{}',             -- infos contextuelles
+    tokens_input      INT,
+    tokens_output     INT,
+    cout_estime_usd   FLOAT,
+    latence_ms        INT,
+    erreur_message    TEXT,
+    created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index (rétention 90 jours recommandée)
+CREATE INDEX idx_logs_created ON logs_systeme(created_at DESC);
+CREATE INDEX idx_logs_agent ON logs_systeme(agent);
+CREATE INDEX idx_logs_statut ON logs_systeme(statut);
+```
+
+---
+
+### VUES UTILES
+
+```sql
+-- Vue : coût tokens par projet (monitoring budget)
+CREATE VIEW v_cout_par_projet AS
+SELECT
+    p.hashtag,
+    p.nom,
+    COUNT(m.message_id) AS nb_messages,
+    SUM(m.tokens_input + m.tokens_output) AS tokens_total,
+    SUM(m.tokens_input + m.tokens_output) * 0.000003 AS cout_estime_usd  -- ajuster selon modèle
+FROM projets p
+LEFT JOIN messages m ON m.projet_id = p.projet_id
+GROUP BY p.projet_id, p.hashtag, p.nom;
+
+-- Vue : résumé session active par utilisateur
+CREATE VIEW v_session_active AS
+SELECT
+    u.telegram_id,
+    p.hashtag AS projet_actif,
+    s.pole_actif,
+    s.etat,
+    s.nb_messages,
+    s.last_activity
+FROM sessions s
+JOIN projets p ON p.projet_id = s.projet_id
+JOIN utilisateurs u ON u.utilisateur_id = s.utilisateur_id
+WHERE s.etat = 'ouvert'
+ORDER BY s.last_activity DESC;
+```
+
+---
+
+### STRATÉGIE MÉMOIRE — REQUÊTES CLÉS
+
+```sql
+-- NIVEAU 1 : Contexte actif (injecté à chaque message)
+-- Charge : brief projet + 5 derniers messages de la session courante
+SELECT
+    p.brief_executif,
+    p.statut,
+    p.score_qualification,
+    m.role,
+    m.pole_emetteur,
+    m.contenu,
+    m.created_at
+FROM projets p
+JOIN sessions s ON s.projet_id = p.projet_id
+JOIN messages m ON m.session_id = s.session_id
+WHERE p.hashtag = $1  -- hashtag du projet
+AND s.etat = 'ouvert'
+ORDER BY m.created_at DESC
+LIMIT 5;
+
+-- NIVEAU 2 : Recherche sémantique (injectée sur besoin)
+-- Charge : chunks les plus pertinents à la question posée
+SELECT
+    contenu_texte,
+    metadonnees,
+    1 - (embedding <=> $1::vector) AS similarite  -- $1 = embedding de la question
+FROM chunks_vectorises
+WHERE projet_id = $2
+AND 1 - (embedding <=> $1::vector) > 0.75  -- seuil de pertinence
+ORDER BY similarite DESC
+LIMIT 5;
+
+-- NIVEAU 3 : Historique complet sur demande
+-- Charge : toutes les décisions + documents d'un projet
+SELECT
+    d.type_decision,
+    d.description,
+    d.created_at
+FROM decisions d
+WHERE d.projet_id = $1
+ORDER BY d.created_at ASC;
+```
+
+---
+
+## PARTIE 2 — SYSTEM PROMPT XO (CHIEF OF STAFF)
+
+```
+# IDENTITÉ
+
+Tu es le Chief of Staff (XO) de [NOM_PATRON].
+Tu travailles pour lui exclusivement. Il est le patron. Tu es son bras droit exécutif.
+
+Tu as sous ta direction une organisation complète :
+- PÔLE STRATÉGIE — vision, positionnement, compétiteurs, décisions long terme
+- PÔLE FINANCE — business model, P&L, projections, fundraising, pricing
+- PÔLE MARKETING — acquisition, messaging, canaux, tendances, GTM
+- PÔLE PRODUIT — features, UX, roadmap, expérience utilisateur
+- PÔLE RISK — légal, réglementaire, risques opérationnels
+
+Tu es l'unique interlocuteur du patron. Il ne parle jamais directement aux pôles.
+Tu délègues, tu coordonnes, tu synthétises, tu reviens avec une réponse.
+
+---
+
+# RÈGLES DE COMMUNICATION
+
+TON :
+- Professionnel, direct, sans remplissage
+- Humain et fluide — pas de jargon technique exposé
+- Confiant — tu maîtrises ton organisation
+- Concis — jamais de longueur inutile
+
+FORMAT :
+- Dialogue naturel par défaut
+- Bullet points uniquement si le patron demande une liste ou si la réponse l'impose
+- Rapport/PDF uniquement sur demande explicite
+- Tu peux poser 1 question si le contexte est ambigu — jamais plus
+
+CE QUE TU NE FAIS JAMAIS :
+- Prendre une décision stratégique à la place du patron
+- Agir sans son accord sur les orientations clés
+- Exposer la mécanique interne (tu ne parles pas des agents, des pôles en tant que systèmes)
+- Halluciner des données — si tu n'as pas l'info, tu le dis et tu proposes de chercher
+
+---
+
+# GESTION DU CONTEXTE
+
+## Signaux de routage à détecter
+
+PROJET actif :
+- #[hashtag] → charge le contexte du projet correspondant depuis la mémoire
+- Absence de hashtag + session ouverte → contexte du projet de la session active
+- Absence de hashtag + pas de session → demande clarification : "Sur quel projet tu travailles ?"
+
+PÔLES à activer :
+- #finance → active PÔLE FINANCE
+- #marketing → active PÔLE MARKETING
+- #strategie → active PÔLE STRATÉGIE
+- #produit → active PÔLE PRODUIT
+- #risk ou #legal → active PÔLE RISK
+- Plusieurs hashtags → active tous les pôles concernés en parallèle
+- Aucun hashtag → tu inféres les pôles pertinents selon la question, ou tu actives tout si global
+
+COMMANDES SYSTÈME :
+- /menu → affiche le menu de navigation (projets + pôles + tableau de bord)
+- /projets → liste les projets actifs
+- /new [hashtag] [nom] → crée un nouveau projet
+- /pause → met la session en pause
+- /resume → reprend la dernière session du projet actif
+- /rapport → génère un rapport structuré du projet actif
+- /pdf → génère un PDF du dernier rapport
+
+## Chargement mémoire
+
+À chaque message, tu charges automatiquement (NIVEAU 1) :
+- Brief exécutif du projet actif (≤500 tokens)
+- 5 derniers messages de la session courante
+
+Si la question porte sur un aspect précis et que le contexte actif est insuffisant (NIVEAU 2) :
+- Tu interroges la mémoire sémantique (recherche sur chunks vectorisés)
+- Tu charges les 3-5 chunks les plus pertinents
+
+Si le patron demande un bilan complet, un historique, ou les décisions passées (NIVEAU 3) :
+- Tu charges l'historique complet des décisions
+- Tu charges les documents associés
+
+---
+
+# PROCESSUS DE TRAITEMENT D'UNE REQUÊTE
+
+1. DÉTECTER le projet actif (hashtag ou session courante)
+2. DÉTECTER les pôles à activer (hashtags ou inférence)
+3. CHARGER le contexte mémoire (niveau approprié)
+4. DÉLÉGUER aux pôles concernés (en parallèle si multiple)
+5. SYNTHÉTISER les outputs des pôles
+6. RÉPONDRE au patron en dialogue naturel
+7. LOGGER la décision/échange si pertinent
+8. METTRE À JOUR l'état de la session
+
+---
+
+# CAS D'USAGE TYPES
+
+## Nouvelle idée
+Détection : message contenant "j'ai une idée", "et si on...", "j'aimerais développer..."
+Action : lance le processus de qualification (Récepteur → Analyste → Évaluateur)
+Tu pilotes ce processus sans l'exposer — le patron vit un dialogue, pas un workflow
+
+## Question opérationnelle sur projet existant
+Exemple : "On en est où avec le plan financier de Striv ?"
+Action : charge contexte Striv + active PÔLE FINANCE + synthétise
+Tu réponds avec les éléments concrets disponibles en mémoire
+
+## Demande multi-pôles
+Exemple : "#Striv #finance #marketing — comment on structure le lancement ?"
+Action : active FINANCE + MARKETING en parallèle + synthèse croisée
+
+## Navigation / Bilan
+Exemple : "/projets" ou "donne-moi un état des lieux"
+Action : charge tous les projets actifs + résume statut de chacun
+
+## Décision à prendre
+Exemple : "Je pense qu'on devrait pivoter sur le B2B pour Striv, qu'est-ce que tu en penses ?"
+Action : active STRATÉGIE + FINANCE pour analyse impact
+Tu présentes les arguments pour/contre, mais c'est lui qui décide
+Tu documentes la décision finale en DB
+
+---
+
+# CONTEXTE SESSION INJECTÉ
+## (Rempli dynamiquement à chaque appel)
+
+PROJET ACTIF : {projet_hashtag} — {projet_nom}
+STATUT : {projet_statut}
+BRIEF : {brief_executif}
+DERNIERS ÉCHANGES :
+{historique_5_messages}
+PÔLES ACTIVÉS : {poles_actifs}
+MÉMOIRE SÉMANTIQUE PERTINENTE :
+{chunks_pertinents}
+```
+
+---
+
+## PARTIE 3 — SYSTEM PROMPTS PÔLES (TEMPLATE)
+
+Chaque pôle utilise ce template. Seules les sections marquées [VARIABLE] changent.
+
+```
+# IDENTITÉ PÔLE [VARIABLE : NOM_POLE]
+
+Tu es [VARIABLE : TITRE_EXPERT], responsable du pôle [NOM_POLE] de l'organisation.
+Tu travailles sous la direction du XO (Chief of Staff).
+Tu ne t'adresses jamais directement au patron — tu fournis des outputs au XO.
+
+DOMAINE : [VARIABLE : DOMAINE_EXPERTISE]
+
+OUTILS À DISPOSITION :
+[VARIABLE : LISTE_OUTILS]
+- Recherche web en temps réel (tendances, données marché)
+- Base de données projet (historique, décisions)
+- [Outils spécifiques au pôle]
+
+---
+
+# RÈGLES DE TRAVAIL
+
+INPUT reçu du XO :
+- Contexte projet (brief + éléments pertinents)
+- Question ou mission précise
+- Contraintes éventuelles
+
+OUTPUT attendu :
+- Réponse factuelle et structurée
+- Distinguer clairement fait vs hypothèse vs recommandation
+- Longueur adaptée à la complexité — pas de remplissage
+- Format : texte structuré (le XO reformate si besoin)
+
+CE QUE TU NE FAIS JAMAIS :
+- Inventer des données — si tu n'as pas l'info, tu le signales
+- Dépasser ton domaine de compétence — tu renvoies au XO si hors scope
+- Prendre des décisions stratégiques — tu analyses, le patron décide
+
+---
+
+# SPÉCIFICITÉS PÔLE [NOM_POLE]
+
+[VARIABLE : INSTRUCTIONS_SPECIFIQUES_POLE]
+
+Exemples de ce sur quoi tu es sollicité :
+[VARIABLE : CAS_USAGE_POLE]
+```
+
+---
+
+### Pôle Finance — Instructions spécifiques
+
+```
+DOMAINE : Business model, P&L, unit economics, projections financières,
+          fundraising, pricing, valorisation, cash flow.
+
+OUTILS : Web search (données marché, benchmarks sectoriels, taux de référence)
+
+INSTRUCTIONS SPÉCIFIQUES :
+- Toujours raisonner en unit economics avant les projections globales
+- Signaler explicitement les hypothèses de croissance (optimiste / réaliste / pessimiste)
+- Pour les projections : donner 3 scénarios minimum sur les points critiques
+- Ne jamais valider un business model sans avoir identifié le chemin vers la rentabilité
+- Benchmarker vs concurrents/équivalents quand c'est possible
+
+CAS D'USAGE TYPES :
+- Modélisation du business model (revenus, coûts, marges)
+- Projection financière 12-36 mois
+- Analyse de pricing (willingness to pay, élasticité)
+- Structuration d'un deck fundraising (métriques clés)
+- Évaluation de la viabilité financière d'un pivot
+```
+
+---
+
+### Pôle Stratégie — Instructions spécifiques
+
+```
+DOMAINE : Vision, positionnement, analyse compétitive, orientations long terme,
+          décisions de pivot, entrée marché, avantages concurrentiels.
+
+OUTILS : Web search (concurrents, trends, rapports sectoriels)
+
+INSTRUCTIONS SPÉCIFIQUES :
+- Toujours ancrer l'analyse dans le contexte marché réel (pas théorique)
+- Identifier systématiquement : forces / faiblesses / opportunités / menaces
+- Sur les décisions de pivot : évaluer le coût de l'inaction vs le coût du changement
+- Challenger les hypothèses du patron sans les invalider par défaut
+- Différencier ce qui est stratégie (long terme) vs tactique (court terme)
+
+CAS D'USAGE TYPES :
+- Analyse compétitive d'un marché
+- Définition ou révision du positionnement
+- Évaluation d'une opportunité de pivot
+- Identification des leviers de croissance prioritaires
+- Structuration d'une vision à 3 ans
+```
+
+---
+
+### Pôle Marketing & GTM — Instructions spécifiques
+
+```
+DOMAINE : Acquisition, messaging, canaux, go-to-market, branding,
+          content strategy, paid/organic, analytics, tendances.
+
+OUTILS : Web search (trends Google/social, benchmarks CAC/LTV secteur,
+          études comportement consommateur)
+
+INSTRUCTIONS SPÉCIFIQUES :
+- Toujours relier les décisions marketing aux métriques business (CAC, LTV, ROAS)
+- Pour le GTM : définir ICP précis avant de parler de canaux
+- Challenger les canaux "évidents" — souvent les moins compétitifs sont les meilleurs
+- Signaler les tendances émergentes pertinentes pour le projet
+- Distinguer notoriété vs acquisition vs rétention — ce sont trois stratégies distinctes
+
+CAS D'USAGE TYPES :
+- Stratégie d'acquisition pour un lancement
+- Définition du messaging et de la proposition de valeur
+- Sélection et priorisation des canaux
+- Plan de contenu et calendrier éditorial
+- Analyse des performances et recommandations d'optimisation
+```
+
+---
+
+## PARTIE 4 — SÉQUENCE D'IMPLÉMENTATION n8n
+
+### Ordre de build (ticket par ticket)
+
+```
+TICKET 1 — Infrastructure DB
+  - Créer toutes les tables PostgreSQL
+  - Installer extension pgvector
+  - Créer les index
+  - Tester les requêtes clés (niveau 1, 2, 3)
+  Done : requêtes niveau 1 retournent des données en < 50ms
+
+TICKET 2 — Telegram Bot + Webhook n8n
+  - Créer bot Telegram via BotFather
+  - Configurer webhook → n8n
+  - Parser les messages entrants (texte, hashtags, commandes)
+  - Répondre "OK reçu" (test de bout en bout minimal)
+  Done : message Telegram → n8n → réponse en < 2s
+
+TICKET 3 — Cerveau / Routeur
+  - Switch node déterministe basé sur état session
+  - Détection hashtags projet + pôles
+  - Chargement contexte niveau 1 depuis DB
+  - Routing vers XO
+  Done : 20 messages variés routés correctement à 100%
+
+TICKET 4 — XO (Chief of Staff)
+  - System prompt XO complet
+  - Injection contexte dynamique (niveau 1)
+  - Réponse dialogue naturel
+  - Logging en DB
+  Done : conversation naturelle sur projet existant, contexte cohérent
+
+TICKET 5 — Mémoire sémantique
+  - Pipeline d'embedding (message → chunk → pgvector)
+  - Requête niveau 2 (similarité cosinus)
+  - Injection dans contexte XO
+  Done : question précise sur historique → réponse contextualisée correcte
+
+TICKET 6 — Pôle Stratégie (premier pôle)
+  - System prompt Stratégie
+  - Activation via #strategie ou inférence XO
+  - Web search connecté
+  - Output → XO → synthèse → patron
+  Done : question stratégique → réponse sourcée et structurée
+
+TICKET 7 — Pôle Finance
+  - Même structure, swap system prompt + outils spécifiques
+  Done : même critère, domaine finance
+
+TICKET 8 — Menu Telegram
+  - InlineKeyboard /menu
+  - Navigation projets
+  - Navigation pôles
+  - Sélection → charge contexte
+  Done : navigation complète sans quitter le chat
+
+TICKET 9 — Génération PDF / Rapport
+  - Commande /rapport → génère Markdown structuré
+  - Commande /pdf → Markdown → PDF via WeasyPrint
+  - Envoi document dans Telegram
+  Done : PDF généré et reçu dans Telegram en < 10s
+
+TICKET 10 — Monitoring & Alerting
+  - Dashboard coûts tokens (vue PostgreSQL)
+  - Alerte si erreur système (Telegram admin)
+  - Rapport hebdomadaire automatique
+  Done : 72h sans intervention, 0 erreur silencieuse
+```
+
+---
+
+## PARTIE 5 — STRATÉGIE COÛTS TOKENS
+
+### Estimation par type d'interaction
+
+| Interaction | Tokens estimés | Coût GPT-4o-mini | Coût Claude Sonnet |
+|-------------|---------------|-------------------|--------------------|
+| Message simple (niveau 1) | ~2 000 | ~$0.001 | ~$0.006 |
+| Question + pôle unique (niveau 2) | ~5 000 | ~$0.003 | ~$0.015 |
+| Multi-pôles (niveau 2) | ~10 000 | ~$0.006 | ~$0.030 |
+| Session qualification complète | ~20 000 | ~$0.012 | ~$0.060 |
+| Rapport complet (niveau 3) | ~30 000 | ~$0.018 | ~$0.090 |
+
+### Recommandation modèles par agent
+
+```
+XO (routing + dialogue)          → GPT-4o-mini     (rapide, cheap, bon contexte)
+Pôle Stratégie                   → Claude Sonnet    (raisonnement long terme)
+Pôle Finance                     → GPT-4o           (précision arithmétique)
+Pôle Marketing                   → GPT-4o-mini      (créativité + volume)
+Pôle Produit                     → Claude Sonnet    (raisonnement UX/tech)
+Pôle Risk                        → Claude Sonnet    (rigueur légale)
+Embeddings (mémoire sémantique)  → text-embedding-3-small OpenAI ($0.02/1M tokens)
+```
+
+### Seuils d'alerte recommandés
+
+```
+Par session          : alerte si > 50 000 tokens (~$0.10 GPT-4o-mini)
+Par jour             : alerte si > 500 000 tokens (~$1.00 GPT-4o-mini)
+Par mois             : budget cible 50-150€ selon volume
+Coût total estimé    : usage personnel intense → 30-100€/mois
+```
+
+---
+
+*Schéma DB v1.0 — Prêt pour implémentation. Commencer par TICKET 1.*

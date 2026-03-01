@@ -1,0 +1,29 @@
+J'apprécie beaucoup la maquette finale.
+
+Le workspace design est très, très bien. Ce que tu pourrais juste utiliser une autre couleur de fond, par exemple le dark 900, pour ajouter un petit peu de profondeur au lieu de mettre "Bienvenue".
+
+On va mettre "Bonjour".
+
+Et ce que tu peux t'inspirer de la maquette workspace concept set platinum blaze pour la barre Apple Doc qu'on retrouve en bas. Tu gardes exactement celle que tu as fait, mais tu la masterises un petit peu, très légèrement, pour la rendre qualité un peu plus supérieure.
+
+Très légèrement, autre chose.
+
+Il y a un bouton en haut à droite sur les dossiers avec une rouage icône paramètres.
+
+Quand on clique dessus, déjà les mal positionnés. Faudrait réagencer la configuration des objets dossiers, parce que l'icône paramètre n'ouvre pas vraiment les paramètres.
+
+Là, c'est plutôt les informations liées à au dossier.
+
+Donc, quand on clique dessus sur le dossier, peu importe où l'on clique sur le dossier. Effectivement, il s'ouvre et on voit toutes les informations liées au dossier avec "ouvrir le dossier" et "enrichir".
+
+C'est très bien. Par contre, je ne comprends pas pourquoi il y a une icône paramètres qui mène exactement aux mêmes résultats, c'est-à-dire à la vue du dossier complète.
+
+Ce qui pourrait être intéressant, malgré tout, c'est de pouvoir modifier les paramètres dans le dossier, c'est-à-dire qu'on a sur la page tous les dossiers, c'est très bien comme ça.
+
+Quand je clique sur un dossier, effectivement, il s'ouvre et toutes les informations. Ce qui pourrait être intéressant, c'est que je puisse modifier le titre, rajouter une description, voilà des petits paramètres comme ça.
+
+Pour que je puisse aussi, très léger, par exemple, le fait de pouvoir renommer le dossier, ça pourrait être intéressant.
+
+Et pouvoir moi-même décider de ce que j'en fais, par exemple, si je souhaite par exemple l'archiver ou supprimer ce genre de chose, quoi de base.
+
+Merci. 

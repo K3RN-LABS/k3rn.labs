@@ -1,0 +1,63 @@
+/**
+ * Testing Detector
+ * Detect test frameworks and testing tools
+ */
+
+import type { PackageJson, DetectionSignal } from '../types';
+
+/**
+ * Detect test framework
+ */
+export function detectTestFramework(packageJson: PackageJson | null): DetectionSignal | null {
+  if (!packageJson) {
+    return null;
+  }
+
+  const allDeps = {
+    ...packageJson.dependencies,
+    ...packageJson.devDependencies,
+  };
+
+  const testRules: Array<{ signal: string; framework: string }> = [
+    { signal: 'vitest', framework: 'Vitest' },
+    { signal: 'jest', framework: 'Jest' },
+    { signal: '@jest/core', framework: 'Jest' },
+    { signal: 'mocha', framework: 'Mocha' },
+    { signal: 'jasmine', framework: 'Jasmine' },
+    { signal: 'ava', framework: 'AVA' },
+    { signal: 'uvu', framework: 'uvu' },
+  ];
+
+  // Check for unit test frameworks
+  for (const rule of testRules) {
+    if (allDeps[rule.signal]) {
+      return {
+        confidence: 'high',
+        evidence: `Dependency: ${rule.signal}`,
+        value: rule.framework,
+      };
+    }
+  }
+
+  // Check for E2E frameworks
+  const e2eRules: Array<{ signal: string; framework: string }> = [
+    { signal: 'playwright', framework: 'Playwright' },
+    { signal: '@playwright/test', framework: 'Playwright' },
+    { signal: 'cypress', framework: 'Cypress' },
+    { signal: 'puppeteer', framework: 'Puppeteer' },
+    { signal: '@testing-library/react', framework: 'React Testing Library' },
+    { signal: '@testing-library/vue', framework: 'Vue Testing Library' },
+  ];
+
+  for (const rule of e2eRules) {
+    if (allDeps[rule.signal]) {
+      return {
+        confidence: 'high',
+        evidence: `Dependency: ${rule.signal}`,
+        value: rule.framework,
+      };
+    }
+  }
+
+  return null;
+}

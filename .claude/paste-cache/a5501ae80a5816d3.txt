@@ -1,0 +1,42 @@
+<prompt>
+  <meta>
+    <project>Wind Boost</project>
+    <mode>Claude Code</mode>
+    <intent>Audit abnormal insertion volume in initial commit</intent>
+  </meta>
+
+  <task_context>
+    <role>Senior DevOps Engineer</role>
+    <objective>
+      Investigate why commit 1 contains 7651 insertions.
+      Verify that no generated or unwanted files were committed.
+    </objective>
+  </task_context>
+
+  <steps>
+    <step>Run: git show 411b50a --stat</step>
+    <step>List all files included in commit 1.</step>
+    <step>Verify that no .next/, node_modules/, logs/, or build artifacts are tracked.</step>
+    <step>Check if package-lock.json was added and how many lines it contains.</step>
+    <step>Report exact breakdown of inserted lines per file.</step>
+  </steps>
+
+  <analysis_requirements>
+    <item>If package-lock.json is the cause, confirm line count.</item>
+    <item>If build artifacts were committed, identify them explicitly.</item>
+    <item>Do NOT modify anything yet.</item>
+  </analysis_requirements>
+
+  <output_format>
+    <response>
+      <section name="files"/>
+      <section name="line_breakdown"/>
+      <section name="risk_assessment"/>
+      <section name="recommendation"/>
+    </response>
+  </output_format>
+
+  <prefill_assistant>
+    <response><section name="files">
+  </prefill_assistant>
+</prompt>
