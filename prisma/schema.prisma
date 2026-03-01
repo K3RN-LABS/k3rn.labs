@@ -451,3 +451,9 @@ model CardIngestionJob {
   @@index([status, nextRunAt])
   @@index([dossierId, messageId])
 }
+
+enum CardState {
+  DRAFT
+  VALIDATED
+  REJECTED
+}
