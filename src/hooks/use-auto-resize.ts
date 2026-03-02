@@ -7,7 +7,8 @@ export function useAutoResize(value: string) {
     const el = ref.current
     if (!el) return
     el.style.height = "auto"
-    el.style.height = `${el.scrollHeight}px`
+    const maxHeight = parseInt(getComputedStyle(el).maxHeight) || 200
+    el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`
   }, [])
 
   useEffect(() => {

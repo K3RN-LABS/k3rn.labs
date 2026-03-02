@@ -32,8 +32,9 @@ export function ChatTray({ dossierId, currentLab }: ChatTrayProps) {
 
     return (
         <>
-            {/* Expanded chat windows — stack bottom-right horizontally */}
-            <div className="fixed bottom-0 right-4 z-50 flex items-end gap-3 pointer-events-none pb-4">
+            {/* Expanded chat windows — stack bottom-right horizontally, above dock
+                Dock: fixed bottom-6 (24px) + ~72px height + 8px gap = bottom-[108px] */}
+            <div className="fixed bottom-[108px] right-4 z-50 flex items-end gap-3 pointer-events-none">
                 {expandedChats.map((chat) => {
                     const isFocused = focusedChatKey === chat.key
 
@@ -74,7 +75,7 @@ export function ChatTray({ dossierId, currentLab }: ChatTrayProps) {
 
             {/* Minimized chats — compact tabs above the dock */}
             {minimizedChats.length > 0 && (
-                <div className="fixed bottom-[84px] right-4 z-50 flex flex-col gap-1.5 items-end pointer-events-auto">
+                <div className="fixed bottom-[108px] right-4 z-40 flex flex-row-reverse gap-1.5 items-end pointer-events-auto">
                     {minimizedChats.map((chat) => {
                         const isFocused = focusedChatKey === chat.key
                         const gradient = chat.poleCode ? (POLE_GRADIENTS[chat.poleCode] ?? "from-gray-600 to-gray-800") : "from-primary to-primary/80"

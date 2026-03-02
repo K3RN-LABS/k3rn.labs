@@ -4,7 +4,7 @@ import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { useWorkspaceStore } from "@/store/workspace.store"
 import type { PoleData } from "@/hooks/use-poles"
-import { Sparkles, Search, Folder, X } from "lucide-react"
+import { Sparkles, Search, X, Grid, Layers } from "lucide-react"
 
 const POLE_CONFIG: Record<string, { gradient: string; emoji: string }> = {
     P01_STRATEGIE: { gradient: "from-violet-600 to-purple-700", emoji: "⚡" },
@@ -23,17 +23,18 @@ const SUBFOLDER_CONFIG: Record<string, { color: string; emoji: string; label: st
     BUSINESS: { color: "from-amber-600 to-orange-800", emoji: "💼", label: "Business" },
 }
 
+const CARD_TYPES = ["IDEA", "DECISION", "TASK", "ANALYSIS", "HYPOTHESIS", "PROBLEM", "VISION"]
+
 interface SubFolderItem {
     id: string
     type: string
 }
 
-interface FloatingDockProps {
+interface DockProps {
     dossierId: string
     poles: PoleData[]
     subFolders: SubFolderItem[]
     currentLab?: string
-    onSearch?: () => void
 }
 
 interface DockItemProps {
@@ -97,26 +98,103 @@ function DockItem({ emoji, label, gradient, initials, onClick, active, isPriorit
     )
 }
 
-export function FloatingDock({ dossierId: _dossierId, poles, subFolders, currentLab, onSearch }: FloatingDockProps) {
+/**
+ * Dock — floating navigation bar for the Workspace.
+ *
+ * Features:
+ * - SubFolder filter
+ * - KAEL panel toggle
+ * - Expert chats
+ * - Graph search (filters canvas by node title)
+ * - Card type filter
+ * - Layout switch (auto / free)
+ */
+export function Dock({ dossierId: _dossierId, poles, subFolders, currentLab }: DockProps) {
     const {
         activeSubFolderId,
         setActiveSubFolder,
         openPoleChat,
-        openKaelChat,
         openChats,
+        kaelPanelOpen,
+        toggleKaelPanel,
+        canvasSearch,
+        setCanvasSearch,
+        canvasFilterType,
+        setCanvasFilterType,
+        canvasLayout,
+        setCanvasLayout,
     } = useWorkspaceStore()
 
-    const activeKael = openChats.some((c) => c.key === "kael" && !c.minimized)
+    const [searchOpen, setSearchOpen] = useState(false)
+    const [filterOpen, setFilterOpen] = useState(false)
 
     return (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-60 pointer-events-auto flex flex-col items-center gap-2">
+            {/* Search bar — expands above dock when active */}
+            {searchOpen && (
+                <div className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-xl",
+                    "bg-black/70 backdrop-blur-xl border border-white/10 shadow-lg",
+                    "animate-in slide-in-from-bottom-2 duration-150"
+                )}>
+                    <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <input
+                        autoFocus
+                        value={canvasSearch}
+                        onChange={(e) => setCanvasSearch(e.target.value)}
+                        placeholder="Rechercher dans le graph…"
+                        className="bg-transparent text-xs outline-none text-foreground placeholder:text-muted-foreground/50 w-52"
+                    />
+                    {canvasSearch && (
+                        <button onClick={() => setCanvasSearch("")} className="text-muted-foreground hover:text-foreground transition-colors">
+                            <X className="h-3 w-3" />
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {/* Filter chips — card type */}
+            {filterOpen && (
+                <div className={cn(
+                    "flex items-center gap-1.5 px-3 py-2 rounded-xl flex-wrap max-w-md justify-center",
+                    "bg-black/70 backdrop-blur-xl border border-white/10 shadow-lg",
+                    "animate-in slide-in-from-bottom-2 duration-150"
+                )}>
+                    <button
+                        onClick={() => setCanvasFilterType(null)}
+                        className={cn(
+                            "px-2.5 py-1 rounded-full text-[10px] font-medium transition-all",
+                            !canvasFilterType
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-white/10 text-muted-foreground hover:bg-white/20"
+                        )}
+                    >
+                        Tous
+                    </button>
+                    {CARD_TYPES.map((t) => (
+                        <button
+                            key={t}
+                            onClick={() => setCanvasFilterType(canvasFilterType === t ? null : t)}
+                            className={cn(
+                                "px-2.5 py-1 rounded-full text-[10px] font-medium transition-all",
+                                canvasFilterType === t
+                                    ? "bg-primary text-primary-foreground"
+                                    : "bg-white/10 text-muted-foreground hover:bg-white/20"
+                            )}
+                        >
+                            {t}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {/* Main dock bar */}
             <div className={cn(
                 "flex items-end gap-2 px-4 py-3 rounded-2xl",
                 "bg-black/60 backdrop-blur-xl border border-white/10",
                 "shadow-[0_8px_40px_rgba(0,0,0,0.6)]"
             )}>
-
-                {/* Sub-folders section */}
+                {/* Sub-folders */}
                 {subFolders.length > 0 && (
                     <>
                         {subFolders.map((sf) => {
@@ -129,29 +207,24 @@ export function FloatingDock({ dossierId: _dossierId, poles, subFolders, current
                                     gradient={cfg.color}
                                     label={cfg.label}
                                     onClick={() => {
-                                        if (isActive) {
-                                            setActiveSubFolder(null, null)
-                                        } else {
-                                            setActiveSubFolder(sf.id, sf.type as never)
-                                        }
+                                        if (isActive) setActiveSubFolder(null, null)
+                                        else setActiveSubFolder(sf.id, sf.type as never)
                                     }}
                                     active={isActive}
                                     tooltip={cfg.label}
                                 />
                             )
                         })}
-
-                        {/* Divider */}
                         <div className="w-px h-8 bg-white/15 mx-1 self-center" />
                     </>
                 )}
 
-                {/* KAEL — orchestrateur (toujours mis en avant) */}
+                {/* KAEL — always present */}
                 <DockItem
                     label="KAEL"
                     isKael
-                    onClick={openKaelChat}
-                    active={activeKael}
+                    onClick={toggleKaelPanel}
+                    active={kaelPanelOpen}
                     tooltip="KAEL — Orchestrateur"
                 />
 
@@ -160,7 +233,7 @@ export function FloatingDock({ dossierId: _dossierId, poles, subFolders, current
                     <div className="w-px h-8 bg-white/15 mx-1 self-center" />
                 )}
 
-                {/* Pole experts */}
+                {/* Experts */}
                 {poles.map((pole) => {
                     const cfg = POLE_CONFIG[pole.code] ?? { gradient: "from-gray-600 to-gray-800", emoji: "🤖" }
                     const isPriority = currentLab && (pole.activePriorityLabs as string[]).includes(currentLab)
@@ -179,20 +252,52 @@ export function FloatingDock({ dossierId: _dossierId, poles, subFolders, current
                     )
                 })}
 
-                {/* Search */}
-                {onSearch && (
-                    <>
-                        <div className="w-px h-8 bg-white/15 mx-1 self-center" />
-                        <DockItem
-                            label="Recherche"
-                            onClick={onSearch}
-                            tooltip="Filtrer le canvas"
-                            gradient="from-slate-600 to-slate-800"
-                            emoji="🔍"
-                        />
-                    </>
-                )}
+                {/* Divider before tools */}
+                <div className="w-px h-8 bg-white/15 mx-1 self-center" />
+
+                {/* Search toggle */}
+                <DockItem
+                    label="Recherche"
+                    onClick={() => setSearchOpen((s) => !s)}
+                    tooltip="Rechercher dans le graph"
+                    gradient={searchOpen || canvasSearch ? "from-primary to-primary/70" : "from-slate-600 to-slate-800"}
+                    emoji="🔍"
+                    active={searchOpen || !!canvasSearch}
+                />
+
+                {/* Filter toggle */}
+                <DockItem
+                    label="Filtrer"
+                    onClick={() => setFilterOpen((s) => !s)}
+                    tooltip="Filtrer par type de carte"
+                    gradient={filterOpen || canvasFilterType ? "from-primary to-primary/70" : "from-slate-600 to-slate-800"}
+                    emoji="🏷️"
+                    active={filterOpen || !!canvasFilterType}
+                />
+
+                {/* Layout switch */}
+                <div className="relative flex flex-col items-center">
+                    <button
+                        onClick={() => setCanvasLayout(canvasLayout === "auto" ? "free" : "auto")}
+                        className={cn(
+                            "w-10 h-10 flex items-center justify-center rounded-2xl transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-110",
+                            canvasLayout === "free"
+                                ? "bg-gradient-to-br from-primary to-primary/70 ring-2 ring-primary/30"
+                                : "bg-gradient-to-br from-slate-600 to-slate-800"
+                        )}
+                        title={canvasLayout === "auto" ? "Passer en mode libre" : "Passer en mode auto"}
+                    >
+                        {canvasLayout === "auto" ? (
+                            <Grid className="h-4 w-4 text-white" />
+                        ) : (
+                            <Layers className="h-4 w-4 text-white" />
+                        )}
+                    </button>
+                </div>
             </div>
         </div>
     )
 }
+
+// Keep backward-compat alias
+export { Dock as FloatingDock }

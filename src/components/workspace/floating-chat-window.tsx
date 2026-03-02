@@ -126,9 +126,9 @@ export function PoleChatWindow({
     return (
         <div
             className={cn(
-                "flex flex-col w-[360px] rounded-2xl overflow-hidden shadow-2xl transition-all duration-200 border",
-                "bg-background",
-                isFocused ? "border-primary/40 shadow-primary/10" : "border-border/40"
+                "flex flex-col w-[320px] rounded-2xl overflow-hidden shadow-2xl transition-all duration-200 border",
+                "bg-[#111111]",
+                isFocused ? "border-primary/40 shadow-primary/10" : "border-white/10"
             )}
             style={{ height: 480 }}
             onClick={() => focusChat(chatKey)}
@@ -160,7 +160,7 @@ export function PoleChatWindow({
                             </div>
                         )}
                         <div className="max-w-[82%] flex flex-col gap-0.5">
-                            <div className={cn("rounded-xl px-3 py-2 text-xs", msg.role === "user" ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-muted rounded-bl-sm")}>
+                            <div className={cn("rounded-xl px-3 py-2 text-xs", msg.role === "user" ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-white/8 text-white/90 rounded-bl-sm")}>
                                 <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                                 <p className={cn("text-[9px] mt-0.5 opacity-40", msg.role === "user" ? "text-right" : "")}>
                                     {new Date(msg.timestamp).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
@@ -180,13 +180,13 @@ export function PoleChatWindow({
                     </div>
                 ))}
                 {sending && (
-                    <div className="flex"><div className={cn("w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black text-white mr-1.5 shrink-0 bg-gradient-to-br", gradient)}>{pole.managerName.slice(0, 1)}</div><div className="bg-muted rounded-xl px-3 py-2"><div className="flex gap-0.5">{[0, 150, 300].map((d) => <span key={d} className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}</div></div></div>
+                    <div className="flex"><div className={cn("w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black text-white mr-1.5 shrink-0 bg-gradient-to-br", gradient)}>{pole.managerName.slice(0, 1)}</div><div className="bg-white/8 rounded-xl px-3 py-2"><div className="flex gap-0.5">{[0, 150, 300].map((d) => <span key={d} className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}</div></div></div>
                 )}
                 <div ref={bottomRef} />
             </div>
 
             {/* Input */}
-            <div className="shrink-0 px-3 py-2 border-t border-border/40">
+            <div className="shrink-0 px-3 py-2 border-t border-white/5">
                 <div className="flex items-end gap-1.5">
                     <Textarea
                         ref={textareaRef}
@@ -194,7 +194,7 @@ export function PoleChatWindow({
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSend() }}
                         placeholder={`Message à ${pole.managerName}…`}
-                        className="min-h-[36px] text-xs resize-none rounded-lg py-2 bg-muted/40 border-muted focus:border-primary/40"
+                        className="min-h-[36px] text-xs resize-none rounded-lg py-2 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-primary/40"
                         rows={1}
                         disabled={sending}
                     />
@@ -272,9 +272,9 @@ export function KaelChatWindow({ chatKey, dossierId, currentLab, isFocused, mini
     return (
         <div
             className={cn(
-                "flex flex-col w-[360px] rounded-2xl overflow-hidden shadow-2xl transition-all duration-200 border",
-                "bg-background",
-                isFocused ? "border-primary/60 shadow-primary/20 ring-1 ring-primary/20" : "border-border/40"
+                "flex flex-col w-[320px] rounded-2xl overflow-hidden shadow-2xl transition-all duration-200 border",
+                "bg-[#111111]",
+                isFocused ? "border-primary/60 shadow-primary/20 ring-1 ring-primary/20" : "border-white/10"
             )}
             style={{ height: 480 }}
             onClick={() => focusChat(chatKey)}
@@ -310,7 +310,7 @@ export function KaelChatWindow({ chatKey, dossierId, currentLab, isFocused, mini
                                 <Sparkles className="h-2.5 w-2.5 text-primary" />
                             </div>
                         )}
-                        <div className={cn("rounded-xl px-3 py-2 text-xs max-w-[82%]", msg.role === "user" ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-muted rounded-bl-sm")}>
+                        <div className={cn("rounded-xl px-3 py-2 text-xs max-w-[82%]", msg.role === "user" ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-white/8 text-white/90 rounded-bl-sm")}>
                             <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                             <p className={cn("text-[9px] mt-0.5 opacity-40", msg.role === "user" ? "text-right" : "")}>
                                 {new Date(msg.timestamp).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
@@ -319,13 +319,13 @@ export function KaelChatWindow({ chatKey, dossierId, currentLab, isFocused, mini
                     </div>
                 ))}
                 {sending && (
-                    <div className="flex"><div className="w-5 h-5 rounded-full flex items-center justify-center mr-1.5 shrink-0 bg-primary/10 border border-primary/20"><Sparkles className="h-2.5 w-2.5 text-primary animate-pulse" /></div><div className="bg-muted rounded-xl px-3 py-2"><div className="flex gap-0.5">{[0, 150, 300].map((d) => <span key={d} className="w-1 h-1 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}</div></div></div>
+                    <div className="flex"><div className="w-5 h-5 rounded-full flex items-center justify-center mr-1.5 shrink-0 bg-primary/10 border border-primary/20"><Sparkles className="h-2.5 w-2.5 text-primary animate-pulse" /></div><div className="bg-white/8 rounded-xl px-3 py-2"><div className="flex gap-0.5">{[0, 150, 300].map((d) => <span key={d} className="w-1 h-1 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}</div></div></div>
                 )}
                 <div ref={bottomRef} />
             </div>
 
             {/* Input */}
-            <div className="shrink-0 px-3 py-2 border-t border-border/40">
+            <div className="shrink-0 px-3 py-2 border-t border-white/5">
                 <div className="flex items-end gap-1.5">
                     <Textarea
                         ref={textareaRef}
@@ -333,7 +333,7 @@ export function KaelChatWindow({ chatKey, dossierId, currentLab, isFocused, mini
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSend() }}
                         placeholder="Message à KAEL… (⌘↵)"
-                        className="min-h-[36px] text-xs resize-none rounded-lg py-2 bg-muted/40 border-muted focus:border-primary/40"
+                        className="min-h-[36px] text-xs resize-none rounded-lg py-2 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-primary/40"
                         rows={1}
                         disabled={sending}
                     />

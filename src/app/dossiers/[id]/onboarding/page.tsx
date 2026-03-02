@@ -9,6 +9,7 @@ import { useAutoResize } from "@/hooks/use-auto-resize"
 import { useSpeech } from "@/hooks/use-speech"
 import { Markdown } from "@/components/ui/markdown"
 import { KaelInlineChoices } from "@/components/kael/kael-inline-choices"
+import { KaelQuestionWizard } from "@/components/kael/kael-question-wizard"
 import {
   Send,
   Mic,
@@ -19,6 +20,9 @@ import {
   ArrowRight,
   CheckCircle,
   ArrowLeft,
+  Copy,
+  Check,
+  RefreshCw,
 } from "lucide-react"
 import type { ChatMessage } from "@/lib/claude"
 import type { OnboardingStateDTO } from "@/lib/onboarding-state"
@@ -36,27 +40,65 @@ declare global {
 
 // ─── Progress bar ─────────────────────────────────────────────────────────
 
-function OnboardingProgress({ state }: { state: OnboardingStateDTO | null }) {
+function OnboardingProgress({
+  state,
+  isLoading,
+  visible,
+}: {
+  state: OnboardingStateDTO | null
+  isLoading: boolean
+  visible: boolean
+}) {
   const confirmed = state?.confirmedAspects ?? {}
-  const hasAny = Object.keys(confirmed).length > 0
-  if (!hasAny) return null
+  const quality = state?.aspectQuality ?? {}
+  // Scanning dot index: cycles 0→3 while loading, else -1
+  const [scanIdx, setScanIdx] = useState(-1)
+
+  useEffect(() => {
+    if (!isLoading) { setScanIdx(-1); return }
+    let i = 0
+    const interval = setInterval(() => {
+      setScanIdx(i % ASPECT_KEYS.length)
+      i++
+    }, 400)
+    return () => clearInterval(interval)
+  }, [isLoading])
 
   return (
-    <div className="flex items-center gap-2">
-      {ASPECT_KEYS.map((key) => {
+    <div
+      className={cn(
+        "flex items-center gap-2.5 transition-all duration-500",
+        visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1 pointer-events-none"
+      )}
+    >
+      {ASPECT_KEYS.map((key, idx) => {
         const done = !!confirmed[key]
+        const weak = done && quality[key] === "weak"
+        const scanning = isLoading && scanIdx === idx
         return (
-          <div key={key} className="flex items-center gap-1">
-            <div
-              className={cn(
-                "h-1.5 w-8 rounded-full transition-all duration-500",
-                done ? "bg-primary" : "bg-muted-foreground/20"
+          <div key={key} className="flex items-center gap-1.5" title={weak ? `${ASPECT_LABELS[key]} — à affiner` : undefined}>
+            <div className="relative h-1.5 w-8 rounded-full overflow-hidden bg-muted-foreground/15">
+              {/* filled — vert si strong, ambre si weak */}
+              <div
+                className={cn(
+                  "absolute inset-0 rounded-full transition-all duration-700",
+                  done && !weak ? "bg-primary opacity-100" :
+                  done && weak  ? "bg-amber-400 opacity-100" :
+                  "bg-primary opacity-0"
+                )}
+              />
+              {/* scan shimmer */}
+              {scanning && (
+                <div className="absolute inset-0 rounded-full bg-white/60 animate-pulse" />
               )}
-            />
+            </div>
             <span
               className={cn(
-                "text-[10px] transition-colors duration-300",
-                done ? "text-primary" : "text-muted-foreground/40"
+                "text-[10px] transition-all duration-500",
+                done && !weak ? "text-primary" :
+                done && weak  ? "text-amber-400" :
+                scanning      ? "text-white/70" :
+                "text-muted-foreground/35"
               )}
             >
               {ASPECT_LABELS[key]}
@@ -83,19 +125,25 @@ export default function OnboardingPage({ params }: { params: { id: string } }) {
   const [error, setError] = useState<string | null>(null)
 
   const [onboardingState, setOnboardingState] = useState<OnboardingStateDTO | null>(null)
+  const [progressVisible, setProgressVisible] = useState(false)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const initialized = useRef(false)
   const textareaRef = useAutoResize(input)
 
-  // Étape G — isComplete est exclusivement dérivé du serveur
-  const isComplete = onboardingState?.step === "COMPLETE"
-
-  // Choices only on the last KAEL message that has them
-  const lastKaelWithChoicesId = [...messages]
+  // isComplete is exclusively derived from the server state.
+  // Safety guard: never show the completion banner while an unanswered
+  // question with choices/questions is still visible on screen.
+  const lastKaelWithInteraction = [...messages]
     .reverse()
-    .find((m) => m.role === "expert" && m.choices?.length)?.id
+    .find((m) => m.role === "expert" && (m.choices?.length || m.questions?.length))
+  const hasPendingChoices = !!lastKaelWithInteraction
+  const isComplete = onboardingState?.step === "COMPLETE" && !hasPendingChoices
+
+  // Choices/questions only on the last KAEL message that has them
+  const lastKaelWithInteractionId = lastKaelWithInteraction?.id
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -143,6 +191,8 @@ export default function OnboardingPage({ params }: { params: { id: string } }) {
       ])
     } finally {
       setIsLoading(false)
+      // Reveal progress bar with a slight delay for a premium entrance
+      setTimeout(() => setProgressVisible(true), 300)
     }
   }
 
@@ -161,12 +211,14 @@ export default function OnboardingPage({ params }: { params: { id: string } }) {
     setMessages((prev) => [...prev, userMsg])
     setInput("")
 
-    const fileContexts = extractedFiles.map((f) => ({
-      name: f.name,
-      kind: f.kind,
-      content: f.content,
-      dataUrl: f.kind === "image" ? f.dataUrl : undefined,
-    }))
+    const fileContexts = extractedFiles
+      .filter((f) => f.kind !== "binary")
+      .map((f) => ({
+        name: f.name,
+        kind: f.kind,
+        content: f.content,
+        dataUrl: f.kind === "image" ? f.dataUrl : undefined,
+      }))
     setExtractedFiles([])
     setError(null)
     setIsLoading(true)
@@ -184,7 +236,10 @@ export default function OnboardingPage({ params }: { params: { id: string } }) {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.error ?? `Erreur serveur ${res.status}`)
+        const details = errData.details
+          ? ` (${Object.entries(errData.details).map(([k, v]) => `${k}: ${(v as string[]).join(", ")}`).join(" | ")})`
+          : ""
+        throw new Error((errData.error ?? `Erreur serveur ${res.status}`) + details)
       }
 
       const data = await res.json()
@@ -232,12 +287,39 @@ export default function OnboardingPage({ params }: { params: { id: string } }) {
     router.push(`/dossiers/${dossierId}`)
   }
 
+  function handleCopy(id: string, content: string) {
+    navigator.clipboard.writeText(content).then(() => {
+      setCopiedId(id)
+      setTimeout(() => setCopiedId(null), 1500)
+    })
+  }
+
+  async function handleRetry(_expertMsgId: string) {
+    if (isLoading) return
+    setError(null)
+    try {
+      const res = await fetch(`/api/dossiers/${dossierId}/onboarding`, {
+        method: "DELETE",
+        signal: AbortSignal.timeout(10000),
+      })
+      if (!res.ok) throw new Error("Impossible de relancer")
+      const data = await res.json()
+      setMessages(data.messages ?? [])
+      if (data.retryText) {
+        // sendMessage manages isLoading itself
+        sendMessage(data.retryText)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue")
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="h-dvh overflow-hidden flex flex-col bg-background">
       {/* Header — Étape G : pas de bouton "Passer" ambigu */}
-      <header className="border-b px-6 py-3 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
+      <header className="border-b px-6 py-3 flex items-center justify-between shrink-0 gap-4">
+        <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={() => router.back()}
             className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
@@ -249,33 +331,36 @@ export default function OnboardingPage({ params }: { params: { id: string } }) {
           <span className="text-muted-foreground text-sm">·</span>
           <span className="text-sm font-medium truncate max-w-[200px]">{dossierName}</span>
         </div>
+        {/* Progress — sticky, toujours visible */}
+        <div className="flex-1 flex justify-center">
+          <OnboardingProgress state={onboardingState} isLoading={isLoading} visible={progressVisible} />
+        </div>
         {/* Étape G : "Entrer dans le workspace" uniquement si isComplete (serveur) */}
-        {isComplete && (
-          <Button size="sm" onClick={handleEnterWorkspace} className="gap-2">
-            <CheckCircle className="h-4 w-4" />
-            Entrer dans le workspace
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        )}
+        <div className="shrink-0">
+          {isComplete ? (
+            <Button size="sm" onClick={handleEnterWorkspace} className="gap-2">
+              <CheckCircle className="h-4 w-4" />
+              Entrer dans le workspace
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          ) : (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/60 rounded-full px-3 py-1.5">
+              <Sparkles className="h-3 w-3" />
+              KAEL
+            </div>
+          )}
+        </div>
       </header>
 
       {/* Chat */}
       <div className="flex-1 overflow-y-auto px-4 md:px-0 py-6 min-h-0">
         <div className="max-w-2xl mx-auto space-y-5">
-          {/* Badge + progress */}
-          <div className="flex flex-col items-center gap-3">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/60 rounded-full px-3 py-1.5">
-              <Sparkles className="h-3 w-3" />
-              KAEL · Orchestrateur Central
-            </div>
-            <OnboardingProgress state={onboardingState} />
-          </div>
 
           {/* Messages */}
           {messages.map((msg) => (
             <div
               key={msg.id}
-              className={cn("flex flex-col gap-2", msg.role === "user" ? "items-end" : "items-start")}
+              className={cn("group flex flex-col gap-1", msg.role === "user" ? "items-end" : "items-start")}
             >
               {msg.role === "expert" ? (
                 // KAEL bubble — choices panel attached inside
@@ -292,13 +377,21 @@ export default function OnboardingPage({ params }: { params: { id: string } }) {
                       </div>
                     )}
                   </div>
-                  {/* Inline choices — only on the last KAEL message that has them */}
-                  {msg.id === lastKaelWithChoicesId && msg.choices && msg.choices.length > 0 && (
-                    <KaelInlineChoices
-                      choices={msg.choices}
-                      onSelect={sendMessage}
-                      disabled={isLoading}
-                    />
+                  {/* Inline interaction — only on the last KAEL message that has them */}
+                  {msg.id === lastKaelWithInteractionId && (
+                    msg.questions && msg.questions.length > 0 ? (
+                      <KaelQuestionWizard
+                        questions={msg.questions}
+                        onSubmit={sendMessage}
+                        disabled={isLoading}
+                      />
+                    ) : msg.choices && msg.choices.length > 0 ? (
+                      <KaelInlineChoices
+                        choices={msg.choices}
+                        onSelect={sendMessage}
+                        disabled={isLoading}
+                      />
+                    ) : null
                   )}
                 </div>
               ) : (
@@ -316,6 +409,31 @@ export default function OnboardingPage({ params }: { params: { id: string } }) {
                   )}
                 </div>
               )}
+              {/* Action buttons — visible on hover */}
+              <div className={cn(
+                "flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity",
+                msg.role === "user" ? "flex-row-reverse" : "flex-row"
+              )}>
+                <button
+                  onClick={() => handleCopy(msg.id, msg.content)}
+                  className="p-1 rounded hover:bg-muted text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                  title="Copier"
+                >
+                  {copiedId === msg.id
+                    ? <Check className="h-3 w-3 text-primary" />
+                    : <Copy className="h-3 w-3" />
+                  }
+                </button>
+                {msg.role === "expert" && !isLoading && (
+                  <button
+                    onClick={() => handleRetry(msg.id)}
+                    className="p-1 rounded hover:bg-muted text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                    title="Relancer"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
             </div>
           ))}
 
@@ -383,8 +501,8 @@ export default function OnboardingPage({ params }: { params: { id: string } }) {
                       f.kind === "image"
                         ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
                         : f.kind === "text"
-                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                        : "bg-muted border-border"
+                          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                          : "bg-muted border-border"
                     )}
                   >
                     <Paperclip className="h-3 w-3 shrink-0" />
@@ -400,6 +518,11 @@ export default function OnboardingPage({ params }: { params: { id: string } }) {
                 ))}
               </div>
             )}
+            {interim && (
+              <p className="px-3 pb-1.5 text-xs text-muted-foreground/60 italic truncate">
+                {interim}
+              </p>
+            )}
             <div className="flex items-end gap-2">
               <div className="flex-1 relative">
                 <Textarea
@@ -408,15 +531,11 @@ export default function OnboardingPage({ params }: { params: { id: string } }) {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Décrivez votre projet, partagez vos idées, ajoutez des fichiers…"
-                  className="min-h-[52px] resize-none pr-2 text-sm rounded-2xl py-3.5 bg-muted/40 border-muted focus:border-primary/50 overflow-hidden"
+                  className="min-h-[52px] max-h-[200px] resize-none pr-2 text-sm rounded-2xl py-3.5 bg-muted/40 border-muted focus:border-primary/50 overflow-y-auto"
                   rows={1}
+                  maxLength={10000}
                   disabled={isLoading}
                 />
-                {interim && (
-                  <p className="px-3 pt-1 pb-0.5 text-xs text-muted-foreground/60 italic truncate">
-                    {interim}
-                  </p>
-                )}
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChange} />

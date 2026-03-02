@@ -29,6 +29,7 @@ const patchSchema = z.object({
   archived: z.boolean().optional(),
   macroState: z.string().optional(),
   name: z.string().min(1).optional(),
+  tags: z.array(z.string()).optional(),
 })
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

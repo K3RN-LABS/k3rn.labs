@@ -9,9 +9,11 @@ export async function validateBody<T>(
     const body = await req.json()
     const result = schema.safeParse(body)
     if (!result.success) {
+      const fieldErrors = result.error.flatten().fieldErrors
+      console.error("[validateBody] Zod validation failed:", JSON.stringify(fieldErrors))
       return {
         error: NextResponse.json(
-          { error: "Validation error", details: result.error.flatten().fieldErrors },
+          { error: "Validation error", details: fieldErrors },
           { status: 400 }
         ),
       }

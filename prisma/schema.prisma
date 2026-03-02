@@ -135,6 +135,7 @@ model Dossier {
   archived            Boolean    @default(false)
   onboardingMessages  Json       @default("[]")
   onboardingState     Json?
+  tags                String[]   @default([])
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
 
@@ -317,33 +318,37 @@ model PoleSession {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
-  pole    Pole    @relation(fields: [poleId], references: [id], onDelete: Cascade)
-  dossier Dossier @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  pole           Pole           @relation(fields: [poleId], references: [id], onDelete: Cascade)
+  dossier        Dossier        @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  expertSessions ExpertSession[]
 
   @@index([dossierId])
   @@index([poleId])
 }
 
 model ExpertSession {
-  id           String              @id @default(cuid())
-  expertId     String
-  dossierId    String
-  labStateId   String
-  cardId       String?
-  messages     Json                @default("[]")
-  status       ExpertSessionStatus @default(PENDING)
-  proposedCard Json?
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  id             String              @id @default(cuid())
+  expertId       String
+  dossierId      String
+  labStateId     String
+  poleSessionId  String?
+  cardId         String?
+  messages       Json                @default("[]")
+  status         ExpertSessionStatus @default(PENDING)
+  proposedCard   Json?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 
   expert         Expert             @relation(fields: [expertId], references: [id])
   dossier        Dossier            @relation(fields: [dossierId], references: [id], onDelete: Cascade)
   labState       LabState           @relation(fields: [labStateId], references: [id])
+  poleSession    PoleSession?       @relation(fields: [poleSessionId], references: [id], onDelete: SetNull)
   card           Card?              @relation(fields: [cardId], references: [id])
   transitionLogs CardTransitionLog[]
 
   @@index([dossierId])
   @@index([expertId])
+  @@index([poleSessionId])
 }
 
 model ScoreSnapshot {

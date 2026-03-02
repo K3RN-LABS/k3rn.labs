@@ -7,8 +7,87 @@ Types: FEATURE, FIX, REFACTOR, CHORE.
 
 ---
 
+## 2026-03-02
+
+REFACTOR: Full landing redesign — bg #060608 unifié, ambient orbs hero, glassmorphism graph mockup, typographie font-jakarta, sections avec depth (border white/6), CTA final avec ambient glow, footer minimaliste
+REFACTOR: Header landing — glass liquid effect (backdrop-blur, border white/8, shimmer layer, left-edge glow), pill nav avec bouton Early Access solid white, logo size lg
+FEATURE: Add section incubateur/communauté — financement communautaire, collaboration inter-projets, lancement & optimisation continue
+REFACTOR: Rewrite landing page copy — promesse "idée → multinationale" au lieu de "système cognitif", hero, sous-titre, steps, KAEL block, CTA
+REFACTOR: Redesign section "7 Pôles" en scrollable horizontal — KAEL sticky à gauche, 7 manager cards défilantes, cards compactes (w-52, min-h-340px)
+FIX: Update KAEL description on landing page — "Copilote" → "Assistant stratégique personnel", label "Orchestrateur Central" → "Intelligence Centrale", tu→vous, fix typo "tese"
+FEATURE: Refonte section "7 Pôles" landing page — vrais managers AXEL/MAYA/KAI/ELENA/ZARA/MARCUS/NOVA avec avatar placeholder (initiale colorée), titre, description, hashtags, grille 4 colonnes responsive
+FEATURE: Add copy button (hover) on every chat message in onboarding — clipboard copy with 1.5s check feedback
+FEATURE: Add retry button (hover) on KAEL messages — DELETE last exchange then re-send same user input for a fresh response
+FIX: KAEL stops after weak-acceptance without asking next aspect — prompt now enforces question on next aspect after every confirmation (strong or weak)
+FIX: stateReminder now lists remaining aspects and explicitly mandates question on next aspect in scope
+FEATURE: Add KaelQuestionWizard — paginated multi-question modal with per-question single/multi-select and progress bar
+FEATURE: Extend KAELResponse and ChatMessage with questions[] field for guided questionnaire blocks
+FEATURE: Update invokeChefDeProjet prompt to generate questions[] when multiple aspects need collection
+FEATURE: Update onboarding route to propagate questions[] to ChatMessage (priority over flat choices)
+
+FEATURE: Tags libres couleur sur les dossiers — badge coloré sur chaque carte, popover d'édition inline, palette 8 couleurs, stocké en DB (tags String[])
+FEATURE: HomeDock flottant sur la page Home — filtres par tag/statut/lab + bouton nouveau dossier, style Apple dock
+FIX: Avertissement nom dupliqué dans le dialog de création de dossier (bandeau ambre, sans blocage)
+FIX: Variabilité réponses KAEL — temperature 0.3 dans callLLMProxy (n8n.ts), invokeChefDeProjet (claude.ts) et workflow n8n LLMProxy (Validate + Call OpenAI)
+FIX: Bouton retour workspace redirige vers /home au lieu de / (landing page)
+FIX: KAEL s'arrête après acquittement — ajout règle "jamais terminer sans question si aspects manquants", exemple concret dans prompt
+FIX: KAEL choices sans question — choices conditionnels (prompt + guard serveur), omis si message est acquittement/transition sans "?"
+FIX: KaelInlineChoices display bug — add prompt rule forbidding question text inside choices array (labels only, 2-5 words max)
+FEATURE: KaelInlineChoices multi-select — checkbox accumulation mode with Valider (N) button, auto "Tout cela" option when 3+ choices
+FIX: KAEL challenge prompt — une seule dimension par message, choices cohérentes avec la question posée, max 20 mots par question
+FEATURE: OnboardingProgress badge ambre pour aspects weak — bar segment et label en amber-400, tooltip "à affiner"
+REFACTOR: Redesign invokeChefDeProjet system prompt — KAEL becomes YC-associate mode with dual role (natural assistant + silent extractor), solidarity criteria, challenge flow capped at 2, and dynamic JSON example reflecting actual state
+FEATURE: Add aspectQuality and challengeCount fields to KAELResponse interface
+FEATURE: Add confirmedQualities and challengeCounts to invokeChefDeProjet stateContext parameter
+FIX: Add guard capping challengeCount values at 2 in invokeChefDeProjet response parsing
+
+REFACTOR: Pass confirmedQualities and challengeCounts from existingState to invokeChefDeProjet stateContext in onboarding POST route
+REFACTOR: Forward aspectQuality and challengeCount from aiResponse into applyLLMResponse call in onboarding POST route
+
+REFACTOR: applyLLMResponse now LLM-driven — accepts llmQuality and llmChallengeCount params, replaces server-side heuristic auto-confirm with guard at 2 challenges (weak force-confirm)
+FEATURE: toDTO exposes aspectQuality field in OnboardingStateDTO so UI can render weak/strong badge
+
+FIX: KAEL no longer re-asks confirmed aspects — added end-of-prompt state reminder with recency weight and fixed confirmedAspects JSON example to reflect actual confirmed list
+FEATURE: OnboardingProgress bar fades in after first KAEL message load (300ms delay, premium entrance)
+FEATURE: OnboardingProgress bar animates a scanning shimmer dot across segments while KAEL is thinking
+FIX: Strip choices from history messages on each POST — inline choices no longer persist after user replies
+FIX: Move OnboardingProgress to header (sticky) — no longer scrolls out of view during conversation
+FIX: Replace scrollable KAEL badge+progress block in chat with compact "KAEL" pill in header right slot
+FIX: Raise onboarding message max length from 4000 to 10000 — long project descriptions were rejected by Zod
+FIX: Add maxLength={10000} to onboarding Textarea — browser enforces same limit as server schema
+FIX: Display Zod field details in onboarding error messages — easier debugging of future validation failures
+FIX: Add console.error in validateBody on Zod failure — logs field errors in Vercel/server logs
+CHORE: Create CLAUDE.md at project root — architecture rules, MCP servers, critical files index
+CHORE: Add .claude/rules/onboarding-ux.md — onboarding patterns, layout rules, known bugs
+FIX: Add "binary" to fileContextSchema kind enum — prevents Zod validation error on POST
+FIX: Filter binary files client-side before POST — binary files have no content/dataUrl for LLM
+FIX: Move interim voice transcript above input row — no longer pushes buttons off-screen
+FIX: Add max-h-[200px] + overflow-y-auto to onboarding textarea — prevents unlimited vertical growth
+FIX: useAutoResize hook respects CSS maxHeight — textarea height capped at computed max
+
+FIX: Floating chat windows use explicit bg-[#111111] — no more white background on dark theme
+FIX: Chat message bubbles use bg-white/8 — no dependency on bg-muted CSS variable
+FIX: Chat input zone uses bg-white/5 and border-white/10 — fully dark regardless of theme
+FIX: Auto-minimize limit reduced from 3 to 2 — prevents chat windows from overflowing screen width
+FIX: Chat window width reduced from 360px to 320px — better fit with 2-up layout
+FIX: Chat windows bottom offset raised to bottom-[108px] — no overlap with Dock (bottom-6 + 72px height)
+FIX: Minimized chat tabs repositioned to bottom-[108px] and displayed in horizontal row (flex-row-reverse)
+FIX: KaelPanel collapsed state uses bg-[#0a0a0a] — eliminates white strip on dark theme
+FIX: KaelPanel open state uses bg-[#0f0f0f] instead of bg-background/90 — consistent dark background
+FEATURE: Workspace loading screen uses animated spinning logo instead of ✦ star icon
+FEATURE: Dossier redirect loading screen uses animated spinning logo instead of ✦ star icon
+
 ## 2026-03-01
 
+FIX: Dock z-index raised to z-60 — always accessible above floating chat windows
+FIX: Chat windows anchored to bottom-[72px] — no longer overlap the Dock
+FIX: Minimized chat tabs repositioned to bottom-[140px] z-40 — no collision with MiniMap or KaelPanel
+FIX: MiniMap repositioned to top-4 right-4 — out of floating-layer zone
+FEATURE: FIFO auto-minimize for chat windows — oldest expanded window minimizes when 4th is opened (max 3 visible)
+REFACTOR: Dock KAEL button unified — always toggles KaelPanel permanent (no duplicate floating KAEL window)
+FIX: Add onboarding gate in WorkspacePage — redirect to onboarding if step !== COMPLETE
+FEATURE: Add GET /api/status/worker endpoint — reports CardIngestionJob counts (pending/running/stale/failed)
+REFACTOR: Link ExpertSession to PoleSession via optional poleSessionId FK in Prisma schema
 FIX: Add postinstall script to force deterministic prisma generate on Vercel CI (fixes CardState not exported from @prisma/client)
 FIX: Remove duplicate CardState enum declaration in prisma/schema.prisma (lines 455-459)
 CHORE: Delete orphaned floating-dock.tsx component (replaced by Dock.tsx, zero imports)

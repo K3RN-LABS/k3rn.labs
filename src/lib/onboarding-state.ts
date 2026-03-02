@@ -39,10 +39,16 @@ export type OnboardingStatus = "IN_PROGRESS" | "COMPLETE"
 /**
  * Audit trail : chaque aspect stocke la réponse exacte de l'utilisateur
  * qui a permis de le confirmer, et le timestamp de confirmation.
+ *
+ * quality  : "strong" = réponse solide niveau pitch-seed (activable par les pôles)
+ *            "weak"   = accepté après 2 challenges, à affiner plus tard
+ * challengeCount : nombre de fois que KAEL a challengé cet aspect avant confirmation
  */
 export interface ConfirmedAspectEntry {
   value: string
   confirmedAt: string
+  quality?: "strong" | "weak"
+  challengeCount?: number
 }
 
 export type ConfirmedAspects = Partial<Record<AspectKey, ConfirmedAspectEntry>>
@@ -128,20 +134,17 @@ function isDontKnow(text: string): boolean {
 /**
  * Fusionne la réponse LLM + réponse utilisateur dans l'état persisté.
  *
- * Stratégie double :
- * A) Auto-confirmation serveur : si `currentQuestion` est défini et que la réponse
- *    est substantielle (>= 8 chars, pas "je sais pas"), on confirme l'aspect courant
- *    immédiatement — sans dépendre du LLM.
- * B) Aspects LLM additifs : si le LLM renvoie d'autres aspects dans `llmAspects`,
- *    on les ajoute également (extraction multi-aspect bonus).
- *
- * Ce design garantit zéro répétition de question même si le LLM oublie de
- *  renseigner `confirmedAspects`.
+ * Stratégie LLM-driven :
+ * A) Le LLM juge la qualité sémantique — on lui fait confiance pour confirmer.
+ * B) Guard serveur : si le LLM a challengé 2 fois sans confirmer, on force
+ *    la confirmation en weak pour débloquer l'utilisateur.
  */
 export function applyLLMResponse(
   existing: OnboardingState,
   llmAspects: AspectKey[],
   userMessage: string,
+  llmQuality?: Partial<Record<AspectKey, "strong" | "weak">>,
+  llmChallengeCount?: Partial<Record<AspectKey, number>>,
 ): OnboardingState {
   // État terminal → immuable
   if (existing.step === "COMPLETE") return existing
@@ -150,18 +153,37 @@ export function applyLLMResponse(
   const now = new Date().toISOString()
   const trimmed = userMessage.trim()
 
-  // ── A) Server-side auto-confirmation ──────────────────────────────────────
-  // If the user gave a real answer to the currentQuestion, confirm it
-  // regardless of what the LLM reported.
-  const cq = existing.currentQuestion
-  if (cq && !confirmed[cq] && trimmed.length >= 8 && !isDontKnow(trimmed)) {
-    confirmed[cq] = { value: trimmed, confirmedAt: now }
+  // ── LLM-driven confirmation (primary) ────────────────────────────────────
+  // Le LLM juge la qualité sémantique — on lui fait confiance pour confirmer
+  for (const aspect of llmAspects) {
+    if (!ASPECT_KEYS.includes(aspect)) continue
+    if (confirmed[aspect]) continue  // déjà confirmé — immuable
+
+    const quality = llmQuality?.[aspect] ?? "strong"
+    const challengeCount = llmChallengeCount?.[aspect] ?? 0
+
+    confirmed[aspect] = {
+      value: trimmed || (existing.confirmedAspects[aspect]?.value ?? ""),
+      confirmedAt: now,
+      quality,
+      challengeCount,
+    }
   }
 
-  // ── B) LLM additive aspects (bonus multi-extract) ─────────────────────────
-  for (const aspect of llmAspects) {
-    if (ASPECT_KEYS.includes(aspect) && !confirmed[aspect] && trimmed) {
-      confirmed[aspect] = { value: trimmed, confirmedAt: now }
+  // ── Guard serveur : force weak après 2 challenges ─────────────────────────
+  // Si le LLM a challengé 2 fois sans confirmer, on force la confirmation
+  // en weak pour débloquer l'utilisateur — la valeur courante est acceptée
+  const cq = existing.currentQuestion
+  if (cq && !confirmed[cq] && trimmed) {
+    const existingChallengeCount = existing.confirmedAspects[cq]?.challengeCount ?? 0
+    const llmCount = llmChallengeCount?.[cq] ?? existingChallengeCount
+    if (llmCount >= 2) {
+      confirmed[cq] = {
+        value: trimmed,
+        confirmedAt: now,
+        quality: "weak",
+        challengeCount: llmCount,
+      }
     }
   }
 
@@ -196,9 +218,14 @@ export function deserializeState(raw: unknown): OnboardingState {
     if (legacy) {
       for (const k of ASPECT_KEYS) {
         if (typeof legacy[k] === "string") {
-          migrated[k] = { value: legacy[k] as string, confirmedAt: new Date(0).toISOString() }
+          migrated[k] = { value: legacy[k] as string, confirmedAt: new Date(0).toISOString(), quality: "strong", challengeCount: 0 }
         } else if (legacy[k] && typeof legacy[k] === "object") {
-          migrated[k] = legacy[k] as ConfirmedAspectEntry
+          const entry = legacy[k] as ConfirmedAspectEntry
+          migrated[k] = {
+            ...entry,
+            quality: entry.quality ?? "strong",
+            challengeCount: entry.challengeCount ?? 0,
+          }
         }
       }
     }
@@ -238,6 +265,7 @@ export interface OnboardingStateDTO {
   step: OnboardingStep
   status: OnboardingStatus
   confirmedAspects: Partial<Record<AspectKey, string>>
+  aspectQuality: Partial<Record<AspectKey, "strong" | "weak">>
   currentQuestion: AspectKey | null
   recommendedLab: OnboardingLab
   completedAt?: string
@@ -245,13 +273,18 @@ export interface OnboardingStateDTO {
 
 export function toDTO(state: OnboardingState): OnboardingStateDTO {
   const aspects: Partial<Record<AspectKey, string>> = {}
+  const quality: Partial<Record<AspectKey, "strong" | "weak">> = {}
   for (const k of ASPECT_KEYS) {
-    if (state.confirmedAspects[k]) aspects[k] = state.confirmedAspects[k]!.value
+    if (state.confirmedAspects[k]) {
+      aspects[k] = state.confirmedAspects[k]!.value
+      quality[k] = state.confirmedAspects[k]!.quality ?? "strong"
+    }
   }
   return {
     step: state.step,
     status: state.status,
     confirmedAspects: aspects,
+    aspectQuality: quality,
     currentQuestion: state.currentQuestion,
     recommendedLab: state.recommendedLab,
     completedAt: state.completedAt,

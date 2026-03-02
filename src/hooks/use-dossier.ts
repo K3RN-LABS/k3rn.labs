@@ -96,3 +96,19 @@ export function useUnarchiveDossier() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["dossiers"] }),
   })
 }
+
+export function useUpdateDossierTags() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, tags }: { id: string; tags: string[] }) => {
+      const res = await fetch(`/api/dossiers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tags }),
+      })
+      if (!res.ok) throw new Error("Failed to update tags")
+      return res.json()
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["dossiers"] }),
+  })
+}

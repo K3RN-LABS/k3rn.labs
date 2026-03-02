@@ -2,6 +2,7 @@ import { create } from "zustand"
 import type { MacroState, SubFolderType } from "@prisma/client"
 
 export type ChatType = "pole" | "kael"
+export type CanvasLayout = "auto" | "free"
 
 export interface OpenChat {
   key: string // unique per chat window
@@ -23,11 +24,28 @@ interface WorkspaceState {
   openChats: OpenChat[]
   focusedChatKey: string | null
 
+  // KAEL permanent panel
+  kaelPanelOpen: boolean
+
+  // Canvas UI state
+  canvasSearch: string
+  canvasFilterType: string | null
+  canvasLayout: CanvasLayout
+
   // Actions — context
   setActiveDossier: (id: string | null) => void
   setActiveSubFolder: (id: string | null, type: SubFolderType | null) => void
   setMacroState: (state: MacroState) => void
   reset: () => void
+
+  // Actions — KAEL panel
+  setKaelPanelOpen: (open: boolean) => void
+  toggleKaelPanel: () => void
+
+  // Actions — canvas
+  setCanvasSearch: (q: string) => void
+  setCanvasFilterType: (type: string | null) => void
+  setCanvasLayout: (layout: CanvasLayout) => void
 
   // Actions — chats
   openPoleChat: (poleId: string, poleCode: string, managerName: string) => void
@@ -44,6 +62,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   macroState: "WORKSPACE_IDLE",
   openChats: [],
   focusedChatKey: null,
+  kaelPanelOpen: false,
+  canvasSearch: "",
+  canvasFilterType: null,
+  canvasLayout: "auto",
 
   setActiveDossier: (id) => set({ activeDossierId: id }),
   setActiveSubFolder: (id, type) =>
@@ -62,6 +84,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       openChats: [],
       focusedChatKey: null,
     }),
+
+  setKaelPanelOpen: (open) => set({ kaelPanelOpen: open }),
+  toggleKaelPanel: () => set((s) => ({ kaelPanelOpen: !s.kaelPanelOpen })),
+
+  setCanvasSearch: (q) => set({ canvasSearch: q }),
+  setCanvasFilterType: (type) => set({ canvasFilterType: type }),
+  setCanvasLayout: (layout) => set({ canvasLayout: layout }),
 
   openPoleChat: (poleId, poleCode, managerName) => {
     const { openChats } = get()
@@ -84,7 +113,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       managerName,
       minimized: false,
     }
-    set({ openChats: [...openChats, newChat], focusedChatKey: existingKey })
+    // Auto-minimize oldest expanded chat if at limit (max 2 visible simultaneously)
+    const expanded = openChats.filter((c) => !c.minimized)
+    const chatsToSet = expanded.length >= 2
+      ? openChats.map((c) => c.key === expanded[0].key ? { ...c, minimized: true } : c)
+      : openChats
+    set({ openChats: [...chatsToSet, newChat], focusedChatKey: existingKey })
   },
 
   openKaelChat: () => {

@@ -239,6 +239,7 @@ export async function callLLMProxy(
     maxTokens?: number
     responseFormat?: { type: "json_object" | "text" }
     timeoutMs?: number
+    temperature?: number
   } = {}
 ): Promise<{ content: string }> {
   const webhookSecret = process.env.N8N_WEBHOOK_SECRET
@@ -253,6 +254,7 @@ export async function callLLMProxy(
       messages,
       max_tokens: options.maxTokens ?? 1024,
       response_format: options.responseFormat ?? { type: "json_object" },
+      temperature: options.temperature ?? 0.3,
     }),
     signal: AbortSignal.timeout(options.timeoutMs ?? 30000),
   })

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useCallback } from "react"
+import { useEffect, useCallback, useMemo } from "react"
 import ReactFlow, {
   Background,
   Controls,
@@ -12,6 +12,8 @@ import ReactFlow, {
 } from "reactflow"
 import "reactflow/dist/style.css"
 import { useGraphData } from "@/hooks/use-canvas"
+import { useGraphRealtime } from "@/hooks/use-graph-realtime"
+import { useWorkspaceStore } from "@/store/workspace.store"
 import { CardNode } from "./nodes/CardNode"
 import { LabSectionNode } from "./nodes/LabSectionNode"
 
@@ -95,20 +97,36 @@ function autoLayout(cards: CardRecord[]): Map<string, { x: number; y: number }> 
   return positions
 }
 
+
 export function CanvasView({ dossierId, subFolderId }: CanvasViewProps) {
   const { data: graphData } = useGraphData(dossierId)
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
+
+  // Realtime — auto-invalidate graph query on remote updates
+  useGraphRealtime(dossierId)
+
+  // Canvas UI state from store
+  const { canvasSearch, canvasFilterType } = useWorkspaceStore()
 
   useEffect(() => {
     if (!graphData) return
 
     const { cards: allCards, relations } = graphData
 
-    // Filter by subfolder if one is active
-    const cards = subFolderId
+    // Apply filters: subfolder → cardType → search
+    let cards = subFolderId
       ? allCards.filter((c) => c.subFolder && (c.subFolder as { id?: string }).id === subFolderId)
       : allCards
+
+    if (canvasFilterType) {
+      cards = cards.filter((c) => c.cardType === canvasFilterType)
+    }
+
+    if (canvasSearch.trim()) {
+      const q = canvasSearch.toLowerCase()
+      cards = cards.filter((c) => c.title.toLowerCase().includes(q))
+    }
 
     if (cards.length === 0) {
       setNodes([])
@@ -156,7 +174,7 @@ export function CanvasView({ dossierId, subFolderId }: CanvasViewProps) {
 
     setNodes(rfNodes)
     setEdges(rfEdges)
-  }, [graphData, subFolderId, setNodes, setEdges])
+  }, [graphData, subFolderId, canvasSearch, canvasFilterType, setNodes, setEdges])
 
   const handleNodesChange = useCallback(
     (changes: Parameters<typeof onNodesChange>[0]) => onNodesChange(changes),
@@ -167,6 +185,9 @@ export function CanvasView({ dossierId, subFolderId }: CanvasViewProps) {
     (changes: Parameters<typeof onEdgesChange>[0]) => onEdgesChange(changes),
     [onEdgesChange]
   )
+
+  const isEmpty = nodes.length === 0
+  const isFiltered = !!canvasSearch.trim() || !!canvasFilterType
 
   return (
     <div className="relative w-full h-full">
@@ -185,19 +206,21 @@ export function CanvasView({ dossierId, subFolderId }: CanvasViewProps) {
         <Controls className="!bottom-20 !left-4" />
         <MiniMap
           nodeColor={(n) => (n.data?.color as string | undefined) ?? "#94a3b8"}
-          className="!bottom-20 !right-4"
+          className="!top-4 !right-4"
           maskColor="rgba(0,0,0,0.6)"
         />
       </ReactFlow>
 
       {/* Empty state */}
-      {nodes.length === 0 && (
+      {isEmpty && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-3">
           <div className="text-4xl opacity-20">✦</div>
           <p className="text-sm text-muted-foreground/50">
-            {subFolderId
-              ? "Aucune carte dans ce sous-dossier"
-              : "Le graphe est vide – consultez un expert pour créer des cartes"}
+            {isFiltered
+              ? "Aucune carte ne correspond à ce filtre"
+              : subFolderId
+                ? "Aucune carte dans ce sous-dossier"
+                : "Le graphe est vide – consultez un expert pour créer des cartes"}
           </p>
         </div>
       )}

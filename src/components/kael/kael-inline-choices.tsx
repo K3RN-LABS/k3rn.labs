@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { PenLine, ArrowRight, ChevronLeft } from "lucide-react"
+import { PenLine, ChevronLeft, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface KaelInlineChoicesProps {
@@ -13,9 +13,28 @@ interface KaelInlineChoicesProps {
 export function KaelInlineChoices({ choices, onSelect, disabled }: KaelInlineChoicesProps) {
   const limited = choices.slice(0, 4)
   const [mode, setMode] = useState<"choices" | "custom">("choices")
+  const [selected, setSelected] = useState<string[]>([])
   const [customText, setCustomText] = useState("")
   const [focused, setFocused] = useState(0)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  const allOptions = limited.length >= 3 ? [...limited, "Tout cela"] : limited
+
+  function toggleChoice(choice: string) {
+    if (disabled) return
+    if (choice === "Tout cela") {
+      setSelected(selected.length === limited.length ? [] : [...limited])
+      return
+    }
+    setSelected((prev) =>
+      prev.includes(choice) ? prev.filter((c) => c !== choice) : [...prev, choice]
+    )
+  }
+
+  function handleValidate() {
+    if (selected.length === 0 || disabled) return
+    onSelect(selected.join(" + "))
+  }
 
   useEffect(() => {
     if (mode !== "choices" || disabled) return
@@ -23,17 +42,25 @@ export function KaelInlineChoices({ choices, onSelect, disabled }: KaelInlineCho
       const target = e.target as HTMLElement
       if (target.tagName === "TEXTAREA" || target.tagName === "INPUT") return
       const num = parseInt(e.key)
-      if (!isNaN(num) && num >= 1 && num <= limited.length) {
+      if (!isNaN(num) && num >= 1 && num <= allOptions.length) {
         e.preventDefault()
-        onSelect(limited[num - 1])
+        toggleChoice(allOptions[num - 1])
       }
       if (e.key === "ArrowUp") { e.preventDefault(); setFocused((f) => Math.max(0, f - 1)) }
-      if (e.key === "ArrowDown") { e.preventDefault(); setFocused((f) => Math.min(limited.length - 1, f + 1)) }
-      if (e.key === "Enter") { e.preventDefault(); if (!disabled) onSelect(limited[focused]) }
+      if (e.key === "ArrowDown") { e.preventDefault(); setFocused((f) => Math.min(allOptions.length - 1, f + 1)) }
+      if (e.key === "Enter") {
+        e.preventDefault()
+        if (selected.length > 0) {
+          handleValidate()
+        } else {
+          toggleChoice(allOptions[focused])
+        }
+      }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [mode, limited, onSelect, focused, disabled])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, allOptions, focused, disabled, selected])
 
   useEffect(() => {
     if (mode === "custom") setTimeout(() => inputRef.current?.focus(), 50)
@@ -52,34 +79,51 @@ export function KaelInlineChoices({ choices, onSelect, disabled }: KaelInlineCho
       {/* Choices mode */}
       {mode === "choices" && (
         <div className="px-3 py-3 space-y-1.5">
-          {limited.map((choice, i) => (
-            <button
-              key={i}
-              onClick={() => !disabled && onSelect(choice)}
-              onMouseEnter={() => setFocused(i)}
-              disabled={disabled}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm transition-all border",
-                focused === i
-                  ? "bg-primary/10 border-primary/30 text-white"
-                  : "bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800/80 hover:border-zinc-700",
-                "disabled:opacity-40 disabled:cursor-not-allowed"
-              )}
-            >
-              <span
+          {allOptions.map((choice, i) => {
+            const isSelected = choice === "Tout cela"
+              ? selected.length === limited.length
+              : selected.includes(choice)
+            const isFocused = focused === i
+            const isToutCela = choice === "Tout cela"
+
+            return (
+              <button
+                key={i}
+                onClick={() => toggleChoice(choice)}
+                onMouseEnter={() => setFocused(i)}
+                disabled={disabled}
                 className={cn(
-                  "shrink-0 w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold border tabular-nums",
-                  focused === i
-                    ? "bg-primary/20 border-primary/40 text-primary"
-                    : "bg-zinc-800 border-zinc-700 text-zinc-500"
+                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm transition-all border",
+                  isSelected
+                    ? "bg-primary/15 border-primary/40 text-white"
+                    : isFocused
+                    ? "bg-zinc-800/80 border-zinc-700 text-white"
+                    : "bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800/80 hover:border-zinc-700",
+                  "disabled:opacity-40 disabled:cursor-not-allowed"
                 )}
               >
-                {i + 1}
-              </span>
-              <span className="flex-1 leading-snug">{choice}</span>
-              {focused === i && <ArrowRight className="h-3 w-3 text-primary/60 shrink-0" />}
-            </button>
-          ))}
+                <span
+                  className={cn(
+                    "shrink-0 w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold border tabular-nums",
+                    isSelected
+                      ? "bg-primary/30 border-primary/60 text-primary"
+                      : isFocused
+                      ? "bg-zinc-700 border-zinc-600 text-zinc-300"
+                      : "bg-zinc-800 border-zinc-700 text-zinc-500"
+                  )}
+                >
+                  {isSelected ? (
+                    <Check className="h-3 w-3" />
+                  ) : (
+                    isToutCela ? "✦" : i + 1
+                  )}
+                </span>
+                <span className={cn("flex-1 leading-snug", isToutCela && "text-zinc-400 italic")}>
+                  {choice}
+                </span>
+              </button>
+            )
+          })}
         </div>
       )}
 
@@ -129,9 +173,24 @@ export function KaelInlineChoices({ choices, onSelect, disabled }: KaelInlineCho
               <PenLine className="h-3 w-3" />
               Autre choix
             </button>
-            <span className="text-[10px] text-zinc-700">
-              {limited.length > 1 ? `1–${limited.length}` : "1"} · ↑↓ · Entrée
-            </span>
+            {selected.length > 0 ? (
+              <button
+                onClick={handleValidate}
+                disabled={disabled}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-all",
+                  !disabled
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+                )}
+              >
+                Valider ({selected.length})
+              </button>
+            ) : (
+              <span className="text-[10px] text-zinc-700">
+                {allOptions.length > 1 ? `1–${allOptions.length}` : "1"} · ↑↓ · Espace
+              </span>
+            )}
           </>
         ) : (
           <>

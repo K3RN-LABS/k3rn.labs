@@ -1,7 +1,8 @@
 # TICKET — K3RN Onboarding UX Fix (No Modal/Blur) + Free First Contact + Progressive Questions (v1)
 
-**Version:** 1.0  
-**Status:** DONE — 2026-03-01 (Reasoning fix: server-side auto-confirmation + richer LLM stateBlock)
+**Version:** 1.1
+**Status:** DONE — 2026-03-02 (UX hotfix: voice input layout, textarea max-height, binary file Zod validation)
+**Previous:** v1.0 DONE — 2026-03-01 (Reasoning fix: server-side auto-confirmation + richer LLM stateBlock)
 **Owner:** Frontend Lead + Backend Lead  
 **Priority:** CRITICAL  
 **Scope:** Onboarding (KAEL) UX + State machine integrity (authoritative server state)  
@@ -263,3 +264,28 @@ Créer une table `OnboardingState` (ou équivalent) :
 
 ## Next step unique
 Créer une branche `feat/onboarding-chat-native` et implémenter **Étape A (supprimer modal/blur)** + **Étape B (first contact libre)** en premier, puis enchaîner sur l’état authoritative.
+
+---
+
+## Hotfix v1.1 — 2026-03-02
+
+### Bugs UX identifiés et corrigés
+
+#### BUG-01 : Saisie vocale (interim) hors layout flex
+**Symptôme :** Le texte `interim` de transcription vocale apparaissait à l’intérieur du `<div className="flex-1 relative">` après la Textarea, poussant la rangée de boutons (paperclip, mic, send) hors de l’écran.
+**Fix :** Déplacer le `<p interim>` au-dessus du flex row, hors du conteneur relatif.
+**Fichier :** `src/app/dossiers/[id]/onboarding/page.tsx`
+
+#### BUG-02 : Textarea sans hauteur maximale
+**Symptôme :** Avec un long texte, la Textarea s’étendait infiniment, repoussant les boutons d’envoi hors du viewport.
+**Fix :**
+- Ajouter `max-h-[200px] overflow-y-auto` à la Textarea (CSS)
+- Mettre à jour `useAutoResize` pour respecter `getComputedStyle(el).maxHeight` et capper `style.height`
+**Fichiers :** `src/app/dossiers/[id]/onboarding/page.tsx`, `src/hooks/use-auto-resize.ts`
+
+#### BUG-03 : Zod "Validation error" sur fichiers binaires
+**Symptôme :** Quand un fichier non reconnu (kind: `"binary"`) était joint, le POST retournait HTTP 400 "Validation error" car le schéma Zod n’acceptait que `["text", "image"]`.
+**Fix :**
+- Ajouter `"binary"` à `z.enum(["text", "image", "binary"])` dans `fileContextSchema` (route)
+- Filtrer `kind === "binary"` côté client avant construction de `fileContexts` (pas de content/dataUrl utile pour le LLM)
+**Fichiers :** `src/app/api/dossiers/[id]/onboarding/route.ts`, `src/app/dossiers/[id]/onboarding/page.tsx`

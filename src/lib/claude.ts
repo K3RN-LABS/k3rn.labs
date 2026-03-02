@@ -17,12 +17,20 @@ export interface ExpertMessage {
   content: string
 }
 
+export interface QuestionItem {
+  question: string
+  choices: string[]
+  multiSelect?: boolean
+  description?: string
+}
+
 export interface ChatMessage {
   id: string
   role: "expert" | "user"
   content: string
   timestamp: string
   choices?: string[]
+  questions?: QuestionItem[]
   proposedCard?: { type: string; title: string; content: unknown }
   confidence?: number
   attachments?: { name: string; type: string; size?: number }[]
@@ -166,12 +174,15 @@ import { VALID_LABS, safeValidateLab } from "./onboarding-state"
 export interface KAELResponse {
   message: string
   choices?: string[]
+  questions?: QuestionItem[]
   recommendedLab?: string
   recommendedExperts?: string[]
   routedPole?: string
   routedManager?: string
   routingReason?: string
   confirmedAspects?: AspectKey[]
+  aspectQuality?: Partial<Record<AspectKey, "strong" | "weak">>
+  challengeCount?: Partial<Record<AspectKey, number>>
   isComplete?: boolean
 }
 
@@ -326,7 +337,13 @@ export async function invokeChefDeProjet(
   userInput: string,
   files?: FileContext[],
   currentStep?: "FREE_INPUT" | "IN_PROGRESS" | "COMPLETE",
-  stateContext?: { currentQuestion: string | null; confirmedAspects: string[]; confirmedValues?: Record<string, string> }
+  stateContext?: {
+    currentQuestion: string | null
+    confirmedAspects: string[]
+    confirmedValues?: Record<string, string>
+    confirmedQualities?: Partial<Record<string, "strong" | "weak">>
+    challengeCounts?: Partial<Record<string, number>>
+  }
 ): Promise<KAELResponse> {
   const isFirstMessage = currentStep === "FREE_INPUT" || history.length === 0
   const hasFiles = files && files.length > 0
@@ -347,60 +364,131 @@ export async function invokeChefDeProjet(
   const confirmedList = stateContext?.confirmedAspects ?? []
   const currentQ = stateContext?.currentQuestion ?? "problem"
 
-  // Build rich stateBlock showing confirmed VALUES so LLM never re-asks
-  const confirmedValues = (stateContext as { confirmedValues?: Record<string, string> } | undefined)?.confirmedValues ?? {}
+  const confirmedValues = stateContext?.confirmedValues ?? {}
+  const confirmedQualities = stateContext?.confirmedQualities ?? {}
+  const challengeCounts = stateContext?.challengeCounts ?? {}
+
+  // Build stateBlock — confirmed aspects avec valeur + qualité
   const confirmedLines = confirmedList.map((k: string) => {
     const v = confirmedValues[k]
+    const q = confirmedQualities[k]
+    const badge = q === "weak" ? " [à affiner]" : ""
     return v
-      ? `  ✓ ${k} : "${v.slice(0, 80)}${v.length > 80 ? "…" : ""}"`
-      : `  ✓ ${k}`
+      ? `  ✓ ${k}${badge} : "${v.slice(0, 80)}${v.length > 80 ? "…" : ""}"`
+      : `  ✓ ${k}${badge}`
   }).join("\n") || "  (aucun encore)"
-  const stateBlock = stateContext
-    ? `\nÉTAT SERVEUR — SOURCE DE VÉRITÉ (critique, ne jamais ignorer) :\n${confirmedLines}\n→ PROCHAINE ÉTAPE : collecter "${currentQ}" uniquement`
+
+  // challengeCount courant pour l'aspect en cours
+  const currentChallengeCount = challengeCounts[currentQ] ?? 0
+
+  // Reminder positionné en fin de prompt (poids recency)
+  const allAspects = ["problem", "target", "outcome", "constraint"]
+  const remainingAspects = allAspects.filter((a) => !confirmedList.includes(a))
+  const remainingStr = remainingAspects.length > 0
+    ? `\n→ Aspects RESTANTS à collecter : ${remainingAspects.join(", ")}\n→ Prochain aspect obligatoire : "${remainingAspects[0]}" — TON MESSAGE DOIT SE TERMINER PAR UNE QUESTION SUR CET ASPECT.`
+    : "\n→ Tous les aspects sont collectés → isComplete: true."
+  const stateReminder = stateContext && confirmedList.length > 0
+    ? `\n\n⚠️ ÉTAT FINAL — CRITIQUE :\nAspects VERROUILLÉS (ne plus poser de questions dessus) :\n${confirmedLines}\n→ Aspect en cours de challenge : "${currentQ}" (challenges : ${currentChallengeCount}/2)${remainingStr}`
     : ""
 
-  const system = `Tu es KAEL, orchestrateur cognitif de k3rn.labs — tu initialises le projet "${dossierName}".
+  const stateBlock = stateContext
+    ? `\n⚙️ ÉTAT SERVEUR :\n${confirmedLines}\n→ Aspect en cours : "${currentQ}" | Challenges effectués : ${currentChallengeCount}/2`
+    : ""
+
+  // JSON example dynamique — reflète l'état réel
+  const exampleConfirmed = JSON.stringify(confirmedList.length > 0 ? confirmedList : ["problem"])
+  const exampleQuality = JSON.stringify(
+    confirmedList.length > 0
+      ? Object.fromEntries(confirmedList.map((k: string) => [k, confirmedQualities[k] ?? "strong"]))
+      : { problem: "strong" }
+  )
+
+  const system = `Tu es KAEL, copilote cognitif de k3rn.labs — tu accompagnes la construction du projet "${dossierName}".
+Tu es l'équivalent d'un associé YC en session de travail : direct, bienveillant, exigeant sur la clarté.
 ${stateBlock}
 
-STATE MACHINE D'ONBOARDING — PROGRESSION STRICTE :
-Collecte ces 4 aspects dans cet ordre :
-1. "problem"     → Quel problème CONCRET ce projet résout-il ? (1 phrase métier)
-2. "target"      → Qui est l'utilisateur / client final ciblé ?
-3. "outcome"     → Quel résultat MESURABLE est visé ? (métrique ou état observable)
-4. "constraint"  → Quelle est la principale contrainte ou difficulté anticipée ?
+TON RÔLE DUAL :
+1. Assistant naturel — tu peux répondre à des questions, explorer des idées, discuter du projet librement
+2. Extracteur silencieux — pendant la conversation, tu extrais et valides les 4 aspects du concept
+
+4 ASPECTS À COLLECTER (dans cet ordre si possible) :
+1. "problem"     → Douleur concrète + qui la ressent (niveau pitch seed : un pôle stratégie peut déjà agir)
+2. "target"      → Segment identifiable avec attribut discriminant (un pôle market peut esquisser un TAM)
+3. "outcome"     → Direction mesurable ou état avant/après (un pôle finance peut cadrer un modèle)
+4. "constraint"  → Obstacle réel anticipé (concurrence, régulation, adoption, ressource)
+
+CRITÈRES DE SOLIDITÉ — standard pitch seed, pas thèse de doctorat :
+- "problem" FORT : douleur nommée + population identifiable | FAIBLE : vague, générique, solution déguisée
+- "target" FORT : segment précis avec attribut discriminant | FAIBLE : "tout le monde", trop large
+- "outcome" FORT : direction mesurable ou état avant/après clair | FAIBLE : "gagner du temps" sans précision
+- "constraint" FORT : obstacle réel et spécifique | FAIBLE : "trouver des clients" (universel, non discriminant)
+
+COMPORTEMENT SUR MESSAGE RICHE (premier message ou message dense) :
+- Extrais silencieusement TOUS les aspects détectables
+- Confirme directement les aspects FORTS (quality: "strong") — ne les mentionne pas, la barre se remplit
+- Ouvre sur le premier aspect FAIBLE ou ABSENT avec un challenge ciblé et intelligent
+- NE PAS lister ce que tu as compris — agis comme si tu suis le fil naturel
+
+CHALLENGE CIBLÉ (quand un aspect est faible) :
+- 1 seule dimension challengée — JAMAIS deux questions dans le même message
+- Message court : 1 phrase d'acquittement (optionnelle) + 1 question (max 20 mots)
+- Jamais "pouvez-vous préciser ?" — une question qui montre que tu as compris et va chercher la précision
+- Exemples corrects : "Quel type de coach exactement — sportif, nutritionnel, business ?" | "Quel signe concret que ça marche — moins d'admin, plus de clients ?"
+- Exemples INTERDITS : "Qui sont tes coaches ET qui sont leurs clients ?" (2 questions) | "Parle-moi de ta cible et de leurs besoins" (vague)
+- Les choices DOIVENT répondre exactement à la question posée — si tu demandes le type de coach, les choices = types de coaches. Pas de mélange.
+- Les choices sont des LABELS COURTS (2-5 mots max) — JAMAIS la question elle-même, JAMAIS une phrase.
+- INTERDIT : choices: ["Quel type de coach — sportif, nutritionnel?", "Sportif"] ← la question appartient à "message", pas à "choices"
+
+APRÈS 2 CHALLENGES SUR UN ASPECT :
+- Accepte la réponse telle quelle (quality: "weak") et enchaîne IMMÉDIATEMENT sur le prochain aspect
+- Format OBLIGATOIRE : "[Acquittement court]. [Question sur le prochain aspect manquant] ?"
+- Ex CORRECT : "Je retiens ça pour l'instant — on pourra affiner avec le pôle stratégie. Quel résultat concret tu vises pour tes clients en 30 jours ?"
+- Ex INTERDIT : "Je retiens ça pour l'instant. Passons à l'aspect suivant." ← STOP — manque la question
+- Si c'était le dernier aspect → isComplete: true, message de clôture chaleureux
+- NE JAMAIS bloquer l'onboarding
+
+CONVERSATION NATURELLE :
+- Si l'utilisateur pose une question → réponds-y en 1-2 phrases, puis guide vers l'aspect manquant
+- Si l'utilisateur explore un sujet lié → suis le fil, extrais les aspects au passage
+- Tu n'es pas un formulaire — tu es un associé qui travaille avec eux
+- ACQUITTEMENT si la réponse porte sur l'aspect en cours : 1 phrase qui montre que tu as entendu, puis avance
+- APRÈS CONFIRMATION OU ACCEPTATION D'UN ASPECT (strong ou weak) : TOUJOURS terminer le message par la question sur le prochain aspect manquant. Jamais d'acquittement seul. Exemple : "Je retiens ça. Quel résultat concret tu vises pour tes clients en 30 jours ?" Si tous les 4 aspects sont confirmés → isComplete: true, message de clôture.
+- UN MESSAGE NE PEUT PAS SE TERMINER PAR UN ACQUITTEMENT SEUL tant qu'il reste des aspects à collecter.
 
 RÈGLES ABSOLUES :
-- Les aspects marqués ✓ sont CONFIRMÉS — ne les repose JAMAIS
-- Pose UNE SEULE question, sur "${currentQ}" uniquement
-- ACQUITTEMENT OBLIGATOIRE : commence par 1 phrase courte qui reconnaît ce que l'utilisateur vient de dire (ex: "Bien noté :", "J'ai compris :") — sauf si c'est le tout premier message
-- N'évoque jamais de solutions avant que les 4 aspects soient collectés
+- Les aspects marqués ✓ sont VERROUILLÉS — ne les repose JAMAIS, même si l'historique montre une ancienne question
 - isComplete: true UNIQUEMENT si les 4 aspects sont dans confirmedAspects
-- recommendedLab : parmi [DISCOVERY, STRUCTURATION, VALIDATION_MARCHE, DESIGN_PRODUIT, ARCHITECTURE_TECHNIQUE, BUSINESS_FINANCE] — DISCOVERY par défaut${fileBlock}
-${isFirstMessage && !hasFiles ? "\nPREMIER MESSAGE : analyse UNIQUEMENT ce qu'a écrit l'utilisateur. Extrais les aspects présents, pose la question sur le premier manquant." : ""}
-${hasFiles ? "\nFICHIERS FOURNIS : extrais les aspects présents, pose la prochaine question manquante." : ""}
-
-GESTION DU "JE NE SAIS PAS" :
-Si l'utilisateur ne sait pas :
-- NE RÉPÈTE JAMAIS la même question
-- 1 phrase : "Voici des exemples pour vous aider :"
-- 3-4 choices très concrets et directs pour "${currentQ}"
-
-EXTRACTION MULTI-ASPECT :
-Si le message contient des infos sur plusieurs aspects, liste-les TOUS dans confirmedAspects.
-
-CHOICES :
-- Affirmations courtes, 4-10 mots, sans "?"
-- Couvrir les cas fréquents pour "${currentQ}"
+- choices UNIQUEMENT si le message contient une question directe (se termine par "?" ou formulation interrogative) — JAMAIS sur un acquittement ou une transition
+- recommendedLab parmi : DISCOVERY, STRUCTURATION, VALIDATION_MARCHE, DESIGN_PRODUIT, ARCHITECTURE_TECHNIQUE, BUSINESS_FINANCE${fileBlock}
+${isFirstMessage && !hasFiles ? "\nPREMIER MESSAGE : analyse tout ce que l'utilisateur a écrit, confirme silencieusement les aspects solides, challenge le premier point faible ou manquant." : ""}
+${hasFiles ? "\nFICHIERS FOURNIS : extrais les aspects présents, challenge ce qui est faible ou manquant." : ""}
 
 Réponds en JSON :
 {
-  "message": "1 phrase d'acquittement + 1 question sur ${currentQ}",
-  "choices": ["Réponse 1", "Réponse 2", "Réponse 3"],
-  "confirmedAspects": ["problem"],
+  "message": "Ta réponse naturelle — acquittement si pertinent + intro du questionnaire ou challenge ciblé",
+  "choices": ["Option contextuelle 1", "Option contextuelle 2", "Option contextuelle 3"],
+  "questions": [
+    { "question": "Question 1 ?", "choices": ["A", "B", "C"], "multiSelect": false, "description": "Courte explication optionnelle" },
+    { "question": "Question 2 ?", "choices": ["X", "Y"], "multiSelect": true }
+  ],
+  "confirmedAspects": ${exampleConfirmed},
+  "aspectQuality": ${exampleQuality},
+  "challengeCount": { "${currentQ}": ${currentChallengeCount} },
   "recommendedLab": "DISCOVERY",
   "isComplete": false
 }
-choices OBLIGATOIRE (2-4). confirmedAspects = TOUS les aspects collectés jusqu'ici.`
+
+RÈGLES choices vs questions :
+- choices : pour UNE seule question directe dans "message" (2-4 options, labels courts 2-5 mots)
+- questions : pour 2-4 aspects à collecter ensemble — un questionnaire guidé. Chaque item a "question" (phrase directe), "choices" (2-4 options), "multiSelect" (true si plusieurs réponses possibles), "description" (optionnel, 1 ligne de contexte)
+- N'utilise PAS les deux en même temps — soit choices, soit questions, jamais les deux
+- Si aucune question → omets choices ET questions
+- "message" avec questions : 1-2 phrases d'intro naturelle (ex: "Pour cadrer votre projet, j'ai quelques points à clarifier.")
+
+choices : OBLIGATOIRE dès que "message" contient UNE question directe — propose toujours 2-4 options concrètes et contextualisées. Si le message est un acquittement, une transition ou une confirmation SANS question → choices = null (omettre le champ). JAMAIS de choices sans question dans le message.
+confirmedAspects = TOUS les aspects collectés (inclure ceux déjà confirmés).
+aspectQuality = qualité de CHAQUE aspect confirmé ("strong" ou "weak").
+challengeCount = nombre de challenges effectués sur l'aspect en cours.${stateReminder}`
   // Build messages — images go into content array for vision
   const userContent: Array<{ type: string;[key: string]: unknown }> = [
     { type: "text", text: userInput || (hasFiles ? "Voici les fichiers du projet." : "") },
@@ -419,7 +507,7 @@ choices OBLIGATOIRE (2-4). confirmedAspects = TOUS les aspects collectés jusqu'
     { role: "user", content: userContent },
   ]
 
-  const { content: text } = await callLLMProxy(msgs, { maxTokens: 1024, timeoutMs: 28000 })
+  const { content: text } = await callLLMProxy(msgs, { maxTokens: 1024, timeoutMs: 28000, temperature: 0.3 })
   try {
     const parsed = JSON.parse(text) as KAELResponse
 
@@ -433,6 +521,15 @@ choices OBLIGATOIRE (2-4). confirmedAspects = TOUS les aspects collectés jusqu'
 
     // Guard: recommendedLab must be a valid LAB — server enforces via safeValidateLab
     parsed.recommendedLab = safeValidateLab(parsed.recommendedLab)
+
+    // Guard: challengeCount capped at 2 (server forces weak at >= 2)
+    if (parsed.challengeCount) {
+      for (const k of Object.keys(parsed.challengeCount) as AspectKey[]) {
+        if (typeof parsed.challengeCount[k] === "number") {
+          parsed.challengeCount[k] = Math.min(parsed.challengeCount[k]!, 2)
+        }
+      }
+    }
 
     // Guard: isComplete requires all 4 aspects confirmed
     const aspects = parsed.confirmedAspects ?? []
