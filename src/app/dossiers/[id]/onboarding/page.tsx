@@ -83,8 +83,8 @@ function OnboardingProgress({
                 className={cn(
                   "absolute inset-0 rounded-full transition-all duration-700",
                   done && !weak ? "bg-primary opacity-100" :
-                  done && weak  ? "bg-amber-400 opacity-100" :
-                  "bg-primary opacity-0"
+                    done && weak ? "bg-amber-400 opacity-100" :
+                      "bg-primary opacity-0"
                 )}
               />
               {/* scan shimmer */}
@@ -96,9 +96,9 @@ function OnboardingProgress({
               className={cn(
                 "text-[10px] transition-all duration-500",
                 done && !weak ? "text-primary" :
-                done && weak  ? "text-amber-400" :
-                scanning      ? "text-white/70" :
-                "text-muted-foreground/35"
+                  done && weak ? "text-amber-400" :
+                    scanning ? "text-white/70" :
+                      "text-muted-foreground/35"
               )}
             >
               {ASPECT_LABELS[key]}
@@ -363,36 +363,45 @@ export default function OnboardingPage({ params }: { params: { id: string } }) {
               className={cn("group flex flex-col gap-1", msg.role === "user" ? "items-end" : "items-start")}
             >
               {msg.role === "expert" ? (
-                // KAEL bubble — choices panel attached inside
-                <div className="max-w-[85%] rounded-2xl overflow-hidden bg-muted text-foreground rounded-tl-sm">
-                  <div className="px-4 py-3 text-sm leading-relaxed">
-                    <Markdown invert={false}>{msg.content}</Markdown>
-                    {msg.attachments && msg.attachments.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {msg.attachments.map((a, i) => (
-                          <span key={i} className="text-xs opacity-70 bg-black/10 rounded px-1.5 py-0.5">
-                            📎 {a.name}
-                          </span>
-                        ))}
-                      </div>
+                <div className="flex items-start gap-3 max-w-[85%] group/expert">
+                  <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-primary/20 bg-muted mt-0.5 shadow-sm">
+                    <img
+                      src="/images/kael-avatar-onboarding.png"
+                      alt="KAEL"
+                      className="w-full h-full object-cover grayscale-[0.2] group-hover/expert:grayscale-0 transition-all"
+                    />
+                  </div>
+                  {/* KAEL bubble — choices panel attached inside */}
+                  <div className="flex-1 rounded-2xl overflow-hidden bg-muted text-foreground rounded-tl-sm">
+                    <div className="px-4 py-3 text-sm leading-relaxed">
+                      <Markdown invert={false}>{msg.content}</Markdown>
+                      {msg.attachments && msg.attachments.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {msg.attachments.map((a, i) => (
+                            <span key={i} className="text-xs opacity-70 bg-black/10 rounded px-1.5 py-0.5">
+                              📎 {a.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {/* Inline interaction — only on the last KAEL message that has them */}
+                    {msg.id === lastKaelWithInteractionId && (
+                      msg.questions && msg.questions.length > 0 ? (
+                        <KaelQuestionWizard
+                          questions={msg.questions}
+                          onSubmit={sendMessage}
+                          disabled={isLoading}
+                        />
+                      ) : msg.choices && msg.choices.length > 0 ? (
+                        <KaelInlineChoices
+                          choices={msg.choices}
+                          onSelect={sendMessage}
+                          disabled={isLoading}
+                        />
+                      ) : null
                     )}
                   </div>
-                  {/* Inline interaction — only on the last KAEL message that has them */}
-                  {msg.id === lastKaelWithInteractionId && (
-                    msg.questions && msg.questions.length > 0 ? (
-                      <KaelQuestionWizard
-                        questions={msg.questions}
-                        onSubmit={sendMessage}
-                        disabled={isLoading}
-                      />
-                    ) : msg.choices && msg.choices.length > 0 ? (
-                      <KaelInlineChoices
-                        choices={msg.choices}
-                        onSelect={sendMessage}
-                        disabled={isLoading}
-                      />
-                    ) : null
-                  )}
                 </div>
               ) : (
                 // User bubble
@@ -439,12 +448,19 @@ export default function OnboardingPage({ params }: { params: { id: string } }) {
 
           {/* Loading dots */}
           {isLoading && (
-            <div className="flex items-start">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-primary/20 bg-muted mt-0.5">
+                <img
+                  src="/images/kael-avatar-onboarding.png"
+                  alt="KAEL"
+                  className="w-full h-full object-cover animate-pulse grayscale-[0.5]"
+                />
+              </div>
               <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3">
                 <div className="flex gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:0ms]" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:150ms]" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:300ms]" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary/40 animate-bounce [animation-delay:0ms]" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary/40 animate-bounce [animation-delay:150ms]" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary/40 animate-bounce [animation-delay:300ms]" />
                 </div>
               </div>
             </div>

@@ -92,8 +92,8 @@ export function KaelPanel({ dossierId, currentLab }: KaelPanelProps) {
                     className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-primary/10 transition-colors group"
                     title="Ouvrir KAEL"
                 >
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg group-hover:shadow-primary/20">
-                        <Sparkles className="h-4 w-4 text-primary-foreground" />
+                    <div className="w-8 h-8 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-primary to-primary/70 shadow-lg group-hover:shadow-primary/20 shrink-0">
+                        <img src="/images/experts/Kael.png" alt="KAEL" className="w-full h-full object-cover" />
                     </div>
                     <span className="text-[8px] text-muted-foreground/60 uppercase tracking-widest writing-mode-vertical">KAEL</span>
                 </button>
@@ -105,8 +105,8 @@ export function KaelPanel({ dossierId, currentLab }: KaelPanelProps) {
         <div className="flex flex-col shrink-0 w-80 h-full border-l border-white/5 bg-[#0f0f0f] backdrop-blur-sm">
             {/* Header */}
             <div className="flex items-center gap-2.5 px-3 py-3 border-b border-white/5 shrink-0 bg-gradient-to-r from-primary/10 to-transparent">
-                <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-primary/20 border border-primary/30">
-                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                <div className="w-7 h-7 rounded-xl overflow-hidden flex items-center justify-center bg-primary/20 border border-primary/30 shrink-0 shadow-sm">
+                    <img src="/images/experts/Kael.png" alt="KAEL" className="w-full h-full object-cover" />
                 </div>
                 <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold">KAEL</p>
@@ -131,8 +131,8 @@ export function KaelPanel({ dossierId, currentLab }: KaelPanelProps) {
                 {messages.map((msg) => (
                     <div key={msg.id} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
                         {msg.role === "kael" && (
-                            <div className="w-5 h-5 rounded-full flex items-center justify-center mr-1.5 shrink-0 mt-0.5 bg-primary/10 border border-primary/20">
-                                <Sparkles className="h-2.5 w-2.5 text-primary" />
+                            <div className="w-5 h-5 rounded-full overflow-hidden flex items-center justify-center mr-1.5 shrink-0 mt-0.5 bg-primary/10 border border-primary/20">
+                                <img src="/images/experts/Kael.png" alt="KAEL" className="w-full h-full object-cover" />
                             </div>
                         )}
                         <div className={cn(
@@ -151,8 +151,8 @@ export function KaelPanel({ dossierId, currentLab }: KaelPanelProps) {
 
                 {sending && (
                     <div className="flex">
-                        <div className="w-5 h-5 rounded-full flex items-center justify-center mr-1.5 shrink-0 bg-primary/10 border border-primary/20">
-                            <Sparkles className="h-2.5 w-2.5 text-primary animate-pulse" />
+                        <div className="w-5 h-5 rounded-full overflow-hidden flex items-center justify-center mr-1.5 shrink-0 bg-primary/10 border border-primary/20">
+                            <img src="/images/experts/Kael.png" alt="KAEL" className="w-full h-full object-cover opacity-50 animate-pulse" />
                         </div>
                         <div className="bg-muted rounded-xl px-3 py-2">
                             <div className="flex gap-0.5">

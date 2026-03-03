@@ -7,8 +7,78 @@ Types: FEATURE, FIX, REFACTOR, CHORE.
 
 ---
 
-## 2026-03-02
+## [0.2.0] - 2026-03-03
+### Added/Changed
+- **Conversational Modal Wizard**: The Application Modal is now a 4-step conversational journey guided by **Kael**:
+  1.  **Profil & Rôle**: Capture of identity and role using smart suggestion chips.
+  2.  **Urgence & Obstacles**: Qualification of project urgency (1-5 scale) and main technical/business blocks.
+  3.  **Expertise & Intérêt**: Matching with a dedicated expert and identifying the most attractive value proposition.
+  4.  **Ambition & Source**: Final motivation filter and acquisition source tracking.
+- **Workspace Expert Avatars**: Integrated professional profile photos for all experts across the workspace:
+  - **Dock**: Replaced text initials with circular avatars and liquid hover effects.
+  - **Panels**: Headers and message bubbles now show the expert's face.
+  - **KAEL Panel**: Kael's profile photo integrated into the permanent side panel and collapsed state.
+  - **Mobile**: Consistent avatar application in the mobile orchestrator selection row and chat.
+- **Alpha Application Modal (Conversational Redesign)**: Transformed the modal into a multi-step conversation with **KAEL**, featuring:
+  - **KAEL Avatar**: Integrated Kael's profile for a more humanized application experience.
+  - **Smart Chips**: Selection suggestions for roles, pain points, experts, and discovery sources.
+  - **Rating Scales**: 1-5 urgency scale for quantified project qualification.
+  - **Dynamic State**: Specialized fields for `urgency` and `selectedExpert` added to state.
+  - **UX Refinement**: Simplified technical language to be inclusive of non-technical founders.
+- **Typography & Font Harmonization**: Standardized **Plus Jakarta Sans** for all metadata, labels, and tags across the landing page, replacing technical `font-mono` and `font-serif` with a cleaner, premium aesthetic.
+- **Landing Page Header Nav**: Added a full navigation system (Experts, Méthode, Vision, Offre) with a mobile menu orchestrator.
+- **Login Navigation**: Updated the "Log in" button to a direct link to `/auth/login` for better UX.
+- **Unified CTA Strategy**: All landing page buttons (Hero, Header, Pricing, Sticky Modal) now trigger the central application logic.
+- **Refined Experts Carousel Animation**: Implementation of a dynamic "ping-pong" scroll. Content moves slowly to the left after a 1.5s initial delay, then returns faster to the starting position once the end is reached.
+- **Licence Alpha Offer Section**: Integrated a premium "Licence Alpha" pricing card into the landing page, highlighting the 30-mission freemium model and "Sur sélection" exclusivity.
+- **Sticky CTA Modal**: Added a floating, sticky CTA modal at the bottom right of the landing page featuring KAEL's avatar, matching the pricing card aesthetics, and scrolling smoothly to the offer section on click.
+- **Automated Mission Budget**: Zero-friction billing system. Budget (30 units) auto-decrements on dossier creation or expert session start.
+- **Floating Workspace Info**: Bottom-left panel for dossier global score and lab progress overview.
+- **Header Auth Integration**: Updated "Log in" buttons (Desktop/Mobile) to redirect to `/auth/login`, establishing a clear path for returning users.
+- **Typography Overhaul**: Removed all legacy technical fonts (`Space Grotesk`, `font-mono`, `font-serif`) globally, replacing them with a unified system of **Plus Jakarta Sans** and **Inter**.
+- **Typography Overhaul**: Removed all legacy technical fonts (`Space Grotesk`, `font-mono`, `font-serif`) globally, replacing them with a unified system of **Plus Jakarta Sans** and **Inter`.
+- **Expert Asset Synchronization**: Manually synchronized high-resolution expert profile photos from `docs/experts/` to `public/images/experts/` for production consistency.
+- **Database Layer Alignment**: Fixed a discrepancy in the custom `DbClient` where the `Mission` model was missing.
+- **API & UI Type Fixes**: 
+  - Corrected Zod record validation for user preferences.
+  - Fixed `ChatInput` prop types to allow functional state updates for voice-to-text integration.
+### Security & Infrastructure
+- **Security Hardening**: Centralized n8n webhook URLs in environment variables.
+- **API Protection**: Secured ingestion routes with `X-N8N-Secret` header validation.
+- **Documentation**: Added `SECURITY.md` covering security architecture and practices.
+- **Git Hygiene**: Enhanced `.gitignore` to prevent leakage of AI/agent artifacts.
+### Refactored
+- **Landing Page Avatar Updates**: Updated KAEL's avatar to a refined portrait without gamified UI dots, and introduced Marcus, Nova, and Kai (updated) into their dedicated spots within the horizontal scrolling 7-experts carousel.
+- **Offer Section Copywriting**: Emphasized "Une équipe de 7. Pour le prix de zéro." to contrast the high value provided by the 7 experts against the freemium cost of closed beta access.
+- **Settings Harmonic Redesign**: Visual stabilization using 3 font sizes max, font-jakarta titles, font-sans (Inter) body, and 70% opacity labels.
+- **Human-Centric Terminology**: Replaced "Quota Cognitif" and "Crédits" with **"Budget Missions"** across settings and navigation.
+- **Workspace UI Cleanup**: Removed left sidebar to maximize canvas space; moved all controls and MiniMap to bottom-right alignment.
+- **Settings Visual Purge**: Removed background grid, alpha stage badges, and complex version strings for a minimalist premium aesthetic.
+### Fixed
+- **GET /favicon.ico 500**: Resolved internal server error caused by invalid SVG-disguised-as-ICO files. Implemented proper `src/app/icon.svg` configuration.
+- **Settings Performance**: Fixed infinite loader by handling direct user object response and added null guards for `firstName`.
+- **Logo Scaling**: Added `xs` (20px) support to `Logo.tsx` to prevent oversized header indicators.
+- **Migration Stability**: Updated `prisma.config.ts` with direct connection support for Supabase/Prisma 7 operations.
 
+---
+
+## [0.1.0] - 2026-03-02
+### Added
+- Minimap command toggle in Dock settings (interface tab) with dark sleek glassmorphism styling.
+- Notification pastille for unread messages (replaces active dot).
+- Next-gen "glass ping" sound design for UI notifications using Web Audio API (lowpass filter sweep + transients).
+### Fixed
+- Re-enabled proper Next.js compilation after hot-reloading crash.
+- Fixed React Flow Minimap defaulting to white vertical rectangle on right pane.
+FEATURE: Notifications sonores — son futuriste Web Audio API (sine+triangle pad), toggle on/off persisté localStorage, badge unread rouge animé sur boutons Dock
+FEATURE: Dock glass liquid — hub central premium avec command palette (⌘K), groupes utilitaires/experts séparés, shimmer layer + edge glow primary
+FEATURE: SlideUpPanel — remplace KaelPanel droit + ChatTray flottant, panels KAEL/Expert slide-up au-dessus du Dock, glass liquid, backdrop blur
+FEATURE: MobileOrchestrator — surface mobile chat-first KAEL, quick actions, experts row collapsible, input optimisé touch
+REFACTOR: Dock — suppression search/filter inline, tout migré vers CommandPalette modale (slide-in-from-bottom)
+REFACTOR: Workspace page — suppression KaelPanel + ExpertPanelManager, intégration SlideUpPanel + responsive md/mobile split
+REFACTOR: WorkspaceSidebar — refonte visuelle glass dark, typo épurée, couleurs white/XX cohérentes avec workspace
+
+CHORE: Add favicon to app/ directory for Next.js auto-detection + enrich icons metadata (SVG + Apple touch)
 REFACTOR: Full landing redesign — bg #060608 unifié, ambient orbs hero, glassmorphism graph mockup, typographie font-jakarta, sections avec depth (border white/6), CTA final avec ambient glow, footer minimaliste
 REFACTOR: Header landing — glass liquid effect (backdrop-blur, border white/8, shimmer layer, left-edge glow), pill nav avec bouton Early Access solid white, logo size lg
 FEATURE: Add section incubateur/communauté — financement communautaire, collaboration inter-projets, lancement & optimisation continue

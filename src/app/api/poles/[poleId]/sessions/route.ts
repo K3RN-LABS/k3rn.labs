@@ -6,6 +6,7 @@ import { buildProjectMemory } from "@/lib/project-memory"
 import { invokeN8nPole } from "@/lib/n8n"
 import { createAuditLog } from "@/lib/audit"
 import { z } from "zod"
+import { randomUUID } from "node:crypto"
 
 const schema = z.object({
   dossierId: z.string().min(1),
@@ -27,6 +28,15 @@ export async function POST(req: NextRequest, { params }: { params: { poleId: str
   const dossier = await prisma.dossier.findUnique({ where: { id: dossierId } })
   if (!dossier || dossier.ownerId !== session.userId) return apiError("Forbidden", 403)
 
+  // Vérifier et débiter le budget de missions
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId }
+  })
+
+  if (!user || (user.missionBudget ?? 0) <= 0) {
+    return apiError("Votre budget de missions freemium (30) est épuisé.", 403)
+  }
+
   const projectMemory = await buildProjectMemory(dossierId)
 
   const n8nResult = await invokeN8nPole(
@@ -43,7 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: { poleId: str
   )
 
   const initialManagerMessage = {
-    id: crypto.randomUUID(),
+    id: randomUUID(),
     role: "manager",
     content:
       n8nResult.status === "FALLBACK" && n8nResult.messages[0]
@@ -54,22 +64,31 @@ export async function POST(req: NextRequest, { params }: { params: { poleId: str
   }
 
   const userMsgObj = {
-    id: crypto.randomUUID(),
+    id: randomUUID(),
     role: "user",
     content: userMessage,
     timestamp: new Date().toISOString(),
   }
 
-  const poleSession = await prisma.poleSession.create({
-    data: {
-      poleId: params.poleId,
-      dossierId,
-      labAtCreation: currentLab as any,
-      messages: [userMsgObj, initialManagerMessage],
-      n8nExecutionId: n8nResult.executionId,
-      n8nStatus: n8nResult.status,
-      status: "ACTIVE",
-    },
+  const poleSession = await prisma.$transaction(async (tx) => {
+    // 1. Débiter le budget
+    await tx.user.update({
+      where: { id: session.userId },
+      data: { missionBudget: { decrement: 1 } }
+    })
+
+    // 2. Créer la session
+    return await tx.poleSession.create({
+      data: {
+        poleId: params.poleId,
+        dossierId,
+        labAtCreation: currentLab as any,
+        messages: [userMsgObj, initialManagerMessage],
+        n8nExecutionId: n8nResult.executionId,
+        n8nStatus: n8nResult.status,
+        status: "ACTIVE",
+      },
+    })
   })
 
   await createAuditLog({

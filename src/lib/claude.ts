@@ -287,7 +287,7 @@ Tous les champs sauf message sont OPTIONNELS. Inclus routedPole+routedManager un
   const msgs: LLMMessage[] = [
     { role: "system", content: system },
     ...history.map((m) => ({
-      role: (m.role === "expert" ? "assistant" : "user") as "user" | "assistant",
+      role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",
       content: m.content,
     })),
     { role: "user", content: userInput },
@@ -501,7 +501,7 @@ challengeCount = nombre de challenges effectués sur l'aspect en cours.${stateRe
   const msgs: LLMMessage[] = [
     { role: "system", content: system },
     ...history.map((m) => ({
-      role: (m.role === "expert" ? "assistant" : "user") as "user" | "assistant",
+      role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",
       content: m.content,
     })),
     { role: "user", content: userContent },

@@ -37,7 +37,23 @@ export async function POST(req: NextRequest) {
   const result = await validateBody(createDossierSchema, req)
   if ("error" in result) return result.error
 
+  // Vérifier le budget de missions
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId }
+  })
+
+  if (!user || (user.missionBudget ?? 0) <= 0) {
+    return apiError("Votre budget de missions freemium (30) est épuisé. Veuillez passer à une offre supérieure.", 403)
+  }
+
   const dossier = await prisma.$transaction(async (tx) => {
+    // 1. Débiter le budget
+    await tx.user.update({
+      where: { id: session.userId },
+      data: { missionBudget: { decrement: 1 } }
+    })
+
+    // 2. Créer le dossier
     const d = await tx.dossier.create({
       data: {
         name: result.data.name,

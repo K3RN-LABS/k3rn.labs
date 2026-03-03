@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import { verifySession } from "@/lib/auth"
 import { db as prisma } from "@/lib/db"
 import { validateBody, apiError, apiSuccess } from "@/lib/validate"
+import { computeAndPersistScore } from "@/lib/score-engine"
 import { invokeChefDeProjet } from "@/lib/claude"
 import type { ChatMessage, FileContext } from "@/lib/claude"
 import {
@@ -198,6 +199,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       },
     })
     console.log("[onboarding POST] persisted messages count:", (saved?.onboardingMessages as unknown[])?.length ?? "save failed")
+
+    // If onboarding is complete, trigger initial score calculation
+    if (newState.step === "COMPLETE") {
+      try {
+        await computeAndPersistScore(id)
+      } catch (scoreErr) {
+        console.error("[onboarding POST] failed to trigger initial score:", scoreErr)
+      }
+    }
 
     return apiSuccess({
       messages: updatedMessages,

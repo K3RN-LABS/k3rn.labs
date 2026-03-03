@@ -19,6 +19,11 @@ export async function POST(
 ) {
     const startTime = Date.now();
     try {
+        const secret = req.headers.get("X-N8N-Secret");
+        if (env.N8N_WEBHOOK_SECRET && secret !== env.N8N_WEBHOOK_SECRET) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const dossierId = params.id;
         const body = await req.json();
         const { messageId, content, source } = body;

@@ -9,13 +9,15 @@ export function useSpeech({ lang = "fr-FR", onResult }: UseSpeechOptions) {
   const [isListening, setIsListening] = useState(false)
   const [interim, setInterim] = useState("")
   const recRef = useRef<any>(null)
+  const onResultRef = useRef(onResult)
+  onResultRef.current = onResult
 
   const stop = useCallback(() => {
     if (recRef.current) {
       recRef.current.onresult = null
       recRef.current.onend = null
       recRef.current.onerror = null
-      try { recRef.current.stop() } catch {}
+      try { recRef.current.stop() } catch { }
       recRef.current = null
     }
     setIsListening(false)
@@ -43,7 +45,7 @@ export function useSpeech({ lang = "fr-FR", onResult }: UseSpeechOptions) {
       let interimText = ""
       for (let i = e.resultIndex; i < e.results.length; i++) {
         if (e.results[i].isFinal) {
-          onResult(e.results[i][0].transcript)
+          onResultRef.current(e.results[i][0].transcript)
           setInterim("")
         } else {
           interimText += e.results[i][0].transcript
@@ -55,7 +57,7 @@ export function useSpeech({ lang = "fr-FR", onResult }: UseSpeechOptions) {
     rec.onstart = () => setIsListening(true)
     rec.onend = () => {
       if (recRef.current) {
-        try { recRef.current.start() } catch {}
+        try { recRef.current.start() } catch { }
       } else {
         setIsListening(false)
         setInterim("")

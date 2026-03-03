@@ -144,6 +144,18 @@ export default function DashboardPage() {
     const [filterLab, setFilterLab] = useState<string | null>(null)
     const router = useRouter()
 
+    // Onboarding redirect
+    useEffect(() => {
+        fetch("/api/user/profile")
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.data && !data.data.onboardingCompleted) {
+                    router.replace("/auth/onboarding")
+                }
+            })
+            .catch(() => { })
+    }, [router])
+
     const activeList: DossierItem[] = dossiers ?? []
     const archivedList: DossierItem[] = archivedDossiers ?? []
 
@@ -156,7 +168,7 @@ export default function DashboardPage() {
     // Collect all unique tags across all dossiers
     const allTags = useMemo(() => {
         const set = new Set<string>()
-        ;[...activeList, ...archivedList].forEach((d) => (d.tags ?? []).forEach((t: string) => set.add(t)))
+            ;[...activeList, ...archivedList].forEach((d) => (d.tags ?? []).forEach((t: string) => set.add(t)))
         return Array.from(set)
     }, [activeList, archivedList])
 

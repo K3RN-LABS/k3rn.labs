@@ -1,4 +1,6 @@
 import { db as prisma } from "@/lib/db"
+import { deserializeState, ASPECT_LABELS, ASPECT_KEYS } from "@/lib/onboarding-state"
+import type { ChatMessage } from "@/lib/claude"
 
 export interface ProjectMemory {
   dossierName: string
@@ -55,6 +57,28 @@ export async function buildProjectMemory(dossierId: string): Promise<string> {
     lines.push(`LAB ACTIF : ${dossier.labState?.currentLab ?? "DISCOVERY"}`)
     lines.push(`SCORE GLOBAL : ${scoreSnapshot?.globalScore ?? 0}/100`)
     lines.push("")
+
+    // Onboarding Context
+    const onboardingState = deserializeState(dossier.onboardingState)
+    const confirmedEntries = ASPECT_KEYS.filter(k => !!onboardingState.confirmedAspects[k]?.value)
+
+    if (confirmedEntries.length > 0) {
+      lines.push("VISION INITIALE (ONBOARDING) :")
+      for (const key of confirmedEntries) {
+        const entry = onboardingState.confirmedAspects[key]!
+        lines.push(`  - ${ASPECT_LABELS[key]} : ${truncate(entry.value, 400)}`)
+      }
+      lines.push("")
+    } else {
+      // Fallback: If no aspects confirmed, show a snippet of the onboarding conversation
+      const history = (dossier.onboardingMessages ?? []) as ChatMessage[]
+      const lastUserMsg = [...history].reverse().find(m => m.role === "user")
+      if (lastUserMsg) {
+        lines.push("NOTES INITIALES (EN COURS) :")
+        lines.push(`  "${truncate(lastUserMsg.content, 300)}"`)
+        lines.push("")
+      }
+    }
 
     const allCards = (dossier.subFolders as any[]).flatMap((sf: any) => sf.cards as any[])
     if (allCards.length > 0) {

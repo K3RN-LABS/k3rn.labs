@@ -14,6 +14,9 @@ const envSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().min(1).default("http://localhost:3000"),
   SUPABASE_STORAGE_BUCKET: z.string().min(1).default("exports"),
   INGESTION_ENABLED: z.string().optional().default("true"),
+  N8N_GUICHET_URL: z.string().min(1).default("https://agent.k3rnlabs.com/webhook/k3rn-kael-guichet"),
+  N8N_LLM_PROXY_URL: z.string().min(1).default("https://agent.k3rnlabs.com/webhook/k3rn-llm-proxy"),
+  N8N_WEBHOOK_SECRET: z.string().optional(),
 })
 
 const _env = envSchema.safeParse(process.env)

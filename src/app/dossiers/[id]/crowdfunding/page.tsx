@@ -102,7 +102,7 @@ export default function CrowdfundingPage() {
                   {shareUrl && (
                     <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                       <Link2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <span className="text-xs font-mono truncate">{shareUrl}</span>
+                      <span className="text-xs font-jakarta truncate">{shareUrl}</span>
                       <Button
                         variant="ghost"
                         size="sm"

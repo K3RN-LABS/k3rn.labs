@@ -40,8 +40,9 @@ next-env.d.ts
 /src/generated/prisma
 
 # AI/agent artifacts (do not commit)
-.claude/debug/
-.claude/**/debug/
+.claude/
 .verdent/
 .mcp.json
-.claude/debug/
+.brain/
+.gemini/
+.env.example

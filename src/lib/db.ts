@@ -75,6 +75,10 @@ const RELATIONS: Record<
   User: {
     dossiers: { table: "Dossier", fk: "ownerId", type: "hasMany" },
   },
+  Mission: {
+    dossier: { table: "Dossier", fk: "dossierId", selfFk: "dossierId", type: "belongsTo" },
+    poleSessions: { table: "PoleSession", fk: "missionId", type: "hasMany" },
+  },
 }
 
 const TABLES_WITH_UPDATED_AT = new Set([
@@ -85,6 +89,7 @@ const TABLES_WITH_UPDATED_AT = new Set([
   "CanvasNode",
   "CanvasEdge",
   "PoleSession",
+  "KaelSession",
 ])
 
 function applyWhere(query: any, where: Record<string, any>): any {
@@ -201,12 +206,17 @@ class DbModel {
   constructor(private tableName: string) { }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async findUnique(args: { where: Record<string, any>; include?: Record<string, IncludeSpec> }): Promise<any> {
-    let q = supabaseAdmin.from(this.tableName).select("*")
+  async findUnique(args: {
+    where: Record<string, any>
+    include?: Record<string, IncludeSpec>
+    select?: Record<string, boolean>
+  }): Promise<any> {
+    const selectStr = args.select ? Object.keys(args.select).join(",") : "*"
+    let q = supabaseAdmin.from(this.tableName).select(selectStr)
     q = applyWhere(q, args.where)
     const { data, error } = await q.maybeSingle()
     if (error || !data) return null
-    if (args.include) return resolveIncludes(this.tableName, data, args.include)
+    if (args.include) return resolveIncludes(this.tableName, data as any, args.include)
     return data
   }
 
@@ -214,9 +224,11 @@ class DbModel {
   async findFirst(args: {
     where: Record<string, any>
     include?: Record<string, IncludeSpec>
+    select?: Record<string, boolean>
     orderBy?: Record<string, "asc" | "desc">
   }): Promise<any> {
-    let q = supabaseAdmin.from(this.tableName).select("*")
+    const selectStr = args.select ? Object.keys(args.select).join(",") : "*"
+    let q = supabaseAdmin.from(this.tableName).select(selectStr)
     q = applyWhere(q, args.where)
     if (args.orderBy) {
       const [ok, ov] = Object.entries(args.orderBy)[0]
@@ -224,7 +236,7 @@ class DbModel {
     }
     const { data, error } = await q.limit(1).maybeSingle()
     if (error || !data) return null
-    if (args.include) return resolveIncludes(this.tableName, data, args.include)
+    if (args.include) return resolveIncludes(this.tableName, data as any, args.include)
     return data
   }
 
@@ -354,9 +366,11 @@ class DbClient {
   auditLog = new DbModel("AuditLog")
   pole = new DbModel("Pole")
   poleSession = new DbModel("PoleSession")
+  kaelSession = new DbModel("KaelSession")
   cardRelation = new DbModel("CardRelation")
   cardIngestionLog = new DbModel("CardIngestionLog")
   cardIngestionJob = new DbModel("CardIngestionJob")
+  mission = new DbModel("Mission")
 
   // Raw text search via Supabase textSearch (uses GIN index)
   async cardFullTextSearch(args: {

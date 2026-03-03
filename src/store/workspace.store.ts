@@ -24,8 +24,14 @@ interface WorkspaceState {
   openChats: OpenChat[]
   focusedChatKey: string | null
 
-  // KAEL permanent panel
+  // Unread counts per chat key — badge on Dock buttons
+  unreadCounts: Record<string, number>
+
+  // KAEL permanent panel (kept for backward compat — no longer used as side panel)
   kaelPanelOpen: boolean
+
+  // Notification sound toggle (persisted in localStorage)
+  notifSoundEnabled: boolean
 
   // Canvas UI state
   canvasSearch: string
@@ -38,7 +44,7 @@ interface WorkspaceState {
   setMacroState: (state: MacroState) => void
   reset: () => void
 
-  // Actions — KAEL panel
+  // Actions — KAEL panel (legacy)
   setKaelPanelOpen: (open: boolean) => void
   toggleKaelPanel: () => void
 
@@ -53,6 +59,17 @@ interface WorkspaceState {
   closeChat: (key: string) => void
   toggleMinimizeChat: (key: string) => void
   focusChat: (key: string) => void
+
+  // Actions — unread
+  markUnread: (key: string) => void
+  clearUnread: (key: string) => void
+
+  // Actions — notifications
+  toggleNotifSound: () => void
+
+  // Actions — minimap
+  minimapEnabled: boolean
+  toggleMinimap: () => void
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
@@ -62,7 +79,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   macroState: "WORKSPACE_IDLE",
   openChats: [],
   focusedChatKey: null,
+  unreadCounts: {},
   kaelPanelOpen: false,
+  notifSoundEnabled:
+    typeof window !== "undefined"
+      ? localStorage.getItem("k3rn_notif_sound") !== "false"
+      : true,
+  minimapEnabled:
+    typeof window !== "undefined"
+      ? localStorage.getItem("k3rn_minimap_enabled") === "true"
+      : false,
   canvasSearch: "",
   canvasFilterType: null,
   canvasLayout: "auto",
@@ -74,6 +100,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       activeSubFolderType: type,
       macroState: id ? "SUBFOLDER_OPEN" : "WORKSPACE_IDLE",
     }),
+
   setMacroState: (state) => set({ macroState: state }),
   reset: () =>
     set({
@@ -83,6 +110,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       macroState: "WORKSPACE_IDLE",
       openChats: [],
       focusedChatKey: null,
+      unreadCounts: {},
     }),
 
   setKaelPanelOpen: (open) => set({ kaelPanelOpen: open }),
@@ -95,7 +123,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   openPoleChat: (poleId, poleCode, managerName) => {
     const { openChats } = get()
     const existingKey = `pole-${poleId}`
-    // If already open, just focus + expand it
     if (openChats.find((c) => c.key === existingKey)) {
       set({
         openChats: openChats.map((c) =>
@@ -105,15 +132,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       })
       return
     }
-    const newChat: OpenChat = {
-      key: existingKey,
-      type: "pole",
-      poleId,
-      poleCode,
-      managerName,
-      minimized: false,
-    }
-    // Auto-minimize oldest expanded chat if at limit (max 2 visible simultaneously)
+    const newChat: OpenChat = { key: existingKey, type: "pole", poleId, poleCode, managerName, minimized: false }
     const expanded = openChats.filter((c) => !c.minimized)
     const chatsToSet = expanded.length >= 2
       ? openChats.map((c) => c.key === expanded[0].key ? { ...c, minimized: true } : c)
@@ -133,16 +152,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       })
       return
     }
-    set({
-      openChats: [...openChats, { key, type: "kael", minimized: false }],
-      focusedChatKey: key,
-    })
+    set({ openChats: [...openChats, { key, type: "kael", minimized: false }], focusedChatKey: key })
   },
 
   closeChat: (key) =>
     set((state) => ({
       openChats: state.openChats.filter((c) => c.key !== key),
       focusedChatKey: state.focusedChatKey === key ? null : state.focusedChatKey,
+      unreadCounts: Object.fromEntries(Object.entries(state.unreadCounts).filter(([k]) => k !== key)),
     })),
 
   toggleMinimizeChat: (key) =>
@@ -153,4 +170,37 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     })),
 
   focusChat: (key) => set({ focusedChatKey: key }),
+
+  markUnread: (key) =>
+    set((state) => ({
+      unreadCounts: {
+        ...state.unreadCounts,
+        [key]: (state.unreadCounts[key] ?? 0) + 1,
+      },
+    })),
+
+  clearUnread: (key) =>
+    set((state) => {
+      const next = { ...state.unreadCounts }
+      delete next[key]
+      return { unreadCounts: next }
+    }),
+
+  toggleNotifSound: () =>
+    set((state) => {
+      const next = !state.notifSoundEnabled
+      if (typeof window !== "undefined") {
+        localStorage.setItem("k3rn_notif_sound", next ? "true" : "false")
+      }
+      return { notifSoundEnabled: next }
+    }),
+
+  toggleMinimap: () =>
+    set((state) => {
+      const next = !state.minimapEnabled
+      if (typeof window !== "undefined") {
+        localStorage.setItem("k3rn_minimap_enabled", next ? "true" : "false")
+      }
+      return { minimapEnabled: next }
+    }),
 }))

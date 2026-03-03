@@ -1,19 +1,17 @@
 import type { Metadata } from "next"
-import { Inter, Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google"
+import { Inter, Plus_Jakarta_Sans } from "next/font/google"
 import "./globals.css"
 import { Providers } from "./providers"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-jakarta" })
-const space = Space_Grotesk({ subsets: ["latin"], variable: "--font-space" })
 
 export const metadata: Metadata = {
   title: "k3rn.labs — Cognitive Workspace",
   description: "Deterministic cognitive workspace for structured innovation",
   icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "any" },
-    ],
+    icon: "/icon.svg",
+    apple: "/logo-icon/logo_01.png",
   },
   openGraph: {
     title: "k3rn.labs",
@@ -24,7 +22,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`dark ${inter.variable} ${jakarta.variable} ${space.variable}`}>
+    <html lang="en" className={`dark ${inter.variable} ${jakarta.variable}`}>
       <body className="font-sans antialiased text-foreground bg-background">
         <Providers>{children}</Providers>
       </body>

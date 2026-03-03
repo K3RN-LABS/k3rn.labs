@@ -53,7 +53,7 @@ export function CardDetailPanel({ cardId, dossierId, onClose, onTransition }: Ca
         <div className="flex-1 overflow-auto p-4 space-y-4">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <div className="text-[10px] font-mono text-muted-foreground uppercase mb-1">{card.type}</div>
+              <div className="text-[10px] font-jakarta text-muted-foreground uppercase mb-1">{card.type}</div>
               <h3 className="font-semibold">{card.title}</h3>
             </div>
             <Badge variant={STATE_VARIANT[card.state as CardState] ?? "outline"}>{card.state}</Badge>

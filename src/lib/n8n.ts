@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto"
+import { env } from "@/lib/env"
 
 // ─── MCP Tool calling layer ────────────────────────────────────────────────
 // K3RN → n8n MCP server → (Zapier | Supabase)
@@ -130,6 +131,7 @@ export interface N8nInvokePayload {
   managerName: string
   systemPrompt: string
   userMessage: string
+  history?: Array<{ role: string; content: string }>
   projectMemory: string
   dossierId: string
   labContext: string
@@ -142,7 +144,7 @@ export interface N8nResult {
 }
 
 // Single entry point for all pole invocations — routes through KAEL GuichetUnique
-const GUICHET_URL = "https://agent.k3rnlabs.com/webhook/k3rn-kael-guichet"
+const GUICHET_URL = env.N8N_GUICHET_URL
 
 function getN8nConfig() {
   const apiUrl = process.env.N8N_API_URL
@@ -229,7 +231,7 @@ export async function invokeN8nPole(
 
 export interface LLMMessage {
   role: "system" | "user" | "assistant"
-  content: string | Array<{ type: string; [key: string]: unknown }>
+  content: string | Array<{ type: string;[key: string]: unknown }>
 }
 
 export async function callLLMProxy(
@@ -243,7 +245,7 @@ export async function callLLMProxy(
   } = {}
 ): Promise<{ content: string }> {
   const webhookSecret = process.env.N8N_WEBHOOK_SECRET
-  const res = await fetch("https://agent.k3rnlabs.com/webhook/k3rn-llm-proxy", {
+  const res = await fetch(env.N8N_LLM_PROXY_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

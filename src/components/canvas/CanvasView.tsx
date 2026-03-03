@@ -107,7 +107,7 @@ export function CanvasView({ dossierId, subFolderId }: CanvasViewProps) {
   useGraphRealtime(dossierId)
 
   // Canvas UI state from store
-  const { canvasSearch, canvasFilterType } = useWorkspaceStore()
+  const { canvasSearch, canvasFilterType, minimapEnabled } = useWorkspaceStore()
 
   useEffect(() => {
     if (!graphData) return
@@ -202,13 +202,16 @@ export function CanvasView({ dossierId, subFolderId }: CanvasViewProps) {
         deleteKeyCode={null}
         proOptions={{ hideAttribution: true }}
       >
-        <Background gap={24} size={1} color="#ffffff08" />
-        <Controls className="!bottom-20 !left-4" />
-        <MiniMap
-          nodeColor={(n) => (n.data?.color as string | undefined) ?? "#94a3b8"}
-          className="!top-4 !right-4"
-          maskColor="rgba(0,0,0,0.6)"
-        />
+        <Background gap={24} size={1.2} color="#ffffff15" />
+        <Controls className="!bottom-24 !right-6 !left-auto !m-0 !border-white/10 !bg-black/40 !backdrop-blur-xl !shadow-none !rounded-xl !overflow-hidden z-[55]" />
+        {minimapEnabled && (
+          <MiniMap
+            nodeColor={(n) => (n.data?.color as string | undefined) ?? "#94a3b8"}
+            className="!bottom-24 !right-24 !left-auto !m-0 !bg-black/40 !backdrop-blur-xl !border !border-white/10 !rounded-xl !overflow-hidden !shadow-none z-[50]"
+            maskColor="rgba(0,0,0,0.75)"
+            style={{ width: 180, height: 120 }}
+          />
+        )}
       </ReactFlow>
 
       {/* Empty state */}

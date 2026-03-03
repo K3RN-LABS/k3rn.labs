@@ -1,8 +1,0 @@
-NEXT_PUBLIC_SUPABASE_URL=your-project-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-
-# K3RN.LABS Analysis API (Claude)
-ANTHROPIC_API_KEY=your-anthropic-api-key
-AI_MODEL=claude-opus-4-20250918
-AI_TEMPERATURE=0.2
-AI_TIMEOUT_MS=30000

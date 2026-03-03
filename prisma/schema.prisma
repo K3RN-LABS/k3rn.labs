@@ -122,6 +122,15 @@ model User {
   role      UserRole @default(OWNER)
   createdAt DateTime @default(now())
 
+  firstName           String?
+  lastName            String?
+  company             String?
+  industry            String?
+  goal                String?
+  onboardingCompleted Boolean @default(false)
+  missionBudget       Int     @default(30)
+  preferences         Json    @default("{}")
+
   dossiers             Dossier[]
   auditLogs            AuditLog[]
   cardTransitionLogs   CardTransitionLog[]
@@ -148,9 +157,11 @@ model Dossier {
   crowdfundingCampaign CrowdfundingCampaign?
   expertSessions       ExpertSession[]
   poleSessions         PoleSession[]
+  missions             Mission[]
   auditLogs            AuditLog[]
   cardIngestionLogs    CardIngestionLog[]
   cardIngestionJobs    CardIngestionJob[]
+  kaelSessions         KaelSession[]
 
   @@index([ownerId])
   @@index([archived])
@@ -306,10 +317,26 @@ model Pole {
   sessions PoleSession[]
 }
 
+model Mission {
+  id        String   @id @default(cuid())
+  dossierId String
+  title     String
+  goal      String?
+  status    String   @default("ACTIVE") // ACTIVE | COMPLETED | CANCELLED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  dossier      Dossier       @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  poleSessions PoleSession[]
+
+  @@index([dossierId])
+}
+
 model PoleSession {
   id             String            @id @default(cuid())
   poleId         String
   dossierId      String
+  missionId      String?
   labAtCreation  LabType           @default(DISCOVERY)
   messages       Json              @default("[]")
   n8nExecutionId String?
@@ -320,10 +347,12 @@ model PoleSession {
 
   pole           Pole           @relation(fields: [poleId], references: [id], onDelete: Cascade)
   dossier        Dossier        @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  mission        Mission?       @relation(fields: [missionId], references: [id], onDelete: SetNull)
   expertSessions ExpertSession[]
 
   @@index([dossierId])
   @@index([poleId])
+  @@index([missionId])
 }
 
 model ExpertSession {
@@ -349,6 +378,20 @@ model ExpertSession {
   @@index([dossierId])
   @@index([expertId])
   @@index([poleSessionId])
+}
+
+model KaelSession {
+  id             String            @id @default(cuid())
+  dossierId      String
+  labAtCreation  LabType           @default(DISCOVERY)
+  messages       Json              @default("[]")
+  status         PoleSessionStatus @default(ACTIVE)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  dossier        Dossier           @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+
+  @@index([dossierId])
 }
 
 model ScoreSnapshot {

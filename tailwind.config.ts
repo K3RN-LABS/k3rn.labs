@@ -59,14 +59,13 @@ const config: Config = {
 			fontFamily: {
 				sans: ['var(--font-sans)', 'sans-serif'],
 				jakarta: ['var(--font-jakarta)', 'sans-serif'],
-				space: ['var(--font-space)', 'sans-serif'],
 			},
 			keyframes: {
 				'spin-double': {
-					'0%':   { transform: 'rotate(0deg)' },
-					'25%':  { transform: 'rotate(180deg)' },
-					'35%':  { transform: 'rotate(180deg)' },
-					'80%':  { transform: 'rotate(360deg)' },
+					'0%': { transform: 'rotate(0deg)' },
+					'25%': { transform: 'rotate(180deg)' },
+					'35%': { transform: 'rotate(180deg)' },
+					'80%': { transform: 'rotate(360deg)' },
 					'100%': { transform: 'rotate(360deg)' },
 				},
 			},

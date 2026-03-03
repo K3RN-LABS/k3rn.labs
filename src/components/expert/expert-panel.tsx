@@ -87,7 +87,7 @@ export function ExpertPanel({ experts, dossierId, onClose }: ExpertPanelProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm font-medium">{expert.name}</div>
-                  <div className="text-[10px] text-muted-foreground font-mono mt-0.5">{expert.targetCardType}</div>
+                  <div className="text-[10px] text-muted-foreground font-jakarta mt-0.5">{expert.targetCardType}</div>
                 </div>
                 <div className="flex items-center gap-1.5">
                   {expert.blocksLabTransition && (
@@ -105,7 +105,7 @@ export function ExpertPanel({ experts, dossierId, onClose }: ExpertPanelProps) {
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-medium text-sm">{selectedExpert.name}</div>
-                <div className="text-[10px] font-mono text-muted-foreground">{selectedExpert.targetCardType}</div>
+                <div className="text-[10px] font-jakarta text-muted-foreground">{selectedExpert.targetCardType}</div>
               </div>
               <Button variant="ghost" size="sm" onClick={() => setSelectedExpert(null)}>
                 Back
@@ -119,7 +119,7 @@ export function ExpertPanel({ experts, dossierId, onClose }: ExpertPanelProps) {
               <div className="space-y-3">
                 <div className="p-3 bg-muted rounded-lg text-sm">{response.analysis}</div>
                 <div className="p-3 border rounded-lg space-y-2">
-                  <div className="text-[10px] font-mono text-muted-foreground uppercase">Proposed Card</div>
+                  <div className="text-[10px] font-jakarta text-muted-foreground uppercase">Proposed Card</div>
                   <div className="font-medium text-sm">{response.proposedCard?.title}</div>
                   <div className="text-[10px] text-muted-foreground">{response.proposedCard?.type}</div>
                   <div className="text-xs text-muted-foreground">

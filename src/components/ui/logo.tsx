@@ -3,10 +3,11 @@ import Link from "next/link";
 
 interface LogoProps {
   className?: string
-  size?: "sm" | "md" | "lg"
+  size?: "xs" | "sm" | "md" | "lg"
 }
 
 const SIZES = {
+  xs: 20,
   sm: 28,
   md: 36,
   lg: 56,

@@ -33,6 +33,40 @@ export function usePoles() {
   })
 }
 
+export function useActivePoleSession(poleId: string, dossierId: string) {
+  return useQuery<{ session: PoleSessionData | null }>({
+    queryKey: ["activePoleSession", poleId, dossierId],
+    queryFn: async () => {
+      const res = await fetch(`/api/poles/${poleId}/sessions/active?dossierId=${dossierId}`)
+      if (!res.ok) throw new Error("Failed to fetch active session")
+      return res.json()
+    },
+    staleTime: 0, // Always fetch latest when opening chat
+  })
+}
+
+export interface KaelSessionData {
+  id: string
+  dossierId: string
+  labAtCreation: string
+  messages: Array<{ id: string; role: string; content: string; timestamp: string }>
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
+export function useActiveKaelSession(dossierId: string) {
+  return useQuery<{ session: KaelSessionData | null }>({
+    queryKey: ["activeKaelSession", dossierId],
+    queryFn: async () => {
+      const res = await fetch(`/api/kael/session/active?dossierId=${dossierId}`)
+      if (!res.ok) throw new Error("Failed to fetch active KAEL session")
+      return res.json()
+    },
+    staleTime: 0,
+  })
+}
+
 export function useStartPoleSession() {
   const qc = useQueryClient()
   return useMutation({
@@ -81,15 +115,17 @@ export function useKaelRoute() {
       dossierId,
       message,
       history,
+      sessionId,
     }: {
       dossierId: string
       message: string
       history?: Array<{ role: string; content: string }>
+      sessionId?: string
     }) => {
       const res = await fetch("/api/kael", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dossierId, message, history: history ?? [] }),
+        body: JSON.stringify({ dossierId, message, history: history ?? [], sessionId }),
       })
       if (!res.ok) throw new Error("Failed to route")
       return res.json()

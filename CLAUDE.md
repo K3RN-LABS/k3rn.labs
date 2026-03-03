@@ -16,12 +16,13 @@ npx tsc --noEmit
 ```
 Ne jamais livrer avec des erreurs TypeScript.
 
-### 3. Langue
-- Discussions avec l'utilisateur : **français**
-- Code, commentaires, noms de variables, commits : **anglais**
-
 ### 4. Pas d'over-engineering
 Modifier uniquement ce qui est demandé. Pas de refacto non sollicitée, pas de helpers superflus, pas de feature flags.
+
+### 5. Design & Typography
+- Pas de polices Mono, Serif ou techniques (Space Grotesk) — **Inter** (sans) et **Plus Jakarta Sans** (display) uniquement.
+- Utiliser `font-jakarta` pour les titres et métadonnées premium.
+- Favoriser le liquid glassmorphism (shimmer, border white/8, backdrop blur).
 
 ---
 
@@ -47,6 +48,11 @@ Modifier uniquement ce qui est demandé. Pas de refacto non sollicitée, pas de 
 - Architecture : `K3RN app → n8n MCP → [slack|email|audit|budget]`
 - Jamais Zapier direct depuis l'app
 - Pattern sub-workflow : `toolWorkflow` v2.2 (Execute Workflow Trigger)
+
+### 2.8 Missions & Dossiers
+- **Dossiers** : Gratuits, servent de conteneurs de regroupement.
+- **Missions** : Unité de facturation/quota (30 par défaut). Toute interaction experte ou création de dossier **doit** décrémenter le budget mission.
+- **Automatisation** : Ne pas recréer de processus manuel de création de mission ; le système doit rester fluide et automatique.
 
 ---
 
@@ -95,6 +101,10 @@ Voir `memory/chrome-devtools-mcp.md`.
 | P05_MARKETING | ZARA | #marketing #brand #seo |
 | P06_LEGAL | MARCUS | #legal #rgpd #contrat |
 | P07_TALENT_OPS | NOVA | #talent #ops #recrutement |
+
+### Synchronisation des Assets
+Les photos haute définition des experts se trouvent dans `docs/experts/Photos de profil/`. Elles doivent être synchronisées manuellement vers `public/images/experts/` après tout changement.
+- Utiliser `src="/images/experts/Kael.png"` (pas `Kael2.png`).
 
 ---
 

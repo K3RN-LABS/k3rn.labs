@@ -8,6 +8,8 @@ export interface SessionUser {
   userId: string
   email: string
   role: UserRole
+  onboardingCompleted: boolean
+  missionBudget: number
 }
 
 export async function verifySession(req?: NextRequest): Promise<SessionUser | null> {
@@ -26,7 +28,7 @@ export async function verifySession(req?: NextRequest): Promise<SessionUser | nu
               cookiesToSet.forEach(({ name, value, options }) =>
                 cookieStore.set(name, value, options)
               )
-            } catch {}
+            } catch { }
           },
         },
       }
@@ -42,7 +44,13 @@ export async function verifySession(req?: NextRequest): Promise<SessionUser | nu
       })
     }
 
-    return { userId: dbUser.id, email: dbUser.email, role: dbUser.role }
+    return {
+      userId: dbUser.id,
+      email: dbUser.email,
+      role: dbUser.role,
+      onboardingCompleted: dbUser.onboardingCompleted,
+      missionBudget: dbUser.missionBudget
+    }
   } catch {
     return null
   }

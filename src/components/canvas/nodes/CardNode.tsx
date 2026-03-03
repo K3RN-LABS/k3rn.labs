@@ -39,7 +39,7 @@ export const CardNode = memo(({ data, selected }: NodeProps<CardNodeData>) => {
       onDoubleClick={() => data.onOpen?.(data.cardId)}
     >
       <Handle type="target" position={Position.Top} className="!bg-muted-foreground" />
-      <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wide mb-1">{data.type}</div>
+      <div className="text-[10px] font-jakarta text-muted-foreground uppercase tracking-wide mb-1">{data.type}</div>
       <div className="text-sm font-semibold leading-tight line-clamp-2">{data.title}</div>
       <div className="mt-2 text-[9px] font-medium uppercase tracking-wider opacity-60">{STATE_LABELS[data.state]}</div>
       <Handle type="source" position={Position.Bottom} className="!bg-muted-foreground" />

@@ -1,35 +1,32 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useDossier } from "@/hooks/use-dossier"
 import { useLab, useTransitionLab } from "@/hooks/use-lab"
 import { usePoles } from "@/hooks/use-poles"
 import { CanvasView } from "@/components/canvas/CanvasView"
 import { Dock } from "@/components/workspace/Dock"
-import { ExpertPanelManager } from "@/components/workspace/ExpertPanelManager"
-import { KaelPanel } from "@/components/workspace/KaelPanel"
-import { WorkspaceSidebar } from "@/components/workspace/workspace-sidebar"
+import { FloatingWorkspaceInfo } from "@/components/workspace/FloatingWorkspaceInfo"
+import { KaelSlideUpPanel, PoleSlideUpPanel } from "@/components/workspace/SlideUpPanel"
+import { MobileOrchestrator } from "@/components/workspace/MobileOrchestrator"
 import { KaelCommandBar } from "@/components/poles/kael-command-bar"
 import { PermissionGate } from "@/components/ui/permission-gate"
 import { Button } from "@/components/ui/button"
 import { useWorkspaceStore } from "@/store/workspace.store"
 import { ChevronLeft, Download, DollarSign } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
+import type { PoleData } from "@/hooks/use-poles"
 
 /**
  * WorkspacePage — The Unified Cognitive Surface
  *
- * Architecture (per K3RN_TICKET_WORKSPACE_UNIFIED_COGNITIVE_SURFACE_V1):
- *
- * WorkspaceLayout
- *  ├── CanvasView        (graph neuronal — always mounted)
- *  ├── Dock              (floating navigation — search / filter / layout)
- *  ├── ExpertPanelManager (multi-chat simultané)
- *  └── KaelPanel         (orchestrateur — always accessible)
- *
- * Data source: GET /api/dossiers/[id]/graph (via useGraphData → ReactQuery)
- * Realtime: Supabase channel "graph" → invalidateQuery
+ * Layout:
+ *  ├── Header bar (top)
+ *  ├── WorkspaceSidebar (left, collapsible)
+ *  ├── CanvasView (main, flex-1)
+ *  │   └── Dock (floating bottom-center — glass liquid hub)
+ *  └── SlideUpPanel (KAEL or Expert — modal above Dock)
  */
 export default function WorkspacePage() {
     const { dossierId } = useParams<{ dossierId: string }>()
@@ -39,12 +36,10 @@ export default function WorkspacePage() {
     const { mutate: transitionLab, isPending: transitioning } = useTransitionLab()
     const { data: poles = [] } = usePoles()
 
-    const {
-        setActiveDossier,
-        activeSubFolderId,
-        openPoleChat,
-        openKaelChat,
-    } = useWorkspaceStore()
+    const { setActiveDossier, activeSubFolderId, openPoleChat } = useWorkspaceStore()
+
+    // Active panel state — null | "kael" | pole id
+    const [activePanel, setActivePanel] = useState<null | "kael" | string>(null)
 
     const currentLab = labData?.labState?.currentLab as string | undefined
 
@@ -52,6 +47,13 @@ export default function WorkspacePage() {
         setActiveDossier(dossierId)
         return () => setActiveDossier(null)
     }, [dossierId, setActiveDossier])
+
+    // Close panel on Escape
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setActivePanel(null) }
+        window.addEventListener("keydown", handler)
+        return () => window.removeEventListener("keydown", handler)
+    }, [])
 
     if (isLoading) {
         return (
@@ -81,94 +83,123 @@ export default function WorkspacePage() {
 
     const subFolders = dossier.subFolders ?? []
 
+    // Find active pole data for panel
+    const activePole = activePanel && activePanel !== "kael"
+        ? poles.find((p: PoleData) => p.id === activePanel) ?? null
+        : null
+
+    function handleOpenKael() {
+        setActivePanel((prev) => prev === "kael" ? null : "kael")
+    }
+
+    function handleOpenPole(poleId: string, poleCode: string, managerName: string) {
+        openPoleChat(poleId, poleCode, managerName) // keep store in sync for Dock active state
+        setActivePanel((prev) => prev === poleId ? null : poleId)
+    }
+
+    // ── Mobile surface (< md) ──
+    const mobileView = (
+        <div className="md:hidden h-dvh">
+            <MobileOrchestrator
+                dossierId={dossierId}
+                currentLab={currentLab}
+                dossierName={dossier.name}
+            />
+        </div>
+    )
+
     return (
-        <div className="h-dvh overflow-hidden bg-[#0a0a0a] flex flex-col">
-            {/* Top header bar */}
-            <header className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 shrink-0 bg-black/40 backdrop-blur-sm z-30">
-                <div className="flex items-center gap-2.5">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-muted-foreground hover:text-foreground h-7 px-2 text-xs"
-                        onClick={() => router.push("/home")}
-                    >
-                        <ChevronLeft className="h-3.5 w-3.5 mr-1" />
-                        Dossiers
-                    </Button>
-                    <Separator orientation="vertical" className="h-4 opacity-30" />
-                    <span className="text-sm font-semibold">{dossier.name}</span>
-                    {currentLab && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
-                            {currentLab.replace(/_/g, " ")}
-                        </span>
-                    )}
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <KaelCommandBar
-                        dossierId={dossierId}
-                        currentLab={currentLab}
-                        onSelectPole={(pole) => openPoleChat(pole.id, pole.code, pole.managerName)}
-                    />
-                    <PermissionGate dossierId={dossierId} permission="canCreateCrowdfunding">
+        <>
+            {mobileView}
+            <div className="hidden md:flex h-dvh overflow-hidden bg-[#0a0a0a] flex-col">
+                {/* ── Header ── */}
+                <header className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.05] shrink-0 bg-black/30 backdrop-blur-sm z-30">
+                    <div className="flex items-center gap-2.5">
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 text-xs"
-                            onClick={() => router.push(`/dossiers/${dossierId}/crowdfunding`)}
+                            className="text-white/30 hover:text-white/70 h-7 px-2 text-xs"
+                            onClick={() => router.push("/home")}
                         >
-                            <DollarSign className="h-3.5 w-3.5 mr-1" />
-                            Crowdfunding
+                            <ChevronLeft className="h-3.5 w-3.5 mr-1" />
+                            Dossiers
                         </Button>
-                    </PermissionGate>
-                    <PermissionGate dossierId={dossierId} permission="canExport">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-xs"
-                            onClick={() => router.push(`/dossiers/${dossierId}/export`)}
-                        >
-                            <Download className="h-3.5 w-3.5 mr-1" />
-                            Export
-                        </Button>
-                    </PermissionGate>
-                </div>
-            </header>
+                        <Separator orientation="vertical" className="h-4 opacity-20" />
+                        <span className="text-sm font-semibold text-white/90">{dossier.name}</span>
+                        {currentLab && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
+                                {currentLab.replace(/_/g, " ")}
+                            </span>
+                        )}
+                    </div>
 
-            {/* Main body — sidebar + canvas + KAEL panel */}
-            <div className="flex flex-1 overflow-hidden min-h-0">
-                {/* Collapsible sidebar */}
-                <WorkspaceSidebar
-                    dossierId={dossierId}
-                    dossierName={dossier.name}
-                    subFolders={subFolders}
-                    labData={labData}
-                    onTransitionLab={() => transitionLab(dossierId)}
-                    transitioning={transitioning}
-                />
+                    <div className="flex items-center gap-2">
+                        <KaelCommandBar
+                            dossierId={dossierId}
+                            currentLab={currentLab}
+                            onSelectPole={(pole) => handleOpenPole(pole.id, pole.code, pole.managerName)}
+                        />
+                        <PermissionGate dossierId={dossierId} permission="canCreateCrowdfunding">
+                            <Button variant="ghost" size="sm" className="h-7 text-xs text-white/40 hover:text-white/80"
+                                onClick={() => router.push(`/dossiers/${dossierId}/crowdfunding`)}>
+                                <DollarSign className="h-3.5 w-3.5 mr-1" />
+                                Crowdfunding
+                            </Button>
+                        </PermissionGate>
+                        <PermissionGate dossierId={dossierId} permission="canExport">
+                            <Button variant="ghost" size="sm" className="h-7 text-xs text-white/40 hover:text-white/80"
+                                onClick={() => router.push(`/dossiers/${dossierId}/export`)}>
+                                <Download className="h-3.5 w-3.5 mr-1" />
+                                Export
+                            </Button>
+                        </PermissionGate>
+                    </div>
+                </header>
 
-                {/* Canvas — fills remaining space */}
-                <div className="flex-1 relative overflow-hidden min-w-0">
+                {/* ── Body ── */}
+                <div className="flex flex-1 overflow-hidden min-h-0 relative">
+                    {/* Canvas */}
                     <CanvasView
                         dossierId={dossierId}
                         subFolderId={activeSubFolderId ?? undefined}
                     />
 
-                    {/* Dock — floating navigation */}
+                    {/* Floating Workspace Info - Replaces Sidebar */}
+                    <FloatingWorkspaceInfo
+                        dossierId={dossierId}
+                        labData={labData}
+                        onTransitionLab={() => transitionLab(dossierId)}
+                        transitioning={transitioning}
+                    />
+
+                    {/* Dock — glass liquid hub */}
                     <Dock
                         dossierId={dossierId}
                         poles={poles}
                         subFolders={subFolders}
                         currentLab={currentLab}
+                        onOpenKael={handleOpenKael}
+                        onOpenPole={handleOpenPole}
                     />
                 </div>
 
-                {/* KAEL — permanent side panel (collapsible) */}
-                <KaelPanel dossierId={dossierId} currentLab={currentLab} />
+                {/* ── Slide-Up Panels ── */}
+                {activePanel === "kael" && (
+                    <KaelSlideUpPanel
+                        dossierId={dossierId}
+                        currentLab={currentLab}
+                        onClose={() => setActivePanel(null)}
+                    />
+                )}
+                {activePole && (
+                    <PoleSlideUpPanel
+                        pole={activePole}
+                        dossierId={dossierId}
+                        currentLab={currentLab}
+                        onClose={() => setActivePanel(null)}
+                    />
+                )}
             </div>
-
-            {/* Expert Panel Manager — floating multi-chat */}
-            <ExpertPanelManager dossierId={dossierId} currentLab={currentLab} />
-        </div>
+        </>
     )
 }

@@ -5,6 +5,7 @@ import { apiError, apiSuccess, validateBody } from "@/lib/validate"
 import { buildProjectMemory } from "@/lib/project-memory"
 import { invokeN8nPole } from "@/lib/n8n"
 import { z } from "zod"
+import { randomUUID } from "node:crypto"
 
 const schema = z.object({
   userMessage: z.string().min(1).max(4000),
@@ -24,8 +25,14 @@ export async function POST(req: NextRequest, { params }: { params: { sessionId: 
   if (!poleSession) return apiError("Session not found", 404)
   if (poleSession.dossier.ownerId !== session.userId) return apiError("Forbidden", 403)
 
-  const messages = poleSession.messages as Array<Record<string, unknown>>
+  const messages = poleSession.messages as Array<Record<string, any>>
   const projectMemory = await buildProjectMemory(poleSession.dossierId)
+
+  // Nettoyage de l'historique pour n8n (on ne garde que role et content)
+  const cleanHistory = messages.map((m) => ({
+    role: m.role === "manager" ? "assistant" : m.role,
+    content: (m.content as string) ?? "",
+  }))
 
   const n8nResult = await invokeN8nPole(
     {
@@ -33,6 +40,7 @@ export async function POST(req: NextRequest, { params }: { params: { sessionId: 
       managerName: poleSession.pole.managerName,
       systemPrompt: poleSession.pole.systemPrompt,
       userMessage: result.data.userMessage,
+      history: cleanHistory,
       projectMemory,
       dossierId: poleSession.dossierId,
       labContext: poleSession.labAtCreation,
@@ -41,7 +49,7 @@ export async function POST(req: NextRequest, { params }: { params: { sessionId: 
   )
 
   const userMsg = {
-    id: crypto.randomUUID(),
+    id: randomUUID(),
     role: "user",
     content: result.data.userMessage,
     timestamp: new Date().toISOString(),
@@ -49,12 +57,15 @@ export async function POST(req: NextRequest, { params }: { params: { sessionId: 
 
   const newMessages = [...messages, userMsg]
 
-  if (n8nResult.status === "FALLBACK" && n8nResult.messages[0]) {
-    newMessages.push({
-      id: crypto.randomUUID(),
-      role: "manager",
-      content: n8nResult.messages[0].content,
-      timestamp: new Date().toISOString(),
+  // Persister la réponse si elle est disponible immédiatement (COMPLETED ou FALLBACK)
+  if (n8nResult.messages && n8nResult.messages.length > 0) {
+    n8nResult.messages.forEach(msg => {
+      newMessages.push({
+        id: randomUUID(),
+        role: "manager",
+        content: msg.content,
+        timestamp: new Date().toISOString(),
+      })
     })
   }
 
@@ -67,6 +78,7 @@ export async function POST(req: NextRequest, { params }: { params: { sessionId: 
     },
   })
 
+  // Récupérer le dernier message du manager pour la réponse API
   const lastManagerMsg = [...newMessages].reverse().find((m) => m.role === "manager")
 
   return apiSuccess({

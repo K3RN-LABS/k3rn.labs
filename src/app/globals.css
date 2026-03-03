@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  scroll-behavior: smooth;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -63,6 +67,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -73,8 +78,70 @@
     opacity: 0;
     transform: translateY(16px) scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+/* Expert particle cloud animations */
+@keyframes float1 {
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  25% {
+    transform: translate(10px, -15px) scale(1.1);
+  }
+
+  50% {
+    transform: translate(-5px, -25px) scale(0.95);
+  }
+
+  75% {
+    transform: translate(-15px, -10px) scale(1.05);
+  }
+}
+
+@keyframes float2 {
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  33% {
+    transform: translate(-12px, -20px) scale(1.15);
+  }
+
+  66% {
+    transform: translate(8px, -10px) scale(0.9);
+  }
+}
+
+@keyframes float3 {
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  20% {
+    transform: translate(15px, -8px) scale(1.05);
+  }
+
+  40% {
+    transform: translate(5px, -22px) scale(1.1);
+  }
+
+  60% {
+    transform: translate(-10px, -18px) scale(0.95);
+  }
+
+  80% {
+    transform: translate(-8px, -5px) scale(1.08);
   }
 }

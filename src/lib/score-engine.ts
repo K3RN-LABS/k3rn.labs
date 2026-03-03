@@ -1,4 +1,5 @@
 import { db as prisma } from "./db"
+import { deserializeState, ASPECT_KEYS } from "./onboarding-state"
 import type { LabType } from "@prisma/client"
 
 const CARD_WEIGHTS: Record<string, { dimension: "market" | "tech" | "finance"; weight: number }> = {
@@ -36,12 +37,26 @@ export async function computeAndPersistScore(dossierId: string, triggeredByCardI
     include: { cards: { where: { state: "VALIDATED" } } },
   })
 
+  const dossier = await prisma.dossier.findUnique({
+    where: { id: dossierId }
+  })
+
   const validatedCards = subFolders.flatMap((sf) => sf.cards)
 
   let rawMarket = 0
   let rawTech = 0
   let rawFinance = 0
 
+  // 1. Point attribution from onboarding
+  if (dossier?.onboardingState) {
+    const onboarding = deserializeState(dossier.onboardingState)
+    if (onboarding.confirmedAspects.problem?.value) rawMarket += 10
+    if (onboarding.confirmedAspects.target?.value) rawMarket += 10
+    if (onboarding.confirmedAspects.outcome?.value) rawTech += 10
+    if (onboarding.confirmedAspects.constraint?.value) rawTech += 10
+  }
+
+  // 2. Point attribution from validated cards
   for (const card of validatedCards) {
     const weight = CARD_WEIGHTS[card.type]
     if (!weight) continue

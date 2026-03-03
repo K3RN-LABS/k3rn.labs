@@ -1,24 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# k3rn Labs — Cognitive Orchestration System
 
-## Getting Started
+k3rn est une plateforme d'orchestration cognitive conçue pour transformer des idées brutes en stratégies structurées et opérationnelles. 
 
-First, run the development server:
+## 🚀 Vision
+Passer du concept à la multinationale en s'appuyant sur un réseau d'experts spécialisés et un assistant stratégique central, **KAEL**.
 
+## 🏗️ Architecture Unique
+Le système repose sur deux concepts fondamentaux :
+- **Dossiers (Projets)** : Structures de stockage et d'organisation gratuites.
+- **Missions** : L'unité de travail effectif. Chaque interaction expert ou création de dossier consomme une mission du budget utilisateur.
+
+## 🛠️ Stack Technique
+- **Framework**: Next.js 14 (App Router)
+- **Base de données**: PostgreSQL (Supabase) + pgvector pour la mémoire sémantique
+- **ORM**: Prisma 7
+- **UI/UX**: Tailwind CSS + Framer Motion (Glassmorphism & Liquid Design)
+- **AI Orchestration**: n8n (Guichet Unique) + OpenAI/Claude
+
+## 🔋 Fonctionnalités Clés
+- **Canvas Unifié**: Une surface cognitive sans sidebar pour une immersion totale.
+- **Budget Missions Automatisé**: Système freemium (30 missions) avec décompte transparent.
+- **Mémoire Sémantique**: KAEL se souvient du contexte passé pour calibrer ses stratégies.
+- **Rapports Quotidiens**: Synthèse automatisée envoyée via Telegram.
+
+## 🛠️ Développement
+
+### Installation
 ```bash
+npm install
+```
+
+### Lancement
+```bash
+# Frontend & API
 npm run dev
-# or
-yarn dev
+
+# Worker d'ingestion (Graph)
+npm run worker
+```
+
+## 📜 Changelog
+Voir le fichier [CHANGELOG.md](./CHANGELOG.md) pour le détail des dernières versions.
 # or
 pnpm dev
 # or
-bun dev
-```
-
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load **Plus Jakarta Sans** and **Inter**, for a clean, premium sans-serif aesthetic.
 
 ## Learn More
 
