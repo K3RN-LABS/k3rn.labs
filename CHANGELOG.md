@@ -5,9 +5,14 @@ All notable changes to this project are documented in this file.
 Format based on Keep a Changelog.
 Types: FEATURE, FIX, REFACTOR, CHORE.
 
+## [0.2.1] - 2026-03-04
+### Fixed
+- **Vercel Build Error**: Implemented lazy initialization for the Supabase admin client using a Proxy. This prevents the `supabaseKey is required` error during build-time dependency tracing when environment variables are missing.
+
 ---
 
 ## [0.2.0] - 2026-03-03
+
 ### Added/Changed
 - **Conversational Modal Wizard**: The Application Modal is now a 4-step conversational journey guided by **Kael**:
   1.  **Profil & Rôle**: Capture of identity and role using smart suggestion chips.
@@ -36,7 +41,6 @@ Types: FEATURE, FIX, REFACTOR, CHORE.
 - **Floating Workspace Info**: Bottom-left panel for dossier global score and lab progress overview.
 - **Header Auth Integration**: Updated "Log in" buttons (Desktop/Mobile) to redirect to `/auth/login`, establishing a clear path for returning users.
 - **Typography Overhaul**: Removed all legacy technical fonts (`Space Grotesk`, `font-mono`, `font-serif`) globally, replacing them with a unified system of **Plus Jakarta Sans** and **Inter**.
-- **Typography Overhaul**: Removed all legacy technical fonts (`Space Grotesk`, `font-mono`, `font-serif`) globally, replacing them with a unified system of **Plus Jakarta Sans** and **Inter`.
 - **Expert Asset Synchronization**: Manually synchronized high-resolution expert profile photos from `docs/experts/` to `public/images/experts/` for production consistency.
 - **Database Layer Alignment**: Fixed a discrepancy in the custom `DbClient` where the `Mission` model was missing.
 - **API & UI Type Fixes**: 
