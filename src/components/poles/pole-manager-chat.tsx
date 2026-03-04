@@ -255,7 +255,7 @@ function getManagerGreeting(name: string): string {
     MAYA: "Bonjour. Je suis MAYA, ta Directrice Market & Intelligence.\n\nJe produis de l'intelligence marché qui permet de décider, pas juste d'informer. Quel marché ou secteur veux-tu analyser ?",
     KAI: "Bonjour. Je suis KAI, ton Architecte Produit & Tech.\n\nJe transforme les idées en plans d'implémentation actionnables. Décris-moi ce que tu veux construire.",
     ELENA: "Bonjour. Je suis ELENA, ta Directrice Financière.\n\nJe travaille toujours avec des hypothèses explicites et des scénarios clairs. Quel projet ou modèle économique modélisons-nous ?",
-    AMY: "Bonjour. Je suis AMY, ta Chief Marketing Officer.\n\nJe construis des marques qui convertissent. Quel est le projet de marque ou la stratégie marketing sur laquelle on travaille ?",
+    SKY: "Bonjour. Je suis SKY, ta Chief Marketing Officer.\n\nJe construis des marques qui convertissent. Quel est le projet de marque ou la stratégie marketing sur laquelle on travaille ?",
     MARCUS: "Bonjour. Je suis MARCUS, ton Conseiller Juridique.\n\nJ'identifie les risques et propose des solutions concrètes — sans bloquer l'action. Quel risque légal veux-tu traiter ?",
     NOVA: "Bonjour. Je suis NOVA, ta Directrice des Opérations.\n\nJe m'assure que les bonnes personnes font les bonnes choses au bon moment. Quels sont tes besoins en ressources ou coordination ?",
   }

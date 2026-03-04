@@ -13,7 +13,7 @@ const MANAGERS = [
     { name: "MAYA", code: "P02", title: "Directrice Market & Intelligence", tagline: "TAM · SAM · SOM", desc: "Analyse marché et fenêtres d'opportunité.", hashtags: ["#market", "#veille", "#concurrents"], color: "#2563eb", initiale: "M", avatar: "/images/experts/Maya.svg", salary: 90000 },
     { name: "KAI", code: "P03", title: "Architecte Produit & Tech", tagline: "MVP · STACK", desc: "Décomposition et plan d'implémentation.", hashtags: ["#mvp", "#tech", "#stack"], color: "#059669", initiale: "K", avatar: "/images/experts/Kai.svg", salary: 95000 },
     { name: "ELENA", code: "P04", title: "Directrice Financière", tagline: "P&L · BREAK-EVEN", desc: "Business model et projections 12–36 mois.", hashtags: ["#finance", "#budget", "#investisseur"], color: "#d97706", initiale: "E", avatar: "/images/experts/Elena.svg", salary: 140000 },
-    { name: "AMY", code: "P05", title: "Chief Marketing Officer", tagline: "COPY · GROWTH", desc: "Brand strategy et campagnes de lancement.", hashtags: ["#marketing", "#brand", "#seo"], color: "#db2777", initiale: "A", avatar: "/images/experts/Amy.svg", salary: 110000 },
+    { name: "SKY", code: "P05", title: "Chief Marketing Officer", tagline: "COPY · GROWTH", desc: "Brand strategy et campagnes de lancement.", hashtags: ["#marketing", "#brand", "#seo"], color: "#db2777", initiale: "S", avatar: "/images/experts/Sky.svg", salary: 110000 },
     { name: "MARCUS", code: "P06", title: "Conseiller Juridique", tagline: "RGPD · CONTRATS", desc: "Structure légale et conformité sectorielle.", hashtags: ["#legal", "#rgpd", "#contrat"], color: "#64748b", initiale: "M", avatar: "/images/experts/Marcus.svg", salary: 130000 },
     { name: "NOVA", code: "P07", title: "Directrice des Opérations", tagline: "TALENT · OPS", desc: "Sourcing talent et coordination inter-pôles.", hashtags: ["#talent", "#ops", "#recrutement"], color: "#ea580c", initiale: "N", avatar: "/images/experts/Nova.svg", salary: 120000 },
 ]
@@ -572,7 +572,7 @@ export default function LandingPage() {
                     <div className="absolute top-[10%] left-[20%] w-[300px] h-[300px] bg-[#7c3aed]/10 blur-[100px] rounded-full animate-[float1_15s_ease-in-out_infinite]" />
                     {/* Tech (KAI - Green) */}
                     <div className="absolute top-[25%] right-[25%] w-[250px] h-[250px] bg-[#059669]/10 blur-[100px] rounded-full animate-[float2_18s_ease-in-out_infinite_2s]" />
-                    {/* Marketing (AMY - Pink) */}
+                    {/* Marketing (SKY - Pink) */}
                     <div className="absolute top-[40%] left-[10%] w-[350px] h-[350px] bg-[#db2777]/8 blur-[120px] rounded-full animate-[float3_20s_ease-in-out_infinite_5s]" />
                     {/* Finance (ELENA - Amber) */}
                     <div className="absolute bottom-[20%] right-[15%] w-[400px] h-[400px] bg-[#d97706]/8 blur-[130px] rounded-full animate-[float1_25s_ease-in-out_infinite_1s]" />

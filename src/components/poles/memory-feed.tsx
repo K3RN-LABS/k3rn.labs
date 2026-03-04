@@ -28,7 +28,7 @@ const MANAGER_COLORS: Record<string, string> = {
   MAYA: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
   KAI: "bg-blue-500/10 text-blue-600 border-blue-500/20",
   ELENA: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-  AMY: "bg-pink-500/10 text-pink-600 border-pink-500/20",
+  SKY: "bg-pink-500/10 text-pink-600 border-pink-500/20",
   MARCUS: "bg-slate-500/10 text-slate-600 border-slate-500/20",
   NOVA: "bg-orange-500/10 text-orange-600 border-orange-500/20",
 }
