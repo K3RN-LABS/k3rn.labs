@@ -9,13 +9,13 @@ import { motion, AnimatePresence } from "framer-motion"
 
 // ─── Managers K3RN — 7 pôles experts ─────────────────────────────────────────
 const MANAGERS = [
-    { name: "AXEL", code: "P01", title: "Directeur Stratégie & Innovation", tagline: "GO / NO–GO", desc: "Challenge systématique et positionnement.", hashtags: ["#pitch", "#stratégie", "#brainstorming"], color: "#7c3aed", initiale: "A", avatar: "/images/experts/Axel.png", salary: 85000 },
-    { name: "MAYA", code: "P02", title: "Directrice Market & Intelligence", tagline: "TAM · SAM · SOM", desc: "Analyse marché et fenêtres d'opportunité.", hashtags: ["#market", "#veille", "#concurrents"], color: "#2563eb", initiale: "M", avatar: "/images/experts/Maya.png", salary: 90000 },
-    { name: "KAI", code: "P03", title: "Architecte Produit & Tech", tagline: "MVP · STACK", desc: "Décomposition et plan d'implémentation.", hashtags: ["#mvp", "#tech", "#stack"], color: "#059669", initiale: "K", avatar: "/images/experts/Kai.png", salary: 95000 },
-    { name: "ELENA", code: "P04", title: "Directrice Financière", tagline: "P&L · BREAK-EVEN", desc: "Business model et projections 12–36 mois.", hashtags: ["#finance", "#budget", "#investisseur"], color: "#d97706", initiale: "E", avatar: "/images/experts/Elena.png", salary: 140000 },
+    { name: "AXEL", code: "P01", title: "Directeur Stratégie & Innovation", tagline: "GO / NO–GO", desc: "Challenge systématique et positionnement.", hashtags: ["#pitch", "#stratégie", "#brainstorming"], color: "#7c3aed", initiale: "A", avatar: "/images/experts/Axel.svg", salary: 85000 },
+    { name: "MAYA", code: "P02", title: "Directrice Market & Intelligence", tagline: "TAM · SAM · SOM", desc: "Analyse marché et fenêtres d'opportunité.", hashtags: ["#market", "#veille", "#concurrents"], color: "#2563eb", initiale: "M", avatar: "/images/experts/Maya.svg", salary: 90000 },
+    { name: "KAI", code: "P03", title: "Architecte Produit & Tech", tagline: "MVP · STACK", desc: "Décomposition et plan d'implémentation.", hashtags: ["#mvp", "#tech", "#stack"], color: "#059669", initiale: "K", avatar: "/images/experts/Kai.svg", salary: 95000 },
+    { name: "ELENA", code: "P04", title: "Directrice Financière", tagline: "P&L · BREAK-EVEN", desc: "Business model et projections 12–36 mois.", hashtags: ["#finance", "#budget", "#investisseur"], color: "#d97706", initiale: "E", avatar: "/images/experts/Elena.svg", salary: 140000 },
     { name: "AMY", code: "P05", title: "Chief Marketing Officer", tagline: "COPY · GROWTH", desc: "Brand strategy et campagnes de lancement.", hashtags: ["#marketing", "#brand", "#seo"], color: "#db2777", initiale: "A", avatar: "/images/experts/Amy.svg", salary: 110000 },
-    { name: "MARCUS", code: "P06", title: "Conseiller Juridique", tagline: "RGPD · CONTRATS", desc: "Structure légale et conformité sectorielle.", hashtags: ["#legal", "#rgpd", "#contrat"], color: "#64748b", initiale: "M", avatar: "/images/experts/Marcus.png", salary: 130000 },
-    { name: "NOVA", code: "P07", title: "Directrice des Opérations", tagline: "TALENT · OPS", desc: "Sourcing talent et coordination inter-pôles.", hashtags: ["#talent", "#ops", "#recrutement"], color: "#ea580c", initiale: "N", avatar: "/images/experts/Nova.png", salary: 120000 },
+    { name: "MARCUS", code: "P06", title: "Conseiller Juridique", tagline: "RGPD · CONTRATS", desc: "Structure légale et conformité sectorielle.", hashtags: ["#legal", "#rgpd", "#contrat"], color: "#64748b", initiale: "M", avatar: "/images/experts/Marcus.svg", salary: 130000 },
+    { name: "NOVA", code: "P07", title: "Directrice des Opérations", tagline: "TALENT · OPS", desc: "Sourcing talent et coordination inter-pôles.", hashtags: ["#talent", "#ops", "#recrutement"], color: "#ea580c", initiale: "N", avatar: "/images/experts/Nova.svg", salary: 120000 },
 ]
 
 const STEPS = [
@@ -791,7 +791,7 @@ export default function LandingPage() {
                                     <div className="absolute w-20 h-20 rounded-full blur-[40px] opacity-[0.12] animate-[float3_7s_ease-in-out_infinite_2s]" style={{ backgroundColor: 'hsl(var(--primary))', left: '50%', bottom: '50%' }} />
                                 </div>
                                 <img
-                                    src="/images/experts/Kael.png"
+                                    src="/images/experts/Kael.svg"
                                     alt="KAEL"
                                     className="relative z-10 w-full h-full object-contain object-bottom transition-transform duration-700 hover:scale-[1.03] origin-bottom"
                                 />
@@ -1098,7 +1098,7 @@ export default function LandingPage() {
                         {/* KAEL Avatar */}
                         <div className="relative w-12 h-12 rounded-2xl overflow-hidden shrink-0 border border-white/[0.05] bg-black/40">
                             <img
-                                src="/images/experts/Kael.png"
+                                src="/images/experts/Kael.svg"
                                 alt="KAEL"
                                 className="relative z-10 w-full h-full object-cover object-[center_20%] opacity-90 group-hover/modal:opacity-100 transition-opacity"
                             />
@@ -1149,7 +1149,7 @@ export default function LandingPage() {
                                     <div className="flex items-center gap-4 mb-2">
                                         <div className="relative">
                                             <div className="w-12 h-12 rounded-full overflow-hidden border border-white/10 ring-4 ring-primary/5">
-                                                <img src="/images/experts/Kael.png" alt="Kael" className="w-full h-full object-cover" />
+                                                <img src="/images/experts/Kael.svg" alt="Kael" className="w-full h-full object-cover" />
                                             </div>
                                             <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-[#050505] rounded-full" />
                                         </div>
