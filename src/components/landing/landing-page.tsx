@@ -492,7 +492,7 @@ export default function LandingPage() {
                             <nav className="hidden md:flex items-center gap-1">
                                 {isLoggedIn ? (
                                     <Link
-                                        href="/workspace"
+                                        href="/home"
                                         className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-white text-black hover:bg-white/92 transition-all duration-200 shadow-[0_2px_16px_rgba(255,255,255,0.18),inset_0_1px_0_rgba(255,255,255,0.8)]">
                                         Accéder au workspace
                                         <span className="text-black/40 text-xs">→</span>
@@ -555,7 +555,7 @@ export default function LandingPage() {
                                     <div className="flex flex-col gap-3">
                                         {isLoggedIn ? (
                                             <Link
-                                                href="/workspace"
+                                                href="/home"
                                                 onClick={() => setIsMenuOpen(false)}
                                                 className="w-full py-4 rounded-xl text-sm font-bold bg-white text-black text-center transition-all"
                                             >
@@ -634,7 +634,7 @@ export default function LandingPage() {
                     {/* CTA */}
                     <div className="flex flex-col sm:flex-row items-center gap-5 mt-6">
                         {isLoggedIn ? (
-                            <Link href="/workspace" className="group relative">
+                            <Link href="/home" className="group relative">
                                 <div className="absolute -inset-1 bg-gradient-to-r from-primary/50 via-violet-500/50 to-primary/50 rounded-2xl blur-xl opacity-50 group-hover:opacity-100 transition duration-700" />
                                 <button className="relative h-14 px-10 rounded-xl text-sm font-semibold tracking-wide bg-white text-black hover:bg-white/94 transition-all shadow-[0_0_0_1px_rgba(255,255,255,0.15),0_4px_24px_rgba(255,255,255,0.1)] overflow-hidden flex items-center gap-3">
                                     <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1128,7 +1128,7 @@ export default function LandingPage() {
             <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-1000 fill-mode-both">
                 {isLoggedIn ? (
                     /* Logged-in: direct workspace access */
-                    <Link href="/workspace" className="group/modal block text-left">
+                    <Link href="/home" className="group/modal block text-left">
                         <div className="relative flex items-center gap-4 rounded-3xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-2xl p-4 pr-6 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-300 hover:border-white/[0.12] hover:bg-white/[0.04] hover:-translate-y-1">
                             <div className="absolute -inset-1 bg-gradient-to-br from-primary/10 via-transparent to-violet-600/10 opacity-0 group-hover/modal:opacity-100 transition-opacity duration-700 pointer-events-none" />
                             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 group-hover/modal:opacity-100 transition-opacity duration-700" />
