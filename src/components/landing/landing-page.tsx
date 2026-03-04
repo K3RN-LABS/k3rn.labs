@@ -1103,7 +1103,7 @@ export default function LandingPage() {
                         {/* KAEL Avatar */}
                         <div className="relative w-12 h-12 rounded-2xl overflow-hidden shrink-0 border border-white/[0.05] bg-black/40">
                             <img
-                                src="/images/experts/Kael.svg"
+                                src="/images/experts/Kael.webp"
                                 alt="KAEL"
                                 className="relative z-10 w-full h-full object-cover object-[center_20%] opacity-90 group-hover/modal:opacity-100 transition-opacity"
                             />
@@ -1154,7 +1154,7 @@ export default function LandingPage() {
                                     <div className="flex items-center gap-4 mb-2">
                                         <div className="relative">
                                             <div className="w-12 h-12 rounded-full overflow-hidden border border-white/10 ring-4 ring-primary/5">
-                                                <img src="/images/experts/Kael.svg" alt="Kael" className="w-full h-full object-cover" />
+                                                <img src="/images/experts/Kael.webp" alt="Kael" className="w-full h-full object-cover" />
                                             </div>
                                             <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-[#050505] rounded-full" />
                                         </div>
