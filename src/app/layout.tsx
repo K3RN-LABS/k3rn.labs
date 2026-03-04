@@ -3,8 +3,8 @@ import { Inter, Plus_Jakarta_Sans } from "next/font/google"
 import "./globals.css"
 import { Providers } from "./providers"
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
-const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-jakarta" })
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" })
+const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-jakarta", display: "swap" })
 
 export const metadata: Metadata = {
   title: "k3rn.labs — Cognitive Workspace",
@@ -26,6 +26,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`dark ${inter.variable} ${jakarta.variable}`}>
+      <head>
+        {/* Preload LCP image — KAEL is the largest visible element on landing */}
+        <link rel="preload" href="/images/experts/Kael.svg" as="image" />
+      </head>
       <body className="font-sans antialiased text-foreground bg-background">
         <Providers>{children}</Providers>
       </body>

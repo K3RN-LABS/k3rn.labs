@@ -47,6 +47,8 @@ function ManagerAvatar({ name, initiale, color, avatar }: { name: string; initia
             <img
                 src={avatar}
                 alt={name}
+                loading="lazy"
+                decoding="async"
                 className="relative z-10 w-full h-full object-contain object-bottom transition-transform duration-700 ease-out group-hover:scale-[1.03] origin-bottom"
             />
         </div>
@@ -793,6 +795,9 @@ export default function LandingPage() {
                                 <img
                                     src="/images/experts/Kael.svg"
                                     alt="KAEL"
+                                    loading="eager"
+                                    fetchPriority="high"
+                                    decoding="sync"
                                     className="relative z-10 w-full h-full object-contain object-bottom transition-transform duration-700 hover:scale-[1.03] origin-bottom"
                                 />
                             </div>
