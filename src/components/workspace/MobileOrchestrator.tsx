@@ -116,7 +116,7 @@ export function MobileOrchestrator({ dossierId, currentLab, dossierName, onOpenD
             <header className="flex items-center justify-between px-4 py-3 border-b border-white/[0.05] shrink-0">
                 <div className="flex items-center gap-2.5">
                     <div className="w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center bg-primary/15 border border-primary/25 shrink-0">
-                        <img src="/images/experts/Kael.png" alt="KAEL" className="w-full h-full object-cover" />
+                        <img src="/images/experts/Kael.webp" alt="KAEL" className="w-full h-full object-cover" />
                     </div>
                     <div>
                         <p className="text-xs font-bold text-white/90">KAEL</p>
@@ -165,7 +165,7 @@ export function MobileOrchestrator({ dossierId, currentLab, dossierName, onOpenD
                                     "w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center text-[11px] font-black text-white bg-gradient-to-br shadow-lg shrink-0",
                                     cfg.gradient
                                 )}>
-                                    <img src={`/images/experts/${pole.managerName.split(" ")[0]}.png`} alt={pole.managerName} className="w-full h-full object-cover" />
+                                    <img src={`/images/experts/${pole.managerName.split(" ")[0]}.webp`} alt={pole.managerName} className="w-full h-full object-cover" />
                                 </div>
                                 <span className="text-[8px] text-white/30 font-medium">{pole.managerName}</span>
                             </button>
@@ -186,7 +186,7 @@ export function MobileOrchestrator({ dossierId, currentLab, dossierName, onOpenD
                             <div key={msg.id} className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "justify-start")}>
                                 {msg.role === "kael" && (
                                     <div className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center bg-primary/10 border border-primary/20 shrink-0 mt-0.5">
-                                        <img src="/images/experts/Kael.png" alt="KAEL" className="w-full h-full object-cover" />
+                                        <img src="/images/experts/Kael.webp" alt="KAEL" className="w-full h-full object-cover" />
                                     </div>
                                 )}
                                 <div className={cn(
@@ -205,7 +205,7 @@ export function MobileOrchestrator({ dossierId, currentLab, dossierName, onOpenD
                         {sending && (
                             <div className="flex gap-2">
                                 <div className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center bg-primary/10 border border-primary/20 shrink-0">
-                                    <img src="/images/experts/Kael.png" alt="KAEL" className="w-full h-full object-cover opacity-50 animate-pulse" />
+                                    <img src="/images/experts/Kael.webp" alt="KAEL" className="w-full h-full object-cover opacity-50 animate-pulse" />
                                 </div>
                                 <div className="bg-white/[0.05] border border-white/[0.04] rounded-2xl rounded-bl-sm px-4 py-3">
                                     <div className="flex gap-1">

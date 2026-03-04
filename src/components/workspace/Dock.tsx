@@ -452,7 +452,7 @@ export function Dock({ dossierId, poles, subFolders, currentLab, onOpenKael, onO
                             )}
                         >
                             <img
-                                src="/images/experts/Kael.png"
+                                src="/images/experts/Kael.webp"
                                 alt="KAEL"
                                 className={cn(
                                     "w-full h-full object-cover transition-all duration-300",
@@ -477,7 +477,7 @@ export function Dock({ dossierId, poles, subFolders, currentLab, onOpenKael, onO
 
                             // Map manager name to image
                             const managerName = pole.managerName.split(" ")[0] // Handle "Marcus" from "Marcus"
-                            const imgSrc = `/images/experts/${managerName}.png`
+                            const imgSrc = `/images/experts/${managerName}.webp`
 
                             return (
                                 <DockButton

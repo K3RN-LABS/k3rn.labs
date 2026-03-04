@@ -248,7 +248,7 @@ export function KaelSlideUpPanel({ dossierId, currentLab, onClose }: KaelSlideUp
 
     const kaelAvatar = (
         <div className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center bg-primary/10 border border-primary/25 shrink-0">
-            <img src="/images/experts/Kael.png" alt="KAEL" className="w-full h-full object-cover" />
+            <img src="/images/experts/Kael.webp" alt="KAEL" className="w-full h-full object-cover" />
         </div>
     )
 
@@ -259,7 +259,7 @@ export function KaelSlideUpPanel({ dossierId, currentLab, onClose }: KaelSlideUp
             header={
                 <div className="flex items-center gap-3 px-4 py-3.5 border-b border-white/[0.05] shrink-0 bg-gradient-to-r from-primary/[0.08] to-transparent relative z-[1]">
                     <div className="w-8 h-8 rounded-xl overflow-hidden flex items-center justify-center bg-primary/15 border border-primary/25 shrink-0 shadow-sm transition-transform hover:scale-105">
-                        <img src="/images/experts/Kael.png" alt="KAEL" className="w-full h-full object-cover" />
+                        <img src="/images/experts/Kael.webp" alt="KAEL" className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1">
                         <p className="text-sm font-bold tracking-tight">KAEL</p>
@@ -390,7 +390,7 @@ export function PoleSlideUpPanel({ pole, dossierId, currentLab, onClose }: PoleS
     const managerImageName = pole.managerName.split(" ")[0]
     const managerAvatar = (
         <div className={cn("w-6 h-6 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br shrink-0", gradient)}>
-            <img src={`/images/experts/${managerImageName}.png`} alt={pole.managerName} className="w-full h-full object-cover" />
+            <img src={`/images/experts/${managerImageName}.webp`} alt={pole.managerName} className="w-full h-full object-cover" />
         </div>
     )
 
@@ -403,7 +403,7 @@ export function PoleSlideUpPanel({ pole, dossierId, currentLab, onClose }: PoleS
                     {/* Subtle gradient tint from pole color */}
                     <div className={cn("absolute inset-0 opacity-10 bg-gradient-to-r to-transparent pointer-events-none", gradient)} />
                     <div className={cn("w-8 h-8 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br shadow-lg shrink-0 transition-transform hover:scale-105", gradient)}>
-                        <img src={`/images/experts/${managerImageName}.png`} alt={pole.managerName} className="w-full h-full object-cover" />
+                        <img src={`/images/experts/${managerImageName}.webp`} alt={pole.managerName} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold tracking-tight">{pole.managerName}</p>
