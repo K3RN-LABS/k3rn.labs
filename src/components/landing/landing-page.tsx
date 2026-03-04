@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/ui/logo"
 import { Menu, X } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import { useAuth } from "@/hooks/use-auth"
 
 // ─── Managers K3RN — 7 pôles experts ─────────────────────────────────────────
 const MANAGERS = [
@@ -347,13 +348,12 @@ function GraphMockup() {
 }
 
 
-
 // ─── Page ──────────────────────────────────────────────────────────────────────
 export default function LandingPage() {
     const scrollRef = useRef<HTMLDivElement>(null)
     const [isHovered, setIsHovered] = useState(false)
-    const [isScrolled, setIsScrolled] = useState(false)
     const [isMenuOpen, setIsMenuOpen] = useState(false)
+    const { isLoggedIn } = useAuth() // Called useAuth in the component
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [applicationStep, setApplicationStep] = useState(1)
     const [formData, setFormData] = useState({
@@ -490,17 +490,28 @@ export default function LandingPage() {
                         <div className="flex items-center gap-1">
                             {/* Desktop Actions */}
                             <nav className="hidden md:flex items-center gap-1">
-                                <a
-                                    href="/auth/login"
-                                    className="px-4 py-2 rounded-xl text-sm font-medium text-white/40 hover:text-white/80 hover:bg-white/[0.05] transition-all duration-200">
-                                    Log in
-                                </a>
-                                <button
-                                    onClick={openModal}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-white text-black hover:bg-white/92 transition-all duration-200 shadow-[0_2px_16px_rgba(255,255,255,0.18),inset_0_1px_0_rgba(255,255,255,0.8)]">
-                                    Early Access
-                                    <span className="text-black/40 text-xs">→</span>
-                                </button>
+                                {isLoggedIn ? (
+                                    <Link
+                                        href="/workspace"
+                                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-white text-black hover:bg-white/92 transition-all duration-200 shadow-[0_2px_16px_rgba(255,255,255,0.18),inset_0_1px_0_rgba(255,255,255,0.8)]">
+                                        Accéder au workspace
+                                        <span className="text-black/40 text-xs">→</span>
+                                    </Link>
+                                ) : (
+                                    <>
+                                        <a
+                                            href="/auth/login"
+                                            className="px-4 py-2 rounded-xl text-sm font-medium text-white/40 hover:text-white/80 hover:bg-white/[0.05] transition-all duration-200">
+                                            Log in
+                                        </a>
+                                        <button
+                                            onClick={openModal}
+                                            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-white text-black hover:bg-white/92 transition-all duration-200 shadow-[0_2px_16px_rgba(255,255,255,0.18),inset_0_1px_0_rgba(255,255,255,0.8)]">
+                                            Early Access
+                                            <span className="text-black/40 text-xs">→</span>
+                                        </button>
+                                    </>
+                                )}
                             </nav>
 
                             {/* Mobile Menu Toggle */}
@@ -542,19 +553,31 @@ export default function LandingPage() {
                                     </nav>
                                     <div className="h-px bg-white/10" />
                                     <div className="flex flex-col gap-3">
-                                        <a
-                                            href="/auth/login"
-                                            onClick={() => setIsMenuOpen(false)}
-                                            className="w-full py-3 rounded-xl text-sm font-medium text-white/60 hover:text-white hover:bg-white/[0.05] transition-all text-center"
-                                        >
-                                            Log in
-                                        </a>
-                                        <button
-                                            onClick={() => { setIsMenuOpen(false); openModal(); }}
-                                            className="w-full py-4 rounded-xl text-sm font-bold bg-white text-black transition-all"
-                                        >
-                                            Early Access
-                                        </button>
+                                        {isLoggedIn ? (
+                                            <Link
+                                                href="/workspace"
+                                                onClick={() => setIsMenuOpen(false)}
+                                                className="w-full py-4 rounded-xl text-sm font-bold bg-white text-black text-center transition-all"
+                                            >
+                                                Accéder au workspace →
+                                            </Link>
+                                        ) : (
+                                            <>
+                                                <a
+                                                    href="/auth/login"
+                                                    onClick={() => setIsMenuOpen(false)}
+                                                    className="w-full py-3 rounded-xl text-sm font-medium text-white/60 hover:text-white hover:bg-white/[0.05] transition-all text-center"
+                                                >
+                                                    Log in
+                                                </a>
+                                                <button
+                                                    onClick={() => { setIsMenuOpen(false); openModal(); }}
+                                                    className="w-full py-4 rounded-xl text-sm font-bold bg-white text-black transition-all"
+                                                >
+                                                    Early Access
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </motion.div>
@@ -610,19 +633,32 @@ export default function LandingPage() {
 
                     {/* CTA */}
                     <div className="flex flex-col sm:flex-row items-center gap-5 mt-6">
-                        <Link href="/auth/login" className="group relative">
-                            <div className="absolute -inset-1 bg-gradient-to-r from-primary/50 via-violet-500/50 to-primary/50 rounded-2xl blur-xl opacity-50 group-hover:opacity-100 transition duration-700" />
-                            <button className="relative h-14 px-10 rounded-xl text-sm font-semibold tracking-wide bg-white text-black hover:bg-white/94 transition-all shadow-[0_0_0_1px_rgba(255,255,255,0.15),0_4px_24px_rgba(255,255,255,0.1)] overflow-hidden flex items-center gap-3">
-                                <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <span className="relative">Démarrer avec KAEL</span>
-                                <svg className="w-4 h-4 text-black/50 group-hover:translate-x-1 transition-transform relative" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                            </button>
-                        </Link>
-                        <div className="flex items-center gap-3 text-sm text-white/25">
-                            <div className="w-px h-7 bg-white/10 hidden sm:block" />
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                            <span>Accès beta réservé aux fondateurs</span>
-                        </div>
+                        {isLoggedIn ? (
+                            <Link href="/workspace" className="group relative">
+                                <div className="absolute -inset-1 bg-gradient-to-r from-primary/50 via-violet-500/50 to-primary/50 rounded-2xl blur-xl opacity-50 group-hover:opacity-100 transition duration-700" />
+                                <button className="relative h-14 px-10 rounded-xl text-sm font-semibold tracking-wide bg-white text-black hover:bg-white/94 transition-all shadow-[0_0_0_1px_rgba(255,255,255,0.15),0_4px_24px_rgba(255,255,255,0.1)] overflow-hidden flex items-center gap-3">
+                                    <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <span className="relative">Continuer dans le workspace</span>
+                                    <svg className="w-4 h-4 text-black/50 group-hover:translate-x-1 transition-transform relative" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                </button>
+                            </Link>
+                        ) : (
+                            <>
+                                <Link href="/auth/login" className="group relative">
+                                    <div className="absolute -inset-1 bg-gradient-to-r from-primary/50 via-violet-500/50 to-primary/50 rounded-2xl blur-xl opacity-50 group-hover:opacity-100 transition duration-700" />
+                                    <button className="relative h-14 px-10 rounded-xl text-sm font-semibold tracking-wide bg-white text-black hover:bg-white/94 transition-all shadow-[0_0_0_1px_rgba(255,255,255,0.15),0_4px_24px_rgba(255,255,255,0.1)] overflow-hidden flex items-center gap-3">
+                                        <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <span className="relative">Démarrer avec KAEL</span>
+                                        <svg className="w-4 h-4 text-black/50 group-hover:translate-x-1 transition-transform relative" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                    </button>
+                                </Link>
+                                <div className="flex items-center gap-3 text-sm text-white/25">
+                                    <div className="w-px h-7 bg-white/10 hidden sm:block" />
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                    <span>Accès beta réservé aux fondateurs</span>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             </section>
@@ -1090,43 +1126,58 @@ export default function LandingPage() {
 
             {/* ─── Sticky CTA Modal (Bottom Right) ─────────────────────── */}
             <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-1000 fill-mode-both">
-                <button
-                    onClick={openModal}
-                    className="group/modal block text-left"
-                >
-                    <div className="relative flex items-center gap-4 rounded-3xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-2xl p-4 pr-6 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-300 hover:border-white/[0.12] hover:bg-white/[0.04] hover:-translate-y-1">
-
-                        {/* Ambient Card Glow (copying Pricing Card) */}
-                        <div className="absolute -inset-1 bg-gradient-to-br from-primary/10 via-transparent to-violet-600/10 opacity-0 group-hover/modal:opacity-100 transition-opacity duration-700 pointer-events-none" />
-                        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 group-hover/modal:opacity-100 transition-opacity duration-700" />
-
-                        {/* KAEL Avatar */}
-                        <div className="relative w-12 h-12 rounded-2xl overflow-hidden shrink-0 border border-white/[0.05] bg-black/40">
-                            <img
-                                src="/images/experts/Kael.webp"
-                                alt="KAEL"
-                                className="relative z-10 w-full h-full object-cover object-[center_20%] opacity-90 group-hover/modal:opacity-100 transition-opacity"
-                            />
-                        </div>
-
-                        {/* Content & CTA */}
-                        <div className="flex flex-col justify-center relative z-10 ml-1">
-                            <div className="flex items-center gap-3 mb-1">
-                                <span className="text-base font-jakarta font-bold text-white">Licence Alpha</span>
-                                <div className="px-2 py-1 rounded w-fit border border-white/[0.06] bg-white/[0.03] text-[9px] font-jakarta text-white/40 uppercase tracking-widest">
-                                    Sur sélection
+                {isLoggedIn ? (
+                    /* Logged-in: direct workspace access */
+                    <Link href="/workspace" className="group/modal block text-left">
+                        <div className="relative flex items-center gap-4 rounded-3xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-2xl p-4 pr-6 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-300 hover:border-white/[0.12] hover:bg-white/[0.04] hover:-translate-y-1">
+                            <div className="absolute -inset-1 bg-gradient-to-br from-primary/10 via-transparent to-violet-600/10 opacity-0 group-hover/modal:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 group-hover/modal:opacity-100 transition-opacity duration-700" />
+                            {/* KAEL Avatar */}
+                            <div className="relative w-12 h-12 rounded-2xl overflow-hidden shrink-0 border border-white/[0.05] bg-black/40">
+                                <img src="/images/experts/Kael.webp" alt="KAEL" className="relative z-10 w-full h-full object-cover object-[center_20%] opacity-90 group-hover/modal:opacity-100 transition-opacity" />
+                            </div>
+                            <div className="flex flex-col justify-center relative z-10 ml-1">
+                                <div className="flex items-center gap-3 mb-1">
+                                    <span className="text-base font-jakarta font-bold text-white">Workspace</span>
+                                    <div className="px-2 py-1 rounded w-fit border border-primary/20 bg-primary/10 text-[9px] font-jakarta text-primary/70 uppercase tracking-widest">
+                                        Connecté
+                                    </div>
+                                </div>
+                                <div className="w-full h-10 rounded-xl bg-white text-black font-bold text-sm tracking-tight flex items-center justify-center gap-2 px-4">
+                                    <span>Ouvrir le workspace</span>
+                                    <svg className="w-4 h-4 text-black/40 group-hover/modal:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                                 </div>
                             </div>
-
-                            <button
-                                onClick={openModal}
-                                className="group relative w-full h-14 rounded-xl bg-white text-black font-bold text-sm tracking-tight hover:bg-white/92 transition-all shadow-[0_8px_24px_-8px_rgba(255,255,255,0.2)] flex items-center justify-center gap-2">
-                                <span>Soumettre ma candidature</span>
-                                <svg className="w-4 h-4 text-black/40 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                            </button>
                         </div>
-                    </div>
-                </button>
+                    </Link>
+                ) : (
+                    /* Not logged-in: candidature flow */
+                    <button onClick={openModal} className="group/modal block text-left">
+                        <div className="relative flex items-center gap-4 rounded-3xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-2xl p-4 pr-6 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-300 hover:border-white/[0.12] hover:bg-white/[0.04] hover:-translate-y-1">
+                            <div className="absolute -inset-1 bg-gradient-to-br from-primary/10 via-transparent to-violet-600/10 opacity-0 group-hover/modal:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 group-hover/modal:opacity-100 transition-opacity duration-700" />
+                            {/* KAEL Avatar */}
+                            <div className="relative w-12 h-12 rounded-2xl overflow-hidden shrink-0 border border-white/[0.05] bg-black/40">
+                                <img src="/images/experts/Kael.webp" alt="KAEL" className="relative z-10 w-full h-full object-cover object-[center_20%] opacity-90 group-hover/modal:opacity-100 transition-opacity" />
+                            </div>
+                            {/* Content & CTA */}
+                            <div className="flex flex-col justify-center relative z-10 ml-1">
+                                <div className="flex items-center gap-3 mb-1">
+                                    <span className="text-base font-jakarta font-bold text-white">Licence Alpha</span>
+                                    <div className="px-2 py-1 rounded w-fit border border-white/[0.06] bg-white/[0.03] text-[9px] font-jakarta text-white/40 uppercase tracking-widest">
+                                        Sur sélection
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={openModal}
+                                    className="group relative w-full h-14 rounded-xl bg-white text-black font-bold text-sm tracking-tight hover:bg-white/92 transition-all shadow-[0_8px_24px_-8px_rgba(255,255,255,0.2)] flex items-center justify-center gap-2">
+                                    <span>Soumettre ma candidature</span>
+                                    <svg className="w-4 h-4 text-black/40 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </button>
+                )}
             </div>
 
             {/* ─── Application Modal ─────────────────────────────────── */}
