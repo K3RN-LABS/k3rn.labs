@@ -595,11 +595,9 @@ export default function LandingPage() {
 
                     {/* Headline */}
                     <h1 className="text-[clamp(3.3rem,8vw,6.5rem)] font-jakarta font-extrabold tracking-[-0.04em] leading-[1.02] pb-2 text-center">
-                        <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-white/95 to-white/60">Une idée.</span>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-white/95 to-white/60">Ne restez plus seul</span>
                         <br />
-                        <span className="font-serif italic font-light text-primary/90">Une multinationale</span>
-                        <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-b from-white/80 to-white/30">derrière.</span>
+                        <span className="font-serif italic font-light text-primary/90">avec vos idées.</span>
                     </h1>
 
                     {/* Subtitle */}
