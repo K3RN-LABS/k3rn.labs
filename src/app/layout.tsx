@@ -10,7 +10,10 @@ export const metadata: Metadata = {
   title: "k3rn.labs — Cognitive Workspace",
   description: "Deterministic cognitive workspace for structured innovation",
   icons: {
-    icon: "/icon.svg",
+    icon: [
+      { url: "/logo-icon/favicon.ico" },
+      { url: "/logo-icon/logo.svg", type: "image/svg+xml" }
+    ],
     apple: "/logo-icon/logo_01.png",
   },
   openGraph: {

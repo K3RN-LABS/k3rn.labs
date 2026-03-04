@@ -13,7 +13,7 @@ const MANAGERS = [
     { name: "MAYA", code: "P02", title: "Directrice Market & Intelligence", tagline: "TAM · SAM · SOM", desc: "Analyse marché et fenêtres d'opportunité.", hashtags: ["#market", "#veille", "#concurrents"], color: "#2563eb", initiale: "M", avatar: "/images/experts/Maya.png", salary: 90000 },
     { name: "KAI", code: "P03", title: "Architecte Produit & Tech", tagline: "MVP · STACK", desc: "Décomposition et plan d'implémentation.", hashtags: ["#mvp", "#tech", "#stack"], color: "#059669", initiale: "K", avatar: "/images/experts/Kai.png", salary: 95000 },
     { name: "ELENA", code: "P04", title: "Directrice Financière", tagline: "P&L · BREAK-EVEN", desc: "Business model et projections 12–36 mois.", hashtags: ["#finance", "#budget", "#investisseur"], color: "#d97706", initiale: "E", avatar: "/images/experts/Elena.png", salary: 140000 },
-    { name: "ZARA", code: "P05", title: "Chief Marketing Officer", tagline: "COPY · GROWTH", desc: "Brand strategy et campagnes de lancement.", hashtags: ["#marketing", "#brand", "#seo"], color: "#db2777", initiale: "Z", avatar: "/images/experts/Zara.png", salary: 110000 },
+    { name: "ZARA", code: "P05", title: "Chief Marketing Officer", tagline: "COPY · GROWTH", desc: "Brand strategy et campagnes de lancement.", hashtags: ["#marketing", "#brand", "#seo"], color: "#db2777", initiale: "Z", avatar: "/images/experts/Zara.svg", salary: 110000 },
     { name: "MARCUS", code: "P06", title: "Conseiller Juridique", tagline: "RGPD · CONTRATS", desc: "Structure légale et conformité sectorielle.", hashtags: ["#legal", "#rgpd", "#contrat"], color: "#64748b", initiale: "M", avatar: "/images/experts/Marcus.png", salary: 130000 },
     { name: "NOVA", code: "P07", title: "Directrice des Opérations", tagline: "TALENT · OPS", desc: "Sourcing talent et coordination inter-pôles.", hashtags: ["#talent", "#ops", "#recrutement"], color: "#ea580c", initiale: "N", avatar: "/images/experts/Nova.png", salary: 120000 },
 ]
@@ -103,7 +103,7 @@ function ManagerCard({ m }: { m: typeof MANAGERS[0] }) {
                             <p className="text-xl font-jakarta font-extrabold tracking-[-0.03em] text-white/75 leading-tight">
                                 {parts[0]}.
                             </p>
-                            <p className="text-xl font-jakarta  font-light text-white/35 leading-tight group-hover:text-white/55 transition-colors duration-500">
+                            <p className="text-xl font-serif italic text-white/50 leading-tight group-hover:text-white/70 transition-colors duration-500">
                                 {parts[1]}.
                             </p>
                         </>
@@ -595,9 +595,11 @@ export default function LandingPage() {
 
                     {/* Headline */}
                     <h1 className="text-[clamp(3.3rem,8vw,6.5rem)] font-jakarta font-extrabold tracking-[-0.04em] leading-[1.02] pb-2 text-center">
-                        <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-white/95 to-white/60">Ne restez plus seul</span>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-white/95 to-white/60">Une idée.</span>
                         <br />
-                        <span className="font-jakarta  font-light text-primary/90">avec vos idées.</span>
+                        <span className="font-serif italic font-light text-primary/90">Une multinationale</span>
+                        <br />
+                        <span className="text-transparent bg-clip-text bg-gradient-to-b from-white/80 to-white/30">derrière.</span>
                     </h1>
 
                     {/* Subtitle */}
@@ -633,7 +635,7 @@ export default function LandingPage() {
                     <div className="flex items-end justify-between gap-8">
                         <h2 className="text-[clamp(2.5rem,5vw,4rem)] font-jakarta font-extrabold tracking-[-0.04em] leading-none text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50">
                             Une conscience.<br />
-                            <span className="font-jakarta  font-light text-white/35">partagée.</span>
+                            <span className="font-serif italic font-light text-white/50">partagée.</span>
                         </h2>
                         <p className="max-w-xs text-sm text-white/30 leading-relaxed hidden lg:block">
                             Orchestrez votre projet avec KAEL et une équipe de 7 experts spécialisés, depuis un point d'accès unique.
@@ -716,7 +718,7 @@ export default function LandingPage() {
                     <div className="flex items-end justify-between gap-8">
                         <h2 className="text-[clamp(2.5rem,5vw,4rem)] font-jakarta font-extrabold tracking-[-0.04em] leading-none text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50">
                             7 experts d'élite.<br />
-                            <span className="font-jakarta  font-light text-white/35">à vos ordres.</span>
+                            <span className="font-serif italic font-light text-white/50">à vos ordres.</span>
                         </h2>
                         <p className="max-w-xs text-sm text-white/30 leading-relaxed hidden lg:block">
                             Chaque pôle stratégique de votre entreprise est piloté par un agent spécialisé, autonome et interconnecté.
@@ -758,7 +760,7 @@ export default function LandingPage() {
                                     <p className="text-xl font-jakarta font-extrabold tracking-[-0.03em] text-white/75 leading-tight">
                                         Décide.
                                     </p>
-                                    <p className="text-xl font-jakarta  font-light text-white/35 leading-tight">
+                                    <p className="text-xl font-serif italic text-white/50 leading-tight">
                                         délègue.
                                     </p>
                                 </div>
@@ -826,7 +828,7 @@ export default function LandingPage() {
                         <div className="flex items-end justify-between gap-8">
                             <h2 className="text-[clamp(2.5rem,5vw,4rem)] font-jakarta font-extrabold tracking-[-0.04em] leading-none text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50">
                                 De l'idée.<br />
-                                <span className="font-jakarta  font-light text-white/35">au marché.</span>
+                                <span className="font-serif italic font-light text-white/50">au marché.</span>
                             </h2>
                             <p className="max-w-xs text-sm text-white/30 leading-relaxed hidden lg:block">
                                 Du premier brief jusqu'au lancement — sans recruter, sans agence, sans attendre.
@@ -864,7 +866,7 @@ export default function LandingPage() {
                         <p className="text-[10px] font-jakarta tracking-[0.3em] text-primary/50 uppercase mb-5">Horizon</p>
                         <h2 className="text-[clamp(2.5rem,5vw,4rem)] font-jakarta font-extrabold tracking-[-0.04em] leading-none mb-6">
                             <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50">Au-delà</span><br />
-                            <span className="font-jakarta  font-light text-white/35">de l'idée.</span>
+                            <span className="font-serif italic font-light text-white/50">de l'idée.</span>
                         </h2>
                         <p className="text-white/35 leading-relaxed text-sm max-w-sm">
                             k3rn.labs est un écosystème ouvert — les projets se structurent, se financent, trouvent leurs collaborateurs.
@@ -955,7 +957,7 @@ export default function LandingPage() {
                             </p>
                             <h2 className="text-[clamp(2.5rem,5vw,4.5rem)] font-jakarta font-extrabold tracking-[-0.04em] leading-[1.05] mb-6">
                                 <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-white/95 to-white/60">Une équipe de 7.</span><br />
-                                <span className="font-jakarta  font-light text-primary/90">Pour le prix de zéro.</span>
+                                <span className="font-serif italic font-light text-primary/90">Pour le prix de zéro.</span>
                             </h2>
                             <p className="text-lg text-white/40 leading-relaxed mb-10 font-light">
                                 k3rn.labs est actuellement en bêta fermée. Nous sélectionnons une poignée de fondateurs visionnaires pour affiner l'alliance entre IA et décision stratégique. <strong className="text-white/90 font-medium">Aucun frais d'agence. Aucun salaire à verser.</strong>
@@ -1038,7 +1040,7 @@ export default function LandingPage() {
 
                     <h2 className="text-[clamp(3rem,7vw,6rem)] font-jakarta font-extrabold tracking-[-0.04em] leading-[1.0] mb-12">
                         <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-white/95 to-white/40">Votre idée mérite</span><br />
-                        <span className="font-jakarta  font-light text-white/40">une vraie équipe.</span>
+                        <span className="font-serif italic font-light text-white/50">une vraie équipe.</span>
                     </h2>
 
                     <p className="text-white/30 mb-14 max-w-sm mx-auto leading-relaxed text-sm">
