@@ -127,6 +127,7 @@ model User {
   company             String?
   industry            String?
   goal                String?
+  avatarUrl           String?
   onboardingCompleted Boolean @default(false)
   missionBudget       Int     @default(30)
   preferences         Json    @default("{}")

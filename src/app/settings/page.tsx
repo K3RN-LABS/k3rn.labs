@@ -7,10 +7,11 @@ import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Logo } from "@/components/ui/logo"
-import { ChevronLeft, Save, User, Building2, Target, Settings, Zap } from "lucide-react"
+import { ChevronLeft, Save, User, Building2, Target, Settings, Zap, Edit2, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import { AvatarCropper } from "@/components/ui/avatar-cropper"
 
 
 export default function SettingsPage() {
@@ -18,6 +19,7 @@ export default function SettingsPage() {
     const [saving, setSaving] = useState(false)
     const [activeTab, setActiveTab] = useState<"profile" | "preferences" | "subscription">("profile")
     const [user, setUser] = useState<any>(null)
+    const [showCropper, setShowCropper] = useState(false)
     const router = useRouter()
 
 
@@ -53,6 +55,32 @@ export default function SettingsPage() {
         }
     }
 
+    const handleAvatarUpload = async (blob: Blob) => {
+        const formData = new FormData()
+        formData.append("file", blob, "avatar.webp")
+
+        const res = await fetch("/api/user/avatar", {
+            method: "POST",
+            body: formData,
+        })
+        if (!res.ok) throw new Error("Upload failed")
+
+        const data = await res.json()
+        setUser({ ...user, avatarUrl: data.avatarUrl })
+    }
+
+    const handleAvatarDelete = async () => {
+        const res = await fetch("/api/user/avatar", { method: "DELETE" })
+        if (!res.ok) console.error("Failed to delete avatar")
+        setUser({ ...user, avatarUrl: null })
+    }
+
+    // Helper initiales
+    const getInitials = (first?: string, last?: string) => {
+        if (!first && !last) return "U"
+        return `${first?.[0] || ""}${last?.[0] || ""}`.toUpperCase()
+    }
+
     if (loading) return (
         <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
             <div className="animate-spin-double w-12 h-12 border-2 border-white/10 border-t-[#E84000] rounded-full" />
@@ -68,6 +96,13 @@ export default function SettingsPage() {
 
     return (
         <div className="min-h-screen bg-[#060608] text-foreground selection:bg-primary/20">
+            {showCropper && (
+                <AvatarCropper
+                    onClose={() => setShowCropper(false)}
+                    onUpload={handleAvatarUpload}
+                />
+            )}
+
             {/* Background Effects — Ambient blur */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-[-10%] left-1/4 w-[500px] h-[500px] bg-primary/5 blur-[120px] rounded-full" />
@@ -148,6 +183,46 @@ export default function SettingsPage() {
                                         KAEL utilise ces informations pour calibrer ses réponses et le suivi de vos missions.
                                     </p>
                                 </header>
+
+                                {/* Photo Avatar Section */}
+                                <div className="flex items-center gap-8 pb-8 border-b border-white/[0.04]">
+                                    <div className="relative group/avatar">
+                                        <div className="w-24 h-24 rounded-full overflow-hidden border border-white/10 bg-white/5 flex items-center justify-center text-3xl font-jakarta font-bold text-white/40">
+                                            {user.avatarUrl ? (
+                                                <img src={`${user.avatarUrl}?t=${Date.now()}`} alt="Avatar" className="w-full h-full object-cover" />
+                                            ) : (
+                                                getInitials(user.firstName, user.lastName)
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <h3 className="text-sm font-semibold text-white/90">Photo de profil</h3>
+                                        <div className="flex items-center gap-3">
+                                            {user.avatarUrl && (
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-8 px-3 text-red-400 bg-red-400/10 hover:bg-red-400/20 hover:text-red-300"
+                                                    onClick={handleAvatarDelete}
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                                    Supprimer
+                                                </Button>
+                                            )}
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-8 px-4 border-white/10 text-white/70 hover:text-white"
+                                                onClick={() => setShowCropper(true)}
+                                            >
+                                                {user.avatarUrl ? "Mettre à jour" : "Ajouter une photo"}
+                                            </Button>
+                                        </div>
+                                        <p className="text-[10px] text-white/30 uppercase tracking-widest mt-1">JPEG, PNG ou WEBP. Max 2MB.</p>
+                                    </div>
+                                </div>
 
                                 <form onSubmit={handleSave} className="space-y-12">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
