@@ -211,12 +211,12 @@ const HASHTAG_POLE_MAP: Record<string, { poleCode: string; managerName: string }
   investisseur: { poleCode: "P04_FINANCE", managerName: "ELENA" },
   roi: { poleCode: "P04_FINANCE", managerName: "ELENA" },
   cashflow: { poleCode: "P04_FINANCE", managerName: "ELENA" },
-  marketing: { poleCode: "P05_MARKETING", managerName: "ZARA" },
-  brand: { poleCode: "P05_MARKETING", managerName: "ZARA" },
-  contenu: { poleCode: "P05_MARKETING", managerName: "ZARA" },
-  seo: { poleCode: "P05_MARKETING", managerName: "ZARA" },
-  growth: { poleCode: "P05_MARKETING", managerName: "ZARA" },
-  copy: { poleCode: "P05_MARKETING", managerName: "ZARA" },
+  marketing: { poleCode: "P05_MARKETING", managerName: "AMY" },
+  brand: { poleCode: "P05_MARKETING", managerName: "AMY" },
+  contenu: { poleCode: "P05_MARKETING", managerName: "AMY" },
+  seo: { poleCode: "P05_MARKETING", managerName: "AMY" },
+  growth: { poleCode: "P05_MARKETING", managerName: "AMY" },
+  copy: { poleCode: "P05_MARKETING", managerName: "AMY" },
   legal: { poleCode: "P06_LEGAL", managerName: "MARCUS" },
   rgpd: { poleCode: "P06_LEGAL", managerName: "MARCUS" },
   contrat: { poleCode: "P06_LEGAL", managerName: "MARCUS" },
@@ -264,7 +264,7 @@ Pôles disponibles (routing via #hashtag ou contexte):
 - MAYA (P02) — Market & Intelligence → #market #veille #concurrents
 - KAI (P03) — Produit & Tech → #produit #tech #mvp #stack
 - ELENA (P04) — Finance → #finance #budget #investisseur
-- ZARA (P05) — Marketing & Brand → #marketing #brand #seo
+- AMY (P05) — Marketing & Brand → #marketing #brand #seo
 - MARCUS (P06) — Legal → #legal #rgpd #contrat
 - NOVA (P07) — Talent & Ops → #talent #ops #recrutement
 

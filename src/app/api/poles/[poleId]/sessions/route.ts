@@ -120,7 +120,7 @@ function getManagerGreeting(name: string): string {
     MAYA: "Quel marché ou secteur veux-tu analyser en priorité ?",
     KAI: "Décris-moi ce que tu veux construire — fonctionnalités, contraintes techniques, MVP visé.",
     ELENA: "Parle-moi de ton modèle économique ou du projet à modéliser financièrement.",
-    ZARA: "Quel est le message, la marque ou la stratégie marketing sur laquelle on travaille ?",
+    AMY: "Quel est le message, la marque ou la stratégie marketing sur laquelle on travaille ?",
     MARCUS: "Quel risque légal ou question de conformité veux-tu traiter ?",
     NOVA: "Quels sont les besoins en ressources, coordination ou suivi opérationnel ?",
   }

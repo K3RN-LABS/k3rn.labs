@@ -98,7 +98,7 @@ Voir `memory/chrome-devtools-mcp.md`.
 | P02_MARKET | MAYA | #market #veille #concurrents |
 | P03_PRODUIT_TECH | KAI | #produit #tech #mvp |
 | P04_FINANCE | ELENA | #finance #budget #investisseur |
-| P05_MARKETING | ZARA | #marketing #brand #seo |
+| P05_MARKETING | AMY | #marketing #brand #seo |
 | P06_LEGAL | MARCUS | #legal #rgpd #contrat |
 | P07_TALENT_OPS | NOVA | #talent #ops #recrutement |
 
