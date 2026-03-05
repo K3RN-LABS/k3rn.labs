@@ -42,10 +42,11 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute = path.startsWith("/api/auth/")
   const isWebhook = path.startsWith("/api/webhooks/")
   const isPublicCampaign = path.startsWith("/api/public/")
+  const isOgRoute = path.startsWith("/api/og/")
   const isPublicInvest = path.startsWith("/invest/")
   const isAuthPage = path.startsWith("/auth/")
 
-  if (isWebhook || isPublicCampaign) return supabaseResponse
+  if (isWebhook || isPublicCampaign || isOgRoute) return supabaseResponse
 
   if (isApiRoute && !isAuthRoute && !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

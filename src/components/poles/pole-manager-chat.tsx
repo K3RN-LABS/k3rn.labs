@@ -58,7 +58,8 @@ export function PoleManagerChat({ pole, dossierId, currentLab, existingSession, 
 
   useEffect(() => {
     if (!existingSession && isStarting) {
-      const greeting = getManagerGreeting(pole.managerName)
+      const displayManagerName = pole.managerName.split(" ")[0].toLowerCase() === "zara" ? "Sky" : pole.managerName
+      const greeting = getManagerGreeting(displayManagerName)
       setMessages([{
         id: crypto.randomUUID(),
         role: "manager",
@@ -140,10 +141,10 @@ export function PoleManagerChat({ pole, dossierId, currentLab, existingSession, 
           <ChevronLeft className="h-5 w-5" />
         </button>
         <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black bg-white/20")}>
-          {pole.managerName.slice(0, 2)}
+          {(pole.managerName.split(" ")[0].toLowerCase() === "zara" ? "Sky" : pole.managerName).slice(0, 2).toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-sm">{pole.managerName}</p>
+          <p className="font-bold text-sm">{(pole.managerName.split(" ")[0].toLowerCase() === "zara" ? "Sky" : pole.managerName).toUpperCase()}</p>
           <p className="text-xs opacity-75">{pole.code.replace(/_/g, " ")}</p>
         </div>
         {session?.n8nStatus === "RUNNING" && (
@@ -158,7 +159,7 @@ export function PoleManagerChat({ pole, dossierId, currentLab, existingSession, 
           <div key={msg.id} className={cn("flex group", msg.role === "user" ? "justify-end" : "justify-start")}>
             {msg.role === "manager" && (
               <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white mr-2 shrink-0 mt-0.5 bg-gradient-to-br", color)}>
-                {pole.managerName.slice(0, 1)}
+                {(pole.managerName.split(" ")[0].toLowerCase() === "zara" ? "Sky" : pole.managerName).slice(0, 1).toUpperCase()}
               </div>
             )}
             <div className="max-w-[80%] flex flex-col gap-1">
@@ -199,7 +200,7 @@ export function PoleManagerChat({ pole, dossierId, currentLab, existingSession, 
         {sending && (
           <div className="flex justify-start">
             <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white mr-2 shrink-0 bg-gradient-to-br", color)}>
-              {pole.managerName.slice(0, 1)}
+              {(pole.managerName.split(" ")[0].toLowerCase() === "zara" ? "Sky" : pole.managerName).slice(0, 1).toUpperCase()}
             </div>
             <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-3">
               <div className="flex gap-1">
@@ -221,7 +222,7 @@ export function PoleManagerChat({ pole, dossierId, currentLab, existingSession, 
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={`Message à ${pole.managerName}… (⌘↵ pour envoyer)`}
+              placeholder={`Message à ${(pole.managerName.split(" ")[0].toLowerCase() === "zara" ? "Sky" : pole.managerName).toUpperCase()}… (⌘↵ pour envoyer)`}
               className="min-h-[44px] resize-none text-sm rounded-xl py-3 bg-muted/40 border-muted focus:border-primary/50 overflow-hidden"
               rows={1}
               disabled={sending}
@@ -250,6 +251,10 @@ export function PoleManagerChat({ pole, dossierId, currentLab, existingSession, 
 }
 
 function getManagerGreeting(name: string): string {
+  let checkName = name.split(" ")[0]
+  if (checkName.toLowerCase() === "zara") checkName = "SKY"
+  else checkName = checkName.toUpperCase()
+
   const greetings: Record<string, string> = {
     AXEL: "Bonjour. Je suis AXEL, ton Directeur Stratégie & Innovation.\n\nJe challenge les idées sans ménagement et je valide ce qui est solide. Sur quel défi stratégique travaillons-nous ?",
     MAYA: "Bonjour. Je suis MAYA, ta Directrice Market & Intelligence.\n\nJe produis de l'intelligence marché qui permet de décider, pas juste d'informer. Quel marché ou secteur veux-tu analyser ?",
@@ -259,5 +264,5 @@ function getManagerGreeting(name: string): string {
     MARCUS: "Bonjour. Je suis MARCUS, ton Conseiller Juridique.\n\nJ'identifie les risques et propose des solutions concrètes — sans bloquer l'action. Quel risque légal veux-tu traiter ?",
     NOVA: "Bonjour. Je suis NOVA, ta Directrice des Opérations.\n\nJe m'assure que les bonnes personnes font les bonnes choses au bon moment. Quels sont tes besoins en ressources ou coordination ?",
   }
-  return greetings[name] ?? `Bonjour, je suis ${name}. Comment puis-je vous aider ?`
+  return greetings[checkName] ?? `Bonjour, je suis ${checkName}. Comment puis-je vous aider ?`
 }

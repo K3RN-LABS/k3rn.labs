@@ -207,7 +207,7 @@ export function KaelSlideUpPanel({ dossierId, currentLab, onClose }: KaelSlideUp
     const [messages, setMessages] = useState<Msg[]>([{
         id: "kael-welcome",
         role: "kael",
-        content: "Bonjour. Je suis KAEL, ton intelligence centrale.\n\nJ'ai une vue globale de ton workspace. Qu'est-ce que tu veux explorer ou débloquer ?",
+        content: "Bonjour. Je suis KAEL, ton assistant.\n\nJ'ai une vue globale de ton workspace. Qu'est-ce que tu veux explorer ou débloquer ?",
         timestamp: new Date().toISOString(),
     }])
     const [input, setInput] = useState("")
@@ -263,7 +263,7 @@ export function KaelSlideUpPanel({ dossierId, currentLab, onClose }: KaelSlideUp
                     </div>
                     <div className="flex-1">
                         <p className="text-sm font-bold tracking-tight">KAEL</p>
-                        <p className="text-[10px] text-white/35">Intelligence Centrale · Vue globale</p>
+                        <p className="text-[10px] text-white/35">Assistant · Vue globale</p>
                     </div>
                     {currentLab && (
                         <Badge variant="outline" className="text-[9px] h-5 border-primary/25 text-primary/70">
@@ -387,10 +387,13 @@ export function PoleSlideUpPanel({ pole, dossierId, currentLab, onClose }: PoleS
         } finally { setSavingMsgId(null) }
     }
 
-    const managerImageName = pole.managerName.split(" ")[0]
+    let managerImageName = pole.managerName.split(" ")[0]
+    if (managerImageName.toLowerCase() === "zara") managerImageName = "Sky"
+    const displayManagerName = managerImageName === "Sky" ? "Sky" : pole.managerName
+
     const managerAvatar = (
         <div className={cn("w-6 h-6 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br shrink-0", gradient)}>
-            <img src={`/images/experts/${managerImageName}.webp`} alt={pole.managerName} className="w-full h-full object-cover" />
+            <img src={`/images/experts/${managerImageName}.webp`} alt={displayManagerName} className="w-full h-full object-cover" />
         </div>
     )
 
@@ -403,10 +406,10 @@ export function PoleSlideUpPanel({ pole, dossierId, currentLab, onClose }: PoleS
                     {/* Subtle gradient tint from pole color */}
                     <div className={cn("absolute inset-0 opacity-10 bg-gradient-to-r to-transparent pointer-events-none", gradient)} />
                     <div className={cn("w-8 h-8 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br shadow-lg shrink-0 transition-transform hover:scale-105", gradient)}>
-                        <img src={`/images/experts/${managerImageName}.webp`} alt={pole.managerName} className="w-full h-full object-cover" />
+                        <img src={`/images/experts/${managerImageName}.webp`} alt={displayManagerName} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold tracking-tight">{pole.managerName}</p>
+                        <p className="text-sm font-bold tracking-tight">{displayManagerName.toUpperCase()}</p>
                         <p className="text-[10px] text-white/35">{pole.code.replace(/_/g, " ")}</p>
                     </div>
                     {currentLab && (
@@ -442,7 +445,7 @@ export function PoleSlideUpPanel({ pole, dossierId, currentLab, onClose }: PoleS
                     </>
                 )}
             </div>
-            <ChatInput input={input} setInput={setInput} onSend={handleSend} sending={sending} placeholder={`Message à ${pole.managerName}…`} />
+            <ChatInput input={input} setInput={setInput} onSend={handleSend} sending={sending} placeholder={`Message à ${displayManagerName.toUpperCase()}…`} />
         </PanelShell>
     )
 }
@@ -450,6 +453,10 @@ export function PoleSlideUpPanel({ pole, dossierId, currentLab, onClose }: PoleS
 // ─── Manager greetings ────────────────────────────────────────────────────────
 
 function getManagerGreeting(name: string): string {
+    let checkName = name.split(" ")[0]
+    if (checkName.toLowerCase() === "zara") checkName = "SKY"
+    else checkName = checkName.toUpperCase()
+
     const greetings: Record<string, string> = {
         AXEL: "Bonjour. Je suis AXEL, ton Directeur Stratégie & Innovation.\n\nJe challenge les idées sans ménagement et valide ce qui est solide. Sur quel défi stratégique travaillons-nous ?",
         MAYA: "Bonjour. Je suis MAYA, ta Directrice Market & Intelligence.\n\nJe produis de l'intelligence marché pour décider, pas juste informer. Quel marché veux-tu analyser ?",
@@ -459,5 +466,5 @@ function getManagerGreeting(name: string): string {
         MARCUS: "Bonjour. Je suis MARCUS, ton Conseiller Juridique.\n\nJ'identifie les risques et propose des solutions concrètes. Quel risque légal veux-tu traiter ?",
         NOVA: "Bonjour. Je suis NOVA, ta Directrice des Opérations.\n\nQuels sont tes besoins en ressources ou coordination ?",
     }
-    return greetings[name] ?? `Bonjour, je suis ${name}. Comment puis-je vous aider ?`
+    return greetings[checkName] ?? `Bonjour, je suis ${checkName}. Comment puis-je vous aider ?`
 }

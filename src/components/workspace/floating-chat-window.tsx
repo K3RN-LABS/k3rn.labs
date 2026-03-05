@@ -137,6 +137,11 @@ export function PoleChatWindow({
     const handleVoiceResult = useCallback((t: string) => setInput((p) => p ? p + " " + t : t), [])
     const { isListening, toggle: toggleVoice, interim } = useSpeech({ onResult: handleVoiceResult })
 
+    // Map Zara to Sky display logic
+    let tempName = pole.managerName.split(" ")[0]
+    if (tempName.toLowerCase() === "zara") tempName = "Sky"
+    const displayManagerName = tempName
+
     if (minimized) return null // rendered as tab by ChatTray
 
     return (
@@ -152,10 +157,10 @@ export function PoleChatWindow({
             {/* Header */}
             <div className={cn("flex items-center gap-2.5 px-3 py-2.5 shrink-0 bg-gradient-to-r text-white", gradient)}>
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-black bg-white/20">
-                    {pole.managerName.slice(0, 2)}
+                    {displayManagerName.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                    <p className="font-bold text-xs truncate">{pole.managerName}</p>
+                    <p className="font-bold text-xs truncate">{displayManagerName.toUpperCase()}</p>
                     <p className="text-[10px] opacity-70 truncate">{pole.code.replace(/_/g, " ")}</p>
                 </div>
                 <button onClick={(e) => { e.stopPropagation(); toggleMinimizeChat(chatKey) }} className="p-1 rounded hover:bg-white/20 transition-colors">
@@ -178,7 +183,7 @@ export function PoleChatWindow({
                             <div key={msg.id} className={cn("flex group", msg.role === "user" ? "justify-end" : "justify-start")}>
                                 {msg.role === "manager" && (
                                     <div className={cn("w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black text-white mr-1.5 shrink-0 mt-0.5 bg-gradient-to-br", gradient)}>
-                                        {pole.managerName.slice(0, 1)}
+                                        {displayManagerName.slice(0, 1).toUpperCase()}
                                     </div>
                                 )}
                                 <div className="max-w-[82%] flex flex-col gap-0.5">
@@ -202,7 +207,7 @@ export function PoleChatWindow({
                             </div>
                         ))}
                         {sending && (
-                            <div className="flex"><div className={cn("w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black text-white mr-1.5 shrink-0 bg-gradient-to-br", gradient)}>{pole.managerName.slice(0, 1)}</div><div className="bg-white/8 rounded-xl px-3 py-2"><div className="flex gap-0.5">{[0, 150, 300].map((d) => <span key={d} className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}</div></div></div>
+                            <div className="flex"><div className={cn("w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black text-white mr-1.5 shrink-0 bg-gradient-to-br", gradient)}>{displayManagerName.slice(0, 1).toUpperCase()}</div><div className="bg-white/8 rounded-xl px-3 py-2"><div className="flex gap-0.5">{[0, 150, 300].map((d) => <span key={d} className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}</div></div></div>
                         )}
                         <div ref={bottomRef} />
                     </>
@@ -217,7 +222,7 @@ export function PoleChatWindow({
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSend() }}
-                        placeholder={`Message à ${pole.managerName}…`}
+                        placeholder={`Message à ${displayManagerName.toUpperCase()}…`}
                         className="min-h-[36px] text-xs resize-none rounded-lg py-2 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-primary/40"
                         rows={1}
                         disabled={sending}
@@ -332,7 +337,7 @@ export function KaelChatWindow({ chatKey, dossierId, currentLab, isFocused, mini
                 </div>
                 <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold tracking-tight text-white/90">KAEL</p>
-                    <p className="text-[10px] text-primary/60">Intelligence Centrale</p>
+                    <p className="text-[10px] text-primary/60">Assistant</p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                     <button onClick={() => toggleMinimizeChat("kael")} className="p-1.5 rounded-lg hover:bg-white/5 text-white/30 hover:text-white/60 transition-colors" title="Réduire">
@@ -411,6 +416,10 @@ export function KaelChatWindow({ chatKey, dossierId, currentLab, isFocused, mini
 
 // Greeting helper
 function getManagerGreeting(name: string): string {
+    let checkName = name.split(" ")[0]
+    if (checkName.toLowerCase() === "zara") checkName = "SKY"
+    else checkName = checkName.toUpperCase()
+
     const greetings: Record<string, string> = {
         AXEL: "Bonjour. Je suis AXEL, ton Directeur Stratégie & Innovation.\n\nJe challenge les idées sans ménagement et je valide ce qui est solide. Sur quel défi stratégique travaillons-nous ?",
         MAYA: "Bonjour. Je suis MAYA, ta Directrice Market & Intelligence.\n\nJe produis de l'intelligence marché qui permet de décider, pas juste d'informer. Quel marché veux-tu analyser ?",
@@ -420,5 +429,5 @@ function getManagerGreeting(name: string): string {
         MARCUS: "Bonjour. Je suis MARCUS, ton Conseiller Juridique.\n\nJ'identifie les risques et propose des solutions concrètes. Quel risque légal veux-tu traiter ?",
         NOVA: "Bonjour. Je suis NOVA, ta Directrice des Opérations.\n\nQuels sont tes besoins en ressources ou coordination ?",
     }
-    return greetings[name] ?? `Bonjour, je suis ${name}. Comment puis-je vous aider ?`
+    return greetings[checkName] ?? `Bonjour, je suis ${checkName}. Comment puis-je vous aider ?`
 }

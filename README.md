@@ -20,6 +20,8 @@ Le système repose sur deux concepts fondamentaux :
 ## 🔋 Fonctionnalités Clés
 - **Canvas Unifié**: Une surface cognitive sans sidebar pour une immersion totale.
 - **Budget Missions Automatisé**: Système freemium (30 missions) avec décompte transparent.
+- **Programme Ambassadeur**: Système d'affiliation premium géré par Nova, avec URLs personnalisées et OpenGraph dynamique.
+- **Profilage & Identité**: Éditeur d'avatar avec recadrage intégré et stockage cloud sécurisé.
 - **Mémoire Sémantique**: KAEL se souvient du contexte passé pour calibrer ses stratégies.
 - **Rapports Quotidiens**: Synthèse automatisée envoyée via Telegram.
 

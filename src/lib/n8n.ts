@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto"
+import { v4 as uuidv4 } from "uuid"
 import { env } from "@/lib/env"
 
 // ─── MCP Tool calling layer ────────────────────────────────────────────────
@@ -30,7 +30,7 @@ async function callN8nTool(tool: string, payload: object): Promise<McpToolResult
       jsonrpc: "2.0",
       method: "tools/call",
       params: { name: tool, arguments: payload },
-      id: randomUUID(),
+      id: uuidv4(),
     }),
     signal: AbortSignal.timeout(10000),
   })
@@ -67,7 +67,7 @@ export async function notifySlack(
     message,
     level,
     slack_webhook_url: process.env.SLACK_INCOMING_WEBHOOK_URL ?? null,
-    idempotency_key: randomUUID(),
+    idempotency_key: uuidv4(),
   })
 }
 
@@ -85,7 +85,7 @@ export async function sendEmail(
     subject,
     body_md,
     ...(reply_to ? { reply_to } : {}),
-    idempotency_key: randomUUID(),
+    idempotency_key: uuidv4(),
   })
 }
 

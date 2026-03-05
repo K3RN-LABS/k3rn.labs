@@ -8,20 +8,27 @@ import { cn } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Logo } from "@/components/ui/logo"
 import { ChevronLeft, Save, User, Building2, Target, Settings, Zap, Edit2, Trash2 } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { AvatarCropper } from "@/components/ui/avatar-cropper"
+import { Suspense } from "react"
 
-
-export default function SettingsPage() {
+function SettingsContent() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
-    const [activeTab, setActiveTab] = useState<"profile" | "preferences" | "subscription">("profile")
+    const [activeTab, setActiveTab] = useState<"profile" | "preferences" | "subscription" | "ambassador">("profile")
     const [user, setUser] = useState<any>(null)
     const [showCropper, setShowCropper] = useState(false)
     const router = useRouter()
+    const searchParams = useSearchParams()
 
+    useEffect(() => {
+        const tab = searchParams.get("tab")
+        if (tab === "preferences" || tab === "subscription" || tab === "ambassador" || tab === "profile") {
+            setActiveTab(tab)
+        }
+    }, [searchParams])
 
     useEffect(() => {
         fetch("/api/user/profile")
@@ -140,6 +147,7 @@ export default function SettingsPage() {
                                 {[
                                     { id: "profile", label: "Profil Personnel", icon: User },
                                     { id: "preferences", label: "Préférences Système", icon: Settings },
+                                    { id: "ambassador", label: "Programme Ambassadeur", icon: Target },
                                     { id: "subscription", label: "Abonnement & Licence", icon: Zap },
                                 ].map((tab) => (
                                     <button
@@ -291,7 +299,7 @@ export default function SettingsPage() {
                                     </div>
                                 </form>
 
-                                {/* Quota Section — Clean and minimal */}
+                                {/* Budget Section — Clean and minimal */}
                                 <div className="pt-16">
                                     <div className="border border-white/[0.04] bg-white/[0.01] p-10 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-12 group">
                                         <div className="space-y-4">
@@ -364,6 +372,113 @@ export default function SettingsPage() {
                                 </div>
                             </div>
                         )}
+
+                        {activeTab === "ambassador" && (
+                            <div className="space-y-12">
+                                <header className="space-y-4 pb-2">
+                                    <div className="flex items-start gap-5">
+                                        <div className="w-14 h-14 rounded-2xl overflow-hidden border border-white/10 bg-white/5 shrink-0">
+                                            <img src="/images/experts/Nova.webp" alt="NOVA" className="w-full h-full object-cover object-[center_20%] opacity-90" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <div className="flex items-center gap-3">
+                                                <h2 className="text-2xl font-jakarta font-bold tracking-tight text-white/90">Programme Ambassadeur</h2>
+                                                <Badge className="bg-white/5 text-white/40 hover:bg-white/10 border-white/10 text-[9px] uppercase font-sans tracking-widest px-2 py-0.5 rounded-full">Nova</Badge>
+                                            </div>
+                                            <p className="text-sm font-sans text-white/50 max-w-xl font-light leading-relaxed">
+                                                Partagez k3rn.labs et débloquez des accès exclusifs en invitant vos pairs.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </header>
+
+                                <Card className="bg-white/[0.01] border-white/[0.06]">
+                                    <CardHeader>
+                                        <CardTitle className="text-white">Votre Lien Personnel</CardTitle>
+                                        <CardDescription className="text-white/40">
+                                            Personnalisez votre URL d'invitation (lettres, chiffres, ou tirets uniquement).
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-6">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="referralSlug" className="text-white/70">URL d'invitation</Label>
+                                            <div className="flex flex-col sm:flex-row gap-3">
+                                                <div className="flex flex-1 items-center bg-white/[0.02] border border-white/[0.1] rounded-xl overflow-hidden focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+                                                    <span className="pl-4 pr-1 py-3 text-white/40 text-sm whitespace-nowrap hidden sm:inline-block">k3rnlabs.com/invite/</span>
+                                                    <span className="pl-4 pr-1 py-3 text-white/40 text-sm whitespace-nowrap sm:hidden">.../invite/</span>
+                                                    <input
+                                                        id="referralSlug"
+                                                        type="text"
+                                                        value={user.referralCode || ""}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")
+                                                            setUser({ ...user, referralCode: val })
+                                                        }}
+                                                        placeholder="votre-prenom"
+                                                        className="w-full bg-transparent text-white text-sm focus:outline-none py-3 pr-4"
+                                                    />
+                                                </div>
+                                                <Button
+                                                    onClick={async () => {
+                                                        try {
+                                                            setSaving(true)
+                                                            const res = await fetch("/api/user/referral", {
+                                                                method: "POST",
+                                                                headers: { "Content-Type": "application/json" },
+                                                                body: JSON.stringify({ referralCode: user.referralCode })
+                                                            })
+                                                            const data = await res.json()
+                                                            if (!res.ok) alert(data.error || "Erreur lors de l'enregistrement.")
+                                                            else alert("Lien mis à jour avec succès !")
+                                                        } finally {
+                                                            setSaving(false)
+                                                        }
+                                                    }}
+                                                    disabled={saving || !user.referralCode || user.referralCode.length < 3}
+                                                    className="bg-white text-black hover:bg-white/90 h-11 px-8 rounded-xl font-medium"
+                                                >
+                                                    Enregistrer
+                                                </Button>
+                                            </div>
+                                        </div>
+
+                                        {user.referralCode && (
+                                            <div className="pt-2">
+                                                <Button
+                                                    variant="outline"
+                                                    onClick={() => {
+                                                        const url = `https://k3rnlabs.com/invite/${user.referralCode}`
+                                                        navigator.clipboard.writeText(url)
+                                                        alert("Lien copié dans le presse-papier !")
+                                                    }}
+                                                    className="border-primary/30 text-primary hover:bg-primary/10 hover:text-primary w-full sm:w-auto h-11 px-6 rounded-xl"
+                                                >
+                                                    Copier le lien d'invitation
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="p-8 border border-white/[0.04] bg-white/[0.01] rounded-2xl flex flex-col gap-2">
+                                        <p className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Filleuls Inscrits</p>
+                                        <div className="flex items-end gap-3">
+                                            <span className="text-5xl font-black text-white/90">0</span>
+                                            <span className="text-white/30 text-sm mb-1">personnes</span>
+                                        </div>
+                                    </div>
+                                    <div className="p-8 border border-white/[0.04] bg-white/[0.01] rounded-2xl flex flex-col gap-2 relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 blur-[50px] -mr-10 -mt-10 rounded-full pointer-events-none" />
+                                        <p className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Missions Gagnées</p>
+                                        <div className="flex items-end gap-3 relative z-10">
+                                            <span className="text-5xl font-black text-primary">0</span>
+                                            <span className="text-primary/50 text-sm mb-1">missions bonus</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </main>
@@ -371,3 +486,14 @@ export default function SettingsPage() {
     )
 }
 
+export default function SettingsPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-[#030303] flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+            </div>
+        }>
+            <SettingsContent />
+        </Suspense>
+    )
+}

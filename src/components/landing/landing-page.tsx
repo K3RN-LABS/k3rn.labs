@@ -10,13 +10,13 @@ import { useAuth } from "@/hooks/use-auth"
 
 // ─── Managers K3RN — 7 pôles experts ─────────────────────────────────────────
 const MANAGERS = [
-    { name: "AXEL", code: "P01", title: "Directeur Stratégie & Innovation", tagline: "GO / NO–GO", desc: "Challenge systématique et positionnement.", hashtags: ["#pitch", "#stratégie", "#brainstorming"], color: "#7c3aed", initiale: "A", avatar: "/images/experts/Axel.svg", salary: 85000 },
-    { name: "MAYA", code: "P02", title: "Directrice Market & Intelligence", tagline: "TAM · SAM · SOM", desc: "Analyse marché et fenêtres d'opportunité.", hashtags: ["#market", "#veille", "#concurrents"], color: "#2563eb", initiale: "M", avatar: "/images/experts/Maya.svg", salary: 90000 },
-    { name: "KAI", code: "P03", title: "Architecte Produit & Tech", tagline: "MVP · STACK", desc: "Décomposition et plan d'implémentation.", hashtags: ["#mvp", "#tech", "#stack"], color: "#059669", initiale: "K", avatar: "/images/experts/Kai.svg", salary: 95000 },
-    { name: "ELENA", code: "P04", title: "Directrice Financière", tagline: "P&L · BREAK-EVEN", desc: "Business model et projections 12–36 mois.", hashtags: ["#finance", "#budget", "#investisseur"], color: "#d97706", initiale: "E", avatar: "/images/experts/Elena.svg", salary: 140000 },
-    { name: "SKY", code: "P05", title: "Chief Marketing Officer", tagline: "COPY · GROWTH", desc: "Brand strategy et campagnes de lancement.", hashtags: ["#marketing", "#brand", "#seo"], color: "#db2777", initiale: "S", avatar: "/images/experts/Sky.webp", salary: 110000 },
-    { name: "MARCUS", code: "P06", title: "Conseiller Juridique", tagline: "RGPD · CONTRATS", desc: "Structure légale et conformité sectorielle.", hashtags: ["#legal", "#rgpd", "#contrat"], color: "#64748b", initiale: "M", avatar: "/images/experts/Marcus.svg", salary: 130000 },
-    { name: "NOVA", code: "P07", title: "Directrice des Opérations", tagline: "TALENT · OPS", desc: "Sourcing talent et coordination inter-pôles.", hashtags: ["#talent", "#ops", "#recrutement"], color: "#ea580c", initiale: "N", avatar: "/images/experts/Nova.svg", salary: 120000 },
+    { name: "AXEL", code: "P01", title: "Directeur Stratégie & Innovation", tagline: "GO / NO–GO", desc: "Challenge systématique et positionnement.", hashtags: ["#pitch", "#stratégie", "#brainstorming"], color: "#7c3aed", initiale: "A", avatar: "/images/experts/Axel_transparent.webp", salary: 85000 },
+    { name: "MAYA", code: "P02", title: "Directrice Market & Intelligence", tagline: "TAM · SAM · SOM", desc: "Analyse marché et fenêtres d'opportunité.", hashtags: ["#market", "#veille", "#concurrents"], color: "#2563eb", initiale: "M", avatar: "/images/experts/Maya_transparent.webp", salary: 90000 },
+    { name: "KAI", code: "P03", title: "Architecte Produit & Tech", tagline: "MVP · STACK", desc: "Décomposition et plan d'implémentation.", hashtags: ["#mvp", "#tech", "#stack"], color: "#059669", initiale: "K", avatar: "/images/experts/Kai_transparent.webp", salary: 95000 },
+    { name: "ELENA", code: "P04", title: "Directrice Financière", tagline: "P&L · BREAK-EVEN", desc: "Business model et projections 12–36 mois.", hashtags: ["#finance", "#budget", "#investisseur"], color: "#d97706", initiale: "E", avatar: "/images/experts/Elena_transparent.webp", salary: 140000 },
+    { name: "SKY", code: "P05", title: "Chief Marketing Officer", tagline: "COPY · GROWTH", desc: "Brand strategy et campagnes de lancement.", hashtags: ["#marketing", "#brand", "#seo"], color: "#db2777", initiale: "S", avatar: "/images/experts/Sky_transparent.webp", salary: 110000 },
+    { name: "MARCUS", code: "P06", title: "Conseiller Juridique", tagline: "RGPD · CONTRATS", desc: "Structure légale et conformité sectorielle.", hashtags: ["#legal", "#rgpd", "#contrat"], color: "#64748b", initiale: "M", avatar: "/images/experts/Marcus_transparent.webp", salary: 130000 },
+    { name: "NOVA", code: "P07", title: "Directrice des Opérations", tagline: "TALENT · OPS", desc: "Sourcing talent et coordination inter-pôles.", hashtags: ["#talent", "#ops", "#recrutement"], color: "#ea580c", initiale: "N", avatar: "/images/experts/Nova_transparent.webp", salary: 120000 },
 ]
 
 const STEPS = [
@@ -68,7 +68,7 @@ function ManagerCard({ m }: { m: typeof MANAGERS[0] }) {
     const parts = m.tagline.split(/[·\/–]/).map(s => s.trim()).filter(Boolean)
 
     return (
-        <div className="shrink-0 w-80 flex flex-col h-full group relative overflow-hidden">
+        <div className="shrink-0 w-full sm:w-80 flex flex-col h-[600px] sm:h-[720px] group relative overflow-hidden border-b border-white/[0.04] sm:border-b-0">
             {/* Left color accent bar */}
             <div
                 className="absolute left-0 top-0 bottom-0 w-[2px] opacity-20 group-hover:opacity-70 transition-opacity duration-700"
@@ -76,9 +76,9 @@ function ManagerCard({ m }: { m: typeof MANAGERS[0] }) {
             />
 
             {/* Content */}
-            <div className="flex flex-col px-8 pt-6 pb-0 shrink-0">
+            <div className="flex flex-col px-6 sm:px-8 pt-4 pb-0 shrink-0">
                 {/* Code + dot */}
-                <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center justify-between mb-3">
                     <span className="text-[10px] font-jakarta tracking-wider text-white/25 uppercase">{m.code}</span>
                     <div
                         className="w-2 h-2 rounded-full transition-all duration-700 group-hover:scale-125"
@@ -88,19 +88,19 @@ function ManagerCard({ m }: { m: typeof MANAGERS[0] }) {
 
                 {/* Name — hero bold style */}
                 <div className="mb-1 leading-none">
-                    <span className="block text-[2.6rem] font-jakarta font-extrabold tracking-[-0.04em] text-transparent bg-clip-text bg-gradient-to-b from-white via-white/95 to-white/50 group-hover:to-white/70 transition-all duration-500">
+                    <span className="block text-[2.2rem] sm:text-[2.6rem] font-jakarta font-extrabold tracking-[-0.04em] text-transparent bg-clip-text bg-gradient-to-b from-white via-white/95 to-white/50 group-hover:to-white/70 transition-all duration-500">
                         {m.name}.
                     </span>
                 </div>
 
                 {/* Title — colored, uppercase mono */}
                 <p
-                    className="text-[9px] font-semibold uppercase tracking-[0.25em] mb-5"
+                    className="text-[9px] font-semibold uppercase tracking-[0.25em] mb-3"
                     style={{ color: m.color }}
                 >{m.title}</p>
 
                 {/* Tagline — hero  serif style */}
-                <div className="mb-4">
+                <div className="mb-2">
                     {parts.length >= 2 ? (
                         <>
                             <p className="text-xl font-jakarta font-extrabold tracking-[-0.03em] text-white/75 leading-tight">
@@ -129,7 +129,7 @@ function ManagerCard({ m }: { m: typeof MANAGERS[0] }) {
                 </div>
 
                 {/* Tags */}
-                <div className="flex flex-wrap gap-1.5 mb-4">
+                <div className="flex flex-wrap gap-1.5 mb-2">
                     {m.hashtags.map((h) => (
                         <span key={h} className="text-[8px] font-jakarta text-white/25 border border-white/[0.05] px-2.5 py-1 rounded-full uppercase tracking-wider group-hover:text-white/40 group-hover:border-white/[0.10] transition-all duration-500">{h}</span>
                     ))}
@@ -626,7 +626,7 @@ export default function LandingPage() {
                     </h1>
 
                     {/* Subtitle */}
-                    <p className="text-lg sm:text-xl text-white/50 max-w-2xl leading-relaxed font-light tracking-wide text-center">
+                    <p className="text-lg sm:text-xl text-white/50 max-w-2xl leading-relaxed font-light tracking-wide text-center max-sm:max-w-[340px] mx-auto">
                         De l'idée au lancement. <strong className="text-white/90 font-medium">Sans équipe. Sans agence. Sans attendre.</strong><br />
                         Confiez votre vision à un comité de direction expert, piloté par KAEL.
                     </p>
@@ -763,17 +763,16 @@ export default function LandingPage() {
                 </div>
 
                 {/* Horizontal Scroll Area */}
-                <div className="relative h-[700px] max-w-[1400px] mx-auto px-6 w-full">
+                <div className="relative h-auto sm:h-[720px] max-w-[1400px] mx-auto px-6 w-full">
                     {/* Subtle radial depth */}
                     <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_100%,rgba(120,119,198,0.03),transparent)] pointer-events-none" />
 
-                    <div className="flex relative h-full">
-                        {/* KAEL — sticky */}
-                        <div className="shrink-0 w-80 border-r border-white/[0.04] flex flex-col h-full sticky left-0 z-10 bg-[#030304]/95 backdrop-blur-sm">
+                    <div className="flex flex-col sm:flex-row relative h-full">
+                        <div className="shrink-0 w-full sm:w-80 border-b sm:border-b-0 sm:border-r border-white/[0.04] flex flex-col h-[600px] sm:h-[720px] sm:sticky sm:left-0 z-10 bg-[#030304]/95 backdrop-blur-sm overflow-hidden">
                             {/* Text block — same typography as ManagerCard */}
-                            <div className="flex flex-col px-8 pt-6 pb-0 shrink-0">
+                            <div className="flex flex-col px-6 sm:px-8 pt-4 pb-0 shrink-0">
                                 {/* Code + dot */}
-                                <div className="flex items-center justify-between mb-5">
+                                <div className="flex items-center justify-between mb-3">
                                     <span className="text-[10px] font-jakarta tracking-wider text-white/25 uppercase">IA</span>
                                     <span className="relative flex h-2 w-2">
                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
@@ -782,17 +781,17 @@ export default function LandingPage() {
                                 </div>
 
                                 {/* Name — hero bold style */}
-                                <div className="mb-1 leading-none">
-                                    <span className="block text-[2.6rem] font-jakarta font-extrabold tracking-[-0.04em] text-transparent bg-clip-text bg-gradient-to-b from-white via-white/95 to-white/50">
+                                <div className="mb-0 leading-none">
+                                    <span className="block text-[2.2rem] sm:text-[2.6rem] font-jakarta font-extrabold tracking-[-0.04em] text-transparent bg-clip-text bg-gradient-to-b from-white via-white/95 to-white/50">
                                         KAEL.
                                     </span>
                                 </div>
 
                                 {/* Title */}
-                                <p className="text-[9px] font-semibold uppercase tracking-[0.25em] mb-5 text-primary/80">Chief of Staff · IA</p>
+                                <p className="text-[9px] font-semibold uppercase tracking-[0.25em] mb-2 text-primary/80">Chief of Staff · IA</p>
 
                                 {/* Tagline — hero serif  style */}
-                                <div className="mb-4">
+                                <div className="mb-2">
                                     <p className="text-xl font-jakarta font-extrabold tracking-[-0.03em] text-white/75 leading-tight">
                                         Décide.
                                     </p>
@@ -828,6 +827,16 @@ export default function LandingPage() {
                                     <div className="absolute w-24 h-24 rounded-full blur-[50px] opacity-[0.10] animate-[float2_10s_ease-in-out_infinite_1s]" style={{ backgroundColor: 'hsl(var(--primary))', right: '15%', bottom: '20%' }} />
                                     <div className="absolute w-20 h-20 rounded-full blur-[40px] opacity-[0.12] animate-[float3_7s_ease-in-out_infinite_2s]" style={{ backgroundColor: 'hsl(var(--primary))', left: '50%', bottom: '50%' }} />
                                 </div>
+                                {/* CTA block — absolute on desktop to NOT push the image up */}
+                                <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 pt-0 z-20 sm:pointer-events-none">
+                                    <button
+                                        onClick={openModal}
+                                        className="group/btn relative w-full h-12 flex sm:hidden items-center justify-between px-6 rounded-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-white/20 transition-all duration-300 sm:pointer-events-auto"
+                                    >
+                                        <span className="text-[11px] font-jakarta font-bold text-white/90 tracking-wider">SOUMETTRE MON DOSSIER</span>
+                                        <svg className="w-4 h-4 text-white/40 group-hover/btn:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                    </button>
+                                </div>
                                 <img
                                     src="/images/experts/Kael.svg"
                                     alt="KAEL"
@@ -839,15 +848,15 @@ export default function LandingPage() {
                             </div>
                         </div>
 
-                        {/* Expert Cards */}
+                        {/* Expert Cards — fluid transition with premium desktop fade */}
                         <div
                             ref={scrollRef}
                             onMouseEnter={() => setIsHovered(true)}
                             onMouseLeave={() => setIsHovered(false)}
-                            className="flex overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] [mask-image:linear-gradient(to_right,white_85%,transparent)]"
+                            className="flex flex-col sm:flex-row overflow-y-visible sm:overflow-x-auto pb-32 sm:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] sm:[mask-image:linear-gradient(to_right,black_90%,transparent)]"
                         >
                             {MANAGERS.map((m) => (
-                                <div key={m.code} className="shrink-0">
+                                <div key={m.code} className="shrink-0 w-full sm:w-auto">
                                     <ManagerCard m={m} />
                                 </div>
                             ))}
@@ -1125,58 +1134,58 @@ export default function LandingPage() {
             </footer>
 
             {/* ─── Sticky CTA Modal (Bottom Right) ─────────────────────── */}
-            <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-1000 fill-mode-both">
+            <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-1000 fill-mode-both max-sm:scale-95 origin-bottom-right hidden sm:flex">
                 {isLoggedIn ? (
-                    /* Logged-in: direct workspace access */
-                    <Link href="/home" className="group/modal block text-left">
-                        <div className="relative flex items-center gap-4 rounded-3xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-2xl p-4 pr-6 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-300 hover:border-white/[0.12] hover:bg-white/[0.04] hover:-translate-y-1">
-                            <div className="absolute -inset-1 bg-gradient-to-br from-primary/10 via-transparent to-violet-600/10 opacity-0 group-hover/modal:opacity-100 transition-opacity duration-700 pointer-events-none" />
-                            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 group-hover/modal:opacity-100 transition-opacity duration-700" />
-                            {/* KAEL Avatar */}
-                            <div className="relative w-12 h-12 rounded-2xl overflow-hidden shrink-0 border border-white/[0.05] bg-black/40">
-                                <img src="/images/experts/Kael.webp" alt="KAEL" className="relative z-10 w-full h-full object-cover object-[center_20%] opacity-90 group-hover/modal:opacity-100 transition-opacity" />
+                    /* Logged-in: Ambassador / Affiliate access */
+                    <Link href="/settings?tab=ambassador" className="group/modal block text-left">
+                        <div className="relative flex items-center gap-3 sm:gap-4 rounded-3xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-2xl p-3 pr-4 sm:p-4 sm:pr-6 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-300 hover:border-white/[0.12] hover:bg-white/[0.04] hover:-translate-y-1 max-sm:scale-95 origin-bottom-right">
+                            <div className="absolute -inset-1 bg-gradient-to-br from-emerald-500/10 via-transparent to-emerald-600/10 opacity-0 group-hover/modal:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/40 to-transparent opacity-0 group-hover/modal:opacity-100 transition-opacity duration-700" />
+                            {/* NOVA Avatar */}
+                            <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-2xl overflow-hidden shrink-0 border border-emerald-500/[0.2] bg-emerald-950/40">
+                                <img src="/images/experts/Nova.webp" alt="NOVA" className="relative z-10 w-full h-full object-cover object-[center_20%] opacity-90 group-hover/modal:opacity-100 transition-opacity" />
                             </div>
                             <div className="flex flex-col justify-center relative z-10 ml-1">
                                 <div className="flex items-center gap-3 mb-1">
-                                    <span className="text-base font-jakarta font-bold text-white">Workspace</span>
-                                    <div className="px-2 py-1 rounded w-fit border border-primary/20 bg-primary/10 text-[9px] font-jakarta text-primary/70 uppercase tracking-widest">
-                                        Connecté
+                                    <span className="text-sm sm:text-base font-jakarta font-bold text-white">Programme</span>
+                                    <div className="px-1.5 py-0.5 sm:px-2 sm:py-1 rounded w-fit border border-emerald-500/20 bg-emerald-500/10 text-[8px] sm:text-[9px] font-jakarta text-emerald-400 uppercase tracking-widest">
+                                        Ambassadeur
                                     </div>
                                 </div>
-                                <div className="w-full h-10 rounded-xl bg-white text-black font-bold text-sm tracking-tight flex items-center justify-center gap-2 px-4">
-                                    <span>Ouvrir le workspace</span>
-                                    <svg className="w-4 h-4 text-black/40 group-hover/modal:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                <div className="w-full h-9 sm:h-10 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold text-[12px] sm:text-sm tracking-tight flex items-center justify-center gap-2 px-3 sm:px-4 shadow-[0_4px_16px_-4px_rgba(16,185,129,0.4)]">
+                                    <span>Transmettre une invitation</span>
+                                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/70 group-hover/modal:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                                 </div>
                             </div>
                         </div>
                     </Link>
                 ) : (
                     /* Not logged-in: candidature flow */
-                    <button onClick={openModal} className="group/modal block text-left">
-                        <div className="relative flex items-center gap-4 rounded-3xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-2xl p-4 pr-6 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-300 hover:border-white/[0.12] hover:bg-white/[0.04] hover:-translate-y-1">
+                    <div onClick={openModal} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal(); } }} className="group/modal block text-left outline-none">
+                        <div className="relative flex items-center gap-3 sm:gap-4 rounded-3xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-2xl p-3 pr-4 sm:p-4 sm:pr-6 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-300 hover:border-white/[0.12] hover:bg-white/[0.04] hover:-translate-y-1 max-sm:scale-95 origin-bottom-right">
                             <div className="absolute -inset-1 bg-gradient-to-br from-primary/10 via-transparent to-violet-600/10 opacity-0 group-hover/modal:opacity-100 transition-opacity duration-700 pointer-events-none" />
                             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 group-hover/modal:opacity-100 transition-opacity duration-700" />
                             {/* KAEL Avatar */}
-                            <div className="relative w-12 h-12 rounded-2xl overflow-hidden shrink-0 border border-white/[0.05] bg-black/40">
+                            <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-2xl overflow-hidden shrink-0 border border-white/[0.05] bg-black/40">
                                 <img src="/images/experts/Kael.webp" alt="KAEL" className="relative z-10 w-full h-full object-cover object-[center_20%] opacity-90 group-hover/modal:opacity-100 transition-opacity" />
                             </div>
                             {/* Content & CTA */}
                             <div className="flex flex-col justify-center relative z-10 ml-1">
                                 <div className="flex items-center gap-3 mb-1">
-                                    <span className="text-base font-jakarta font-bold text-white">Licence Alpha</span>
-                                    <div className="px-2 py-1 rounded w-fit border border-white/[0.06] bg-white/[0.03] text-[9px] font-jakarta text-white/40 uppercase tracking-widest">
+                                    <span className="text-sm sm:text-base font-jakarta font-bold text-white">Licence Alpha</span>
+                                    <div className="px-1.5 py-0.5 sm:px-2 sm:py-1 rounded w-fit border border-white/[0.06] bg-white/[0.03] text-[8px] sm:text-[9px] font-jakarta text-white/40 uppercase tracking-widest">
                                         Sur sélection
                                     </div>
                                 </div>
                                 <button
                                     onClick={openModal}
-                                    className="group relative w-full h-14 rounded-xl bg-white text-black font-bold text-sm tracking-tight hover:bg-white/92 transition-all shadow-[0_8px_24px_-8px_rgba(255,255,255,0.2)] flex items-center justify-center gap-2">
-                                    <span>Soumettre ma candidature</span>
-                                    <svg className="w-4 h-4 text-black/40 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                    className="group relative w-full h-11 sm:h-14 rounded-xl bg-white text-black font-bold text-[12px] sm:text-sm tracking-tight hover:bg-white/92 transition-all shadow-[0_8px_24px_-8px_rgba(255,255,255,0.2)] flex items-center justify-center gap-2">
+                                    <span>Soumettre mon dossier</span>
+                                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-black/40 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                                 </button>
                             </div>
                         </div>
-                    </button>
+                    </div>
                 )}
             </div>
 

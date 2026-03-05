@@ -66,6 +66,9 @@ Modifier uniquement ce qui est demandé. Pas de refacto non sollicitée, pas de 
 | `src/lib/permissions.ts` | canExport, canCreateCrowdfunding (async) |
 | `src/lib/onboarding-state.ts` | State machine onboarding |
 | `src/lib/validate.ts` | validateBody, apiError, apiSuccess |
+| `src/lib/supabase-storage.ts` | Upload/Delete logic for avatars |
+| `src/app/api/stories/render/route.ts` | Instagram Story Rendering (Satori) |
+| `src/app/api/user/referral/route.ts` | Referral slug & stats logic |
 | `prisma/schema.prisma` | Schéma complet |
 | `src/hooks/use-auto-resize.ts` | Textarea auto-resize avec max-height |
 | `src/hooks/use-file-extract.ts` | Extraction fichiers (text/image/binary) |
@@ -102,9 +105,10 @@ Voir `memory/chrome-devtools-mcp.md`.
 | P06_LEGAL | MARCUS | #legal #rgpd #contrat |
 | P07_TALENT_OPS | NOVA | #talent #ops #recrutement |
 
-### Synchronisation des Assets
-Les photos haute définition des experts se trouvent dans `docs/experts/Photos de profil/`. Elles doivent être synchronisées manuellement vers `public/images/experts/` après tout changement.
-- Utiliser `src="/images/experts/Kael.png"` (pas `Kael2.png`).
+Les photos des experts (format **`.webp`** obligatoire) sont organisées en deux flux :
+- **Landing Page** : Utiliser `public/images/experts/*_transparent.webp` (fond transparent haute fidélité).
+- **WebApp UI** : Utiliser `public/images/experts/*.webp` (format profil standard pour le Dock, Chat, etc.).
+Les originaux se trouvent dans `docs/experts/` et doivent être synchronisés vers `public/images/experts/`.
 
 ---
 

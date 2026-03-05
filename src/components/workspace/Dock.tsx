@@ -9,14 +9,14 @@ import { Sparkles, Search, LayoutGrid, Layers, SlidersHorizontal, X, Volume2, Vo
 
 // ─── Pole config ─────────────────────────────────────────────────────────────
 
-const POLE_CONFIG: Record<string, { gradient: string; glow: string }> = {
-    P01_STRATEGIE: { gradient: "from-violet-600 to-purple-700", glow: "rgba(124,58,237,0.5)" },
-    P02_MARKET: { gradient: "from-blue-600 to-cyan-700", glow: "rgba(37,99,235,0.5)" },
-    P03_PRODUIT_TECH: { gradient: "from-emerald-600 to-teal-700", glow: "rgba(5,150,105,0.5)" },
-    P04_FINANCE: { gradient: "from-amber-500 to-yellow-600", glow: "rgba(217,119,6,0.5)" },
-    P05_MARKETING: { gradient: "from-pink-600 to-rose-700", glow: "rgba(219,39,119,0.5)" },
-    P06_LEGAL: { gradient: "from-slate-500 to-gray-600", glow: "rgba(100,116,139,0.5)" },
-    P07_TALENT_OPS: { gradient: "from-orange-500 to-red-600", glow: "rgba(234,88,12,0.5)" },
+export const POLE_CONFIG: Record<string, { gradient: string; glow: string; title: string }> = {
+    P01_STRATEGIE: { gradient: "from-violet-600 to-purple-700", glow: "rgba(124,58,237,0.5)", title: "Directeur Stratégie & Innovation" },
+    P02_MARKET: { gradient: "from-blue-600 to-cyan-700", glow: "rgba(37,99,235,0.5)", title: "Directrice Market & Intelligence" },
+    P03_PRODUIT_TECH: { gradient: "from-emerald-600 to-teal-700", glow: "rgba(5,150,105,0.5)", title: "Architecte Produit & Tech" },
+    P04_FINANCE: { gradient: "from-amber-500 to-yellow-600", glow: "rgba(217,119,6,0.5)", title: "Directrice Financière" },
+    P05_MARKETING: { gradient: "from-pink-600 to-rose-700", glow: "rgba(219,39,119,0.5)", title: "Chief Marketing Officer" },
+    P06_LEGAL: { gradient: "from-slate-500 to-gray-600", glow: "rgba(100,116,139,0.5)", title: "Conseiller Juridique" },
+    P07_TALENT_OPS: { gradient: "from-orange-500 to-red-600", glow: "rgba(234,88,12,0.5)", title: "Directrice des Opérations" },
 }
 
 const SUBFOLDER_CONFIG: Record<string, { gradient: string; emoji: string; label: string }> = {
@@ -69,9 +69,10 @@ interface DockButtonProps {
     glowColor?: string
     size?: "sm" | "md" | "lg"
     badge?: number // unread count
+    style?: React.CSSProperties
 }
 
-function DockButton({ tooltip, onClick, active, priority, children, className, glowColor, size = "md", badge }: DockButtonProps) {
+function DockButton({ tooltip, onClick, active, priority, children, className, glowColor, size = "md", badge, style }: DockButtonProps) {
     const [hovered, setHovered] = useState(false)
     const sizeClass = size === "lg" ? "w-11 h-11" : size === "sm" ? "w-8 h-8" : "w-9 h-9"
 
@@ -88,7 +89,10 @@ function DockButton({ tooltip, onClick, active, priority, children, className, g
                     hovered ? "scale-110" : "scale-100",
                     className
                 )}
-                style={active && glowColor ? { boxShadow: `0 0 12px ${glowColor}` } : undefined}
+                style={{
+                    ...(active && glowColor ? { boxShadow: `0 0 12px ${glowColor}` } : {}),
+                    ...style
+                }}
             >
                 {children}
                 {/* Unread pastille */}
@@ -438,25 +442,31 @@ export function Dock({ dossierId, poles, subFolders, currentLab, onOpenKael, onO
 
                         {/* ── KAEL ── */}
                         <DockButton
-                            tooltip="KAEL — Intelligence Centrale"
+                            tooltip="KAEL - Assistant"
                             onClick={onOpenKael}
                             active={openChats.some((c) => c.key === "kael" && !c.minimized)}
-                            glowColor="rgba(var(--primary), 0.4)"
+                            glowColor="hsl(var(--primary) / 0.4)"
                             size="lg"
                             badge={unreadCounts["kael"]}
                             className={cn(
-                                "border transition-all p-0",
+                                "border transition-all p-0 group overflow-hidden bg-transparent rounded-xl",
                                 openChats.some((c) => c.key === "kael")
-                                    ? "bg-gradient-to-br from-primary to-primary/70 border-primary/40 text-white shadow-[0_0_16px_rgba(var(--primary),0.3)]"
-                                    : "bg-gradient-to-br from-primary/20 to-primary/10 border-primary/20 text-primary hover:from-primary/30 hover:to-primary/20"
+                                    ? "bg-white/[0.05] border-white/20 text-white"
+                                    : "bg-white/[0.02] border-white/[0.06] text-white/50 hover:bg-white/[0.09] hover:text-white/80",
+                                (unreadCounts["kael"] ?? 0) > 0 && "border-[1.5px]"
                             )}
+                            style={
+                                (unreadCounts["kael"] ?? 0) > 0
+                                    ? { borderColor: "hsl(var(--primary))", boxShadow: "inset 0 0 10px hsl(var(--primary) / 0.6), 0 0 8px hsl(var(--primary) / 0.6)" }
+                                    : undefined
+                            }
                         >
                             <img
                                 src="/images/experts/Kael.webp"
                                 alt="KAEL"
                                 className={cn(
-                                    "w-full h-full object-cover transition-all duration-300",
-                                    !openChats.some((c) => c.key === "kael") && "opacity-80 grayscale-[0.5] group-hover:grayscale-0 group-hover:opacity-100"
+                                    "w-full h-full object-cover transition-all duration-300 group-hover:scale-110",
+                                    !openChats.some((c) => c.key === "kael") && "opacity-80 group-hover:opacity-100"
                                 )}
                             />
                         </DockButton>
@@ -476,36 +486,42 @@ export function Dock({ dossierId, poles, subFolders, currentLab, onOpenKael, onO
                             const unread = unreadCounts[chatKey] ?? 0
 
                             // Map manager name to image
-                            const managerName = pole.managerName.split(" ")[0] // Handle "Marcus" from "Marcus"
+                            let managerName = pole.managerName.split(" ")[0] // Handle "Marcus" from "Marcus"
+                            if (managerName.toLowerCase() === "zara") managerName = "Sky"
+
+                            const displayManagerName = managerName === "Sky" ? "Sky" : pole.managerName
                             const imgSrc = `/images/experts/${managerName}.webp`
+                            const tooltipText = cfg.title ? `${displayManagerName.toUpperCase()} - ${cfg.title}` : displayManagerName.toUpperCase()
 
                             return (
                                 <DockButton
                                     key={pole.id}
-                                    tooltip={pole.managerName}
+                                    tooltip={tooltipText}
                                     onClick={() => onOpenPole(pole.id, pole.code, pole.managerName)}
                                     active={isExpanded}
                                     priority={!!isPriority}
                                     glowColor={cfg.glow}
                                     badge={unread}
                                     className={cn(
-                                        "border transition-all p-0 group",
+                                        "border transition-all p-0 group overflow-hidden bg-transparent rounded-xl",
                                         isOpen
-                                            ? `bg-gradient-to-br ${cfg.gradient} border-white/20 text-white`
-                                            : `bg-white/[0.05] border-white/[0.06] text-white/50 hover:bg-white/[0.09] hover:text-white/80`
+                                            ? "bg-white/[0.05] border-white/20 text-white"
+                                            : "bg-white/[0.02] border-white/[0.06] text-white/50 hover:bg-white/[0.09] hover:text-white/80",
+                                        (unread > 0) && "border-[1.5px]"
                                     )}
+                                    style={unread > 0 ? { borderColor: cfg.glow, boxShadow: `inset 0 0 10px ${cfg.glow}, 0 0 8px ${cfg.glow}` } : undefined}
                                 >
                                     <img
                                         src={imgSrc}
-                                        alt={pole.managerName}
+                                        alt={displayManagerName}
                                         className={cn(
-                                            "w-full h-full object-cover transition-all duration-300",
-                                            !isOpen && "opacity-60 grayscale group-hover:grayscale-0 group-hover:opacity-100"
+                                            "w-full h-full object-cover transition-all duration-300 group-hover:scale-110",
+                                            !isOpen && "opacity-80 group-hover:opacity-100"
                                         )}
                                         onError={(e) => {
                                             // Fallback to initials if image fails
                                             (e.target as any).style.display = 'none';
-                                            (e.target as any).parentElement.innerHTML = `<span class="text-[11px] font-black">${pole.managerName.slice(0, 2)}</span>`;
+                                            (e.target as any).parentElement.innerHTML = `<span class="text-[11px] font-black">${displayManagerName.slice(0, 2).toUpperCase()}</span>`;
                                         }}
                                     />
                                 </DockButton>

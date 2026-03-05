@@ -28,7 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`dark ${inter.variable} ${jakarta.variable}`}>
       <head>
         {/* Preload LCP image — KAEL is the largest visible element on landing */}
-        <link rel="preload" href="/images/experts/Kael.svg" as="image" />
+        <link rel="preload" href="/images/experts/Kael.webp" as="image" />
       </head>
       <body className="font-sans antialiased text-foreground bg-background">
         <Providers>{children}</Providers>

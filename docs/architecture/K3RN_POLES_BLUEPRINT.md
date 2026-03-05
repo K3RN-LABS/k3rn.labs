@@ -19,7 +19,7 @@ TOI (décideur)
       │
       ▼
     KAEL
-    (copilote central — mémoire, routing, consolidation)
+    (Assistant central — mémoire, routing, consolidation)
       │
       ├── P01 — STRATÉGIE & INNOVATION
       ├── P02 — MARKET & INTELLIGENCE

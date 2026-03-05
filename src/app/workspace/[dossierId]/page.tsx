@@ -17,6 +17,8 @@ import { useWorkspaceStore } from "@/store/workspace.store"
 import { ChevronLeft, Download, DollarSign } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import type { PoleData } from "@/hooks/use-poles"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { POLE_CONFIG } from "@/components/workspace/Dock"
 
 /**
  * WorkspacePage — The Unified Cognitive Surface
@@ -131,6 +133,48 @@ export default function WorkspacePage() {
                                 {currentLab.replace(/_/g, " ")}
                             </span>
                         )}
+                        <Separator orientation="vertical" className="h-4 opacity-20 mx-1" />
+
+                        {/* ── Recommended Experts ── */}
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] uppercase tracking-wider text-white/25 font-bold">Recommendations:</span>
+                            <div className="flex -space-x-2">
+                                <TooltipProvider>
+                                    {poles
+                                        .filter(p => currentLab && (p.activePriorityLabs as string[]).includes(currentLab))
+                                        .map(pole => {
+                                            const role = (POLE_CONFIG[pole.code]?.title || "Expert").split(" ").pop(); // Just the last word for brief display or use title
+                                            const fullName = pole.managerName;
+                                            const roleTitle = POLE_CONFIG[pole.code]?.title || "Expert";
+                                            const imgSrc = `/images/experts/${pole.managerSlug || pole.managerName}.webp`;
+
+                                            return (
+                                                <Tooltip key={pole.id}>
+                                                    <TooltipTrigger asChild>
+                                                        <button
+                                                            onClick={() => handleOpenPole(pole.id, pole.code, pole.managerName)}
+                                                            className="group relative"
+                                                        >
+                                                            <div className="w-7 h-7 rounded-full border-2 border-[#0a0a0a] bg-black overflow-hidden hover:scale-110 transition-transform hover:z-10 relative">
+                                                                <img
+                                                                    src={imgSrc}
+                                                                    alt={fullName}
+                                                                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all"
+                                                                />
+                                                                <div className="absolute inset-0 bg-primary/10 group-hover:bg-transparent transition-colors" />
+                                                            </div>
+                                                        </button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="bottom" className="bg-black/90 border-white/10 text-[11px]">
+                                                        <p className="font-bold">{fullName.toUpperCase()}</p>
+                                                        <p className="text-white/60">{roleTitle}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            );
+                                        })}
+                                </TooltipProvider>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="flex items-center gap-2">

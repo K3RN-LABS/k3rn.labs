@@ -16,5 +16,13 @@ All sensitive configuration is managed via environment variables and validated a
 - **Zod Validation**: All incoming API requests and environment variables are strictly typed and validated.
 - **Supabase RLS**: Row Level Security is enforced at the database level to ensure data isolation between dossiers.
 
-## 4. Exclusion Policy
+## 4. Media & Storage
+- **Public Avatars**: The `avatars` bucket in Supabase is configured for public read access to allow optimized delivery via Next.js `Image`. 
+- **Upload Integrity**: All user-provided images are processed client-side via `Canvas` to strip metadata (EXIF) and normalize formats before server-side storage.
+
+## 5. Referral & Affiliate Security
+- **OG Generation**: Dynamic OpenGraph images are generated server-side using a sandboxed Edge Runtime to prevent SSRF vulnerabilities.
+- **Referral Cookies**: Attribution is handled via signed cookies (`k3rn_referral`) to ensure integrity throughout the application journey.
+
+## 6. Exclusion Policy
 - **.gitignore**: Strictly excludes `.env`, `.claude/`, `.gemini/`, and other local/AI artifacts from version control.

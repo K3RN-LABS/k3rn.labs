@@ -1,0 +1,111 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Social Story",
+    "type": "object",
+    "required": [
+        "version",
+        "platform",
+        "format",
+        "canvas",
+        "safeZones",
+        "templateId",
+        "props"
+    ],
+    "properties": {
+        "version": {
+            "type": "string",
+            "const": "1.0"
+        },
+        "platform": {
+            "type": "string",
+            "const": "instagram"
+        },
+        "format": {
+            "type": "string",
+            "const": "story"
+        },
+        "canvas": {
+            "type": "object",
+            "required": [
+                "width",
+                "height"
+            ],
+            "properties": {
+                "width": {
+                    "type": "integer",
+                    "const": 1080
+                },
+                "height": {
+                    "type": "integer",
+                    "const": 1920
+                }
+            }
+        },
+        "safeZones": {
+            "type": "object",
+            "required": [
+                "top",
+                "bottom",
+                "left",
+                "right"
+            ],
+            "properties": {
+                "top": {
+                    "type": "integer",
+                    "const": 250
+                },
+                "bottom": {
+                    "type": "integer",
+                    "const": 250
+                },
+                "left": {
+                    "type": "integer",
+                    "const": 0
+                },
+                "right": {
+                    "type": "integer",
+                    "const": 0
+                }
+            }
+        },
+        "templateId": {
+            "type": "string",
+            "enum": [
+                "quote",
+                "announcement",
+                "checklist"
+            ]
+        },
+        "props": {
+            "type": "object"
+        },
+        "brand": {
+            "type": "object",
+            "properties": {
+                "theme": {
+                    "type": "string",
+                    "default": "default"
+                }
+            }
+        },
+        "export": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "png",
+                        "jpeg"
+                    ],
+                    "default": "png"
+                },
+                "quality": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100,
+                    "default": 92
+                }
+            }
+        }
+    }
+}

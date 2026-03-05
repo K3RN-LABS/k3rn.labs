@@ -83,11 +83,19 @@ export function ChatTray({ dossierId, currentLab }: ChatTrayProps) {
                         const initials = chat.type === "kael" ? "✦" : displayName.slice(0, 2)
 
                         return (
-                            <button
+                            <div
                                 key={chat.key}
                                 onClick={() => { focusChat(chat.key); toggleMinimizeChat(chat.key) }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        focusChat(chat.key);
+                                        toggleMinimizeChat(chat.key);
+                                    }
+                                }}
+                                role="button"
+                                tabIndex={0}
                                 className={cn(
-                                    "flex items-center gap-2 px-3 py-2 rounded-xl text-white text-xs font-medium shadow-lg transition-all hover:scale-105",
+                                    "flex items-center gap-2 px-3 py-2 rounded-xl text-white text-xs font-medium shadow-lg transition-all hover:scale-105 cursor-pointer",
                                     `bg-gradient-to-r ${gradient}`,
                                     isFocused && "ring-2 ring-white/40"
                                 )}
@@ -102,7 +110,7 @@ export function ChatTray({ dossierId, currentLab }: ChatTrayProps) {
                                 >
                                     <span className="text-[10px] leading-none">×</span>
                                 </button>
-                            </button>
+                            </div>
                         )
                     })}
                 </div>

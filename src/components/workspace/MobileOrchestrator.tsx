@@ -70,7 +70,7 @@ export function MobileOrchestrator({ dossierId, currentLab, dossierName, onOpenD
                 setMessages([{
                     id: crypto.randomUUID(),
                     role: "kael",
-                    content: `Bonjour. Je suis KAEL, ton intelligence centrale pour **${dossierName}**.\n\nQue veux-tu faire avancer aujourd'hui ?`,
+                    content: `Bonjour. Je suis KAEL, ton assistant pour **${dossierName}**.\n\nQue veux-tu faire avancer aujourd'hui ?`,
                     timestamp: new Date().toISOString(),
                 }])
             }

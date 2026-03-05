@@ -5,9 +5,45 @@ All notable changes to this project are documented in this file.
 Format based on Keep a Changelog.
 Types: FEATURE, FIX, REFACTOR, CHORE.
 
-## [0.2.1] - 2026-03-04
-### Fixed
-- **Vercel Build Error**: Implemented lazy initialization for the Supabase admin client using a Proxy. This prevents the `supabaseKey is required` error during build-time dependency tracing when environment variables are missing.
+## [0.3.0] - 2026-03-04
+
+### Added
+- **Identity & Profiling System**:
+  - **Avatar Cropper**: Built a native HTML5 Canvas-based circular cropping tool (`AvatarCropper.tsx`) for high-fidelity user profile photos. 
+  - **Storage Integration**: Seamless binary upload via `@supabase/storage-js` with dedicated `/api/user/avatar` endpoints (POST/DELETE).
+  - **Settings Integration**: Live avatar editing, previewing, and standard `initials` fallback in `settings/page.tsx`.
+- **Ambassador & Referral Engine**:
+  - **Dynamic OpenGraph**: Implementation of `/api/og/invite` to generate branded, personified social sharing images for referrers via Next.js `ImageResponse`.
+  - **Referral Tracking**: Cookie-based attribution system in `/invite/[code]` with transparent redirection and referral persistence.
+  - **Public Referral API**: Created `/api/user/referral` to manage custom slugs (e.g., `k3rn.labs/invite/MonSuperCode`) and track invitation counts.
+- **Expert Recommendation Engine**:
+  - Integrated a dynamic "Top Experts" slot in the workspace header, filtering experts by their `activePriorityLabs` against the project's `currentLab`.
+  - Added shadcn/ui **Tooltip** provider for premium hover feedback on recommended expert avatars.
+- **Social Story Factory (Instagram Stories)**:
+  - **Deterministic Rendering**: Implemented a Satori-based rendering pipeline via `@vercel/og` for 1080x1920 PNG generation.
+  - **Internal Builder**: Created `/stories` route with live preview, safe-zone overlays, and template property editor.
+  - **Standard Templates**: V1 includes **Quote**, **Announcement**, and **Checklist** templates optimized for k3rn labs branding.
+  - **FIX**: Resolved `ReferenceError: React is not defined` in `templates/index.ts` by adding missing import.
+
+### Refactored & Rebranded
+- **The "Sky" Project (Zara Rebranding)**:
+  - Global transition of the Marketing manager from "Zara" to **"Sky"**.
+  - Updated mapping logic in `floating-chat-window`, `SlideUpPanel`, and `pole-manager-chat`.
+  - Re-mapped `getManagerGreeting` responses and initials generation (`SK` instead of `ZA`).
+- **Ambassador Shift**: Migrated the legacy "Invitation" concept to a premium **Programme Ambassadeur**, with Nova as the program's dedicated orchestrator.
+- **Kael Protocol**: Standardized Kael's role as **"Assistant"** (Assistant stratégique personnel) across all UI layers and system prompts. Removed "Intelligence Centrale" suffix.
+- **Role Consistency**: Updated `MANAGERS` configuration and `POLE_CONFIG` to synchronize expert names and roles ("NAME - Role") across the Dock and Workspace.
+
+### Fixed & Polished
+- **Infrastructure & Build**:
+  - **Favicon Fix**: Resolved 500 Internal Server Errors caused by legacy favicon formats; implemented native `icon.svg` support in Next.js.
+  - **Vercel Build Stability**: Implemented lazy initialization for Supabase admin clients via Proxy to prevent build-time `environment variable` errors.
+  - **CSS Optimization**: Integrated `critters` for improved FCP (First Contentful Paint).
+- **Workspace UI Polish**:
+  - **Expert Avatars**: Ported high-res `.webp` portraits from `docs/experts/` to `public/images/experts/`.
+  - **Dock Calibration**: Refined hover zoom to `scale-110` (from `scale-125`) to eliminate visual clipping of expert portraits.
+  - **Glow Effects**: Normalized unread status borders/glows using consistent HSL tokens for Kael.
+- **Copywriting**: Finalized the semantic purge of technical jargon ("Quota Cognitif" → "Budget Missions").
 
 ---
 

@@ -132,9 +132,28 @@ model User {
   missionBudget       Int     @default(30)
   preferences         Json    @default("{}")
 
+  referralCode String? @unique
+  referredById String?
+  referredBy   User?   @relation("UserToReferral", fields: [referredById], references: [id])
+  referrals    User[]  @relation("UserToReferral")
+  referralLogs ReferralLog[]
+
   dossiers             Dossier[]
   auditLogs            AuditLog[]
   cardTransitionLogs   CardTransitionLog[]
+}
+
+model ReferralLog {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // "CLICK", "SIGNUP", "ACTIVATED"
+  missions  Int      // Nombre de missions créditées
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Dossier {
