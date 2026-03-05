@@ -31,7 +31,7 @@ function ManagerAvatar({ name, initiale, color, avatar }: { name: string; initia
     if (avatar) return (
         <div className="relative w-full flex-1 min-h-0 mt-auto">
             {/* Animated particle cloud behind the expert */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            <div className="hidden sm:block absolute inset-0 pointer-events-none overflow-hidden">
                 <div
                     className="absolute w-32 h-32 rounded-full blur-[60px] opacity-[0.12] animate-[float1_8s_ease-in-out_infinite]"
                     style={{ backgroundColor: color, left: '20%', bottom: '30%' }}
@@ -430,7 +430,7 @@ export default function LandingPage() {
         let delayTimer: NodeJS.Timeout
 
         const scroll = () => {
-            if (!isHovered && el) {
+            if (!isHovered && el && window.innerWidth >= 768) {
                 const speed = direction === 1 ? 0.5 : 1.2
                 el.scrollLeft += (speed * direction)
 
@@ -591,18 +591,18 @@ export default function LandingPage() {
                 {/* Ambient Experts Orbs (Subtle reminders of the 7 poles) */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
                     {/* Primary KAEL glow */}
-                    <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-primary/20 blur-[150px] rounded-full" />
+                    <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-primary/20 blur-[70px] md:blur-[150px] rounded-full" />
 
                     {/* Stratégie (AXEL - Purple) */}
-                    <div className="absolute top-[10%] left-[20%] w-[300px] h-[300px] bg-[#7c3aed]/10 blur-[100px] rounded-full animate-[float1_15s_ease-in-out_infinite]" />
+                    <div className="hidden md:block absolute top-[10%] left-[20%] w-[300px] h-[300px] bg-[#7c3aed]/10 blur-[100px] rounded-full animate-[float1_15s_ease-in-out_infinite]" />
                     {/* Tech (KAI - Green) */}
-                    <div className="absolute top-[25%] right-[25%] w-[250px] h-[250px] bg-[#059669]/10 blur-[100px] rounded-full animate-[float2_18s_ease-in-out_infinite_2s]" />
+                    <div className="hidden md:block absolute top-[25%] right-[25%] w-[250px] h-[250px] bg-[#059669]/10 blur-[100px] rounded-full animate-[float2_18s_ease-in-out_infinite_2s]" />
                     {/* Marketing (SKY - Pink) */}
-                    <div className="absolute top-[40%] left-[10%] w-[350px] h-[350px] bg-[#db2777]/8 blur-[120px] rounded-full animate-[float3_20s_ease-in-out_infinite_5s]" />
+                    <div className="hidden md:block absolute top-[40%] left-[10%] w-[350px] h-[350px] bg-[#db2777]/8 blur-[120px] rounded-full animate-[float3_20s_ease-in-out_infinite_5s]" />
                     {/* Finance (ELENA - Amber) */}
-                    <div className="absolute bottom-[20%] right-[15%] w-[400px] h-[400px] bg-[#d97706]/8 blur-[130px] rounded-full animate-[float1_25s_ease-in-out_infinite_1s]" />
+                    <div className="hidden md:block absolute bottom-[20%] right-[15%] w-[400px] h-[400px] bg-[#d97706]/8 blur-[130px] rounded-full animate-[float1_25s_ease-in-out_infinite_1s]" />
                     {/* Market (MAYA - Blue) */}
-                    <div className="absolute top-[15%] right-[40%] w-[200px] h-[200px] bg-[#2563eb]/10 blur-[90px] rounded-full animate-[float2_12s_ease-in-out_infinite_3s]" />
+                    <div className="hidden md:block absolute top-[15%] right-[40%] w-[200px] h-[200px] bg-[#2563eb]/10 blur-[90px] rounded-full animate-[float2_12s_ease-in-out_infinite_3s]" />
                 </div>
 
                 {/* Perspective grid floor */}
@@ -680,7 +680,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* App window frame */}
-                <div className="rounded-2xl border border-white/[0.08] bg-black/70 backdrop-blur-3xl shadow-[0_0_120px_rgba(0,0,0,0.95),0_0_60px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.07)] overflow-hidden">
+                <div className="rounded-2xl border border-white/[0.08] bg-black/70 backdrop-blur-xl md:backdrop-blur-3xl shadow-[0_0_40px_rgba(0,0,0,0.8)] md:shadow-[0_0_120px_rgba(0,0,0,0.95),0_0_60px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.07)] overflow-hidden">
                     {/* Toolbar — minimal */}
                     <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.05]">
                         <div className="flex items-center gap-2">
@@ -697,7 +697,7 @@ export default function LandingPage() {
                     {/* Main layout */}
                     <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px]">
                         {/* Graph */}
-                        <div className="relative border-r border-white/[0.04]">
+                        <div className="hidden lg:block relative border-r border-white/[0.04]">
                             <GraphMockup />
                             <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
                         </div>
@@ -822,7 +822,7 @@ export default function LandingPage() {
                             {/* KAEL portrait — flex-1 same as ManagerAvatar */}
                             <div className="relative w-full flex-1 min-h-0 mt-auto group">
                                 {/* Animated particle cloud */}
-                                <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                                <div className="hidden sm:block absolute inset-0 pointer-events-none overflow-hidden">
                                     <div className="absolute w-32 h-32 rounded-full blur-[60px] opacity-[0.15] animate-[float1_8s_ease-in-out_infinite]" style={{ backgroundColor: 'hsl(var(--primary))', left: '20%', bottom: '30%' }} />
                                     <div className="absolute w-24 h-24 rounded-full blur-[50px] opacity-[0.10] animate-[float2_10s_ease-in-out_infinite_1s]" style={{ backgroundColor: 'hsl(var(--primary))', right: '15%', bottom: '20%' }} />
                                     <div className="absolute w-20 h-20 rounded-full blur-[40px] opacity-[0.12] animate-[float3_7s_ease-in-out_infinite_2s]" style={{ backgroundColor: 'hsl(var(--primary))', left: '50%', bottom: '50%' }} />
@@ -868,7 +868,7 @@ export default function LandingPage() {
             {/* ─── Comment ça marche — editorial premium ───────────────── */}
             <section id="methode" className="relative py-32 px-6 overflow-hidden">
                 {/* Ambient */}
-                <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-violet-900/[0.06] blur-[140px] rounded-full pointer-events-none" />
+                <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-violet-900/[0.06] blur-[60px] md:blur-[140px] rounded-full pointer-events-none" />
                 <div className="max-w-[1400px] mx-auto w-full">
                     {/* Section header */}
                     <div className="mb-20">
@@ -907,7 +907,7 @@ export default function LandingPage() {
 
             {/* ─── Horizon — premium feature cards ────────────────────── */}
             <section id="horizon" className="relative py-32 px-6 overflow-hidden border-t border-white/[0.04]">
-                <div className="absolute bottom-0 right-1/4 w-[600px] h-[400px] bg-primary/[0.04] blur-[160px] rounded-full pointer-events-none" />
+                <div className="absolute bottom-0 right-1/4 w-[600px] h-[400px] bg-primary/[0.04] blur-[60px] md:blur-[160px] rounded-full pointer-events-none" />
                 <div className="max-w-[1400px] mx-auto w-full">
                     {/* Header */}
                     <div className="mb-20 max-w-xl">
@@ -989,7 +989,7 @@ export default function LandingPage() {
             {/* ─── Alpha Offer / Pricing ────────────────────────────────── */}
             <section id="offer" className="relative py-32 px-6 overflow-hidden border-t border-white/[0.04] bg-[#030304]">
                 {/* Ambient Depth */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl h-[400px] bg-primary/[0.03] blur-[140px] rounded-full pointer-events-none" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl h-[400px] bg-primary/[0.03] blur-[60px] md:blur-[140px] rounded-full pointer-events-none" />
 
                 <div className="max-w-[1200px] mx-auto w-full relative z-10">
                     <div className="flex flex-col lg:flex-row items-center justify-between gap-16">
@@ -1080,8 +1080,8 @@ export default function LandingPage() {
             <section className="relative py-40 px-6 text-center overflow-hidden border-t border-white/[0.04]">
                 {/* Ambient */}
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/[0.05] to-transparent pointer-events-none" />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-primary/[0.08] blur-[180px] rounded-full pointer-events-none" />
-                <div className="absolute top-1/2 left-[30%] -translate-y-1/2 w-[300px] h-[300px] bg-violet-600/[0.06] blur-[120px] rounded-full pointer-events-none" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-primary/[0.08] blur-[80px] md:blur-[180px] rounded-full pointer-events-none" />
+                <div className="absolute top-1/2 left-[30%] -translate-y-1/2 w-[300px] h-[300px] bg-violet-600/[0.06] blur-[60px] md:blur-[120px] rounded-full pointer-events-none" />
 
                 <div className="relative z-10 max-w-[900px] mx-auto">
                     <p className="text-[10px] font-jakarta tracking-[0.3em] text-primary/50 uppercase mb-10">Rejoignez k3rn.labs</p>
@@ -1201,8 +1201,8 @@ export default function LandingPage() {
                     {/* Modal Content */}
                     <div className="relative w-full max-w-lg animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-500">
                         {/* Colored orbs localized behind the modal blur */}
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/[0.15] blur-[100px] rounded-full animate-[float1_15s_ease-in-out_infinite] pointer-events-none" />
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-violet-600/[0.1] blur-[80px] rounded-full animate-[float2_18s_ease-in-out_infinite] pointer-events-none" />
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/[0.15] blur-[60px] md:blur-[100px] rounded-full animate-[float1_15s_ease-in-out_infinite] pointer-events-none" />
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-violet-600/[0.1] blur-[50px] md:blur-[80px] rounded-full animate-[float2_18s_ease-in-out_infinite] pointer-events-none" />
 
                         <div ref={modalContentRef} className="relative rounded-3xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-2xl p-10 overflow-hidden group/modal">
                             {/* Card ambient hover effect (Licence Alpha style) */}
