@@ -18,6 +18,7 @@ import {
 } from "@/hooks/use-poles"
 import { Send, Mic, MicOff, Loader2, Sparkles, BookmarkPlus, Check, X, ChevronDown } from "lucide-react"
 import { useWorkspaceStore } from "@/store/workspace.store"
+import { normalizeManagerName, getExpertImage } from "@/lib/experts"
 
 // ─── Pole config ─────────────────────────────────────────────────────────────
 
@@ -387,13 +388,12 @@ export function PoleSlideUpPanel({ pole, dossierId, currentLab, onClose }: PoleS
         } finally { setSavingMsgId(null) }
     }
 
-    let managerImageName = pole.managerName.split(" ")[0]
-    if (managerImageName.toLowerCase() === "zara") managerImageName = "Sky"
-    const displayManagerName = managerImageName === "Sky" ? "Sky" : pole.managerName
+    const displayManagerName = normalizeManagerName(pole.managerName)
+    const imgSrc = getExpertImage(pole.managerName)
 
     const managerAvatar = (
         <div className={cn("w-6 h-6 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br shrink-0", gradient)}>
-            <img src={`/images/experts/${managerImageName}.webp`} alt={displayManagerName} className="w-full h-full object-cover" />
+            <img src={imgSrc} alt={displayManagerName} className="w-full h-full object-cover" />
         </div>
     )
 
@@ -406,7 +406,7 @@ export function PoleSlideUpPanel({ pole, dossierId, currentLab, onClose }: PoleS
                     {/* Subtle gradient tint from pole color */}
                     <div className={cn("absolute inset-0 opacity-10 bg-gradient-to-r to-transparent pointer-events-none", gradient)} />
                     <div className={cn("w-8 h-8 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br shadow-lg shrink-0 transition-transform hover:scale-105", gradient)}>
-                        <img src={`/images/experts/${managerImageName}.webp`} alt={displayManagerName} className="w-full h-full object-cover" />
+                        <img src={imgSrc} alt={displayManagerName} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold tracking-tight">{displayManagerName.toUpperCase()}</p>
@@ -453,9 +453,7 @@ export function PoleSlideUpPanel({ pole, dossierId, currentLab, onClose }: PoleS
 // ─── Manager greetings ────────────────────────────────────────────────────────
 
 function getManagerGreeting(name: string): string {
-    let checkName = name.split(" ")[0]
-    if (checkName.toLowerCase() === "zara") checkName = "SKY"
-    else checkName = checkName.toUpperCase()
+    const checkName = normalizeManagerName(name).toUpperCase()
 
     const greetings: Record<string, string> = {
         AXEL: "Bonjour. Je suis AXEL, ton Directeur Stratégie & Innovation.\n\nJe challenge les idées sans ménagement et valide ce qui est solide. Sur quel défi stratégique travaillons-nous ?",

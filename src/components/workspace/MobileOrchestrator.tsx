@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { useAutoResize } from "@/hooks/use-auto-resize"
 import { useSpeech } from "@/hooks/use-speech"
 import { useKaelRoute, usePoles, useActiveKaelSession } from "@/hooks/use-poles"
+import { normalizeManagerName, getExpertImage } from "@/lib/experts"
 import { Sparkles, Send, Mic, MicOff, Loader2, ChevronDown, LayoutGrid } from "lucide-react"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -165,9 +166,9 @@ export function MobileOrchestrator({ dossierId, currentLab, dossierName, onOpenD
                                     "w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center text-[11px] font-black text-white bg-gradient-to-br shadow-lg shrink-0",
                                     cfg.gradient
                                 )}>
-                                    <img src={`/images/experts/${pole.managerName.split(" ")[0]}.webp`} alt={pole.managerName} className="w-full h-full object-cover" />
+                                    <img src={getExpertImage(pole.managerName)} alt={pole.managerName} className="w-full h-full object-cover" />
                                 </div>
-                                <span className="text-[8px] text-white/30 font-medium">{pole.managerName}</span>
+                                <span className="text-[8px] text-white/30 font-medium">{normalizeManagerName(pole.managerName)}</span>
                             </button>
                         )
                     })}

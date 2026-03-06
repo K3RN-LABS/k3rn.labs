@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator"
 import type { PoleData } from "@/hooks/use-poles"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { POLE_CONFIG } from "@/components/workspace/Dock"
+import { normalizeManagerName, getExpertImage } from "@/lib/experts"
 
 /**
  * WorkspacePage — The Unified Cognitive Surface
@@ -145,8 +146,9 @@ export default function WorkspacePage() {
                                         .map(pole => {
                                             const role = (POLE_CONFIG[pole.code]?.title || "Expert").split(" ").pop(); // Just the last word for brief display or use title
                                             const fullName = pole.managerName;
+                                            const displayManagerName = normalizeManagerName(fullName);
                                             const roleTitle = POLE_CONFIG[pole.code]?.title || "Expert";
-                                            const imgSrc = `/images/experts/${pole.managerSlug || pole.managerName}.webp`;
+                                            const imgSrc = getExpertImage(fullName);
 
                                             return (
                                                 <Tooltip key={pole.id}>
@@ -158,7 +160,7 @@ export default function WorkspacePage() {
                                                             <div className="w-7 h-7 rounded-full border-2 border-[#0a0a0a] bg-black overflow-hidden hover:scale-110 transition-transform hover:z-10 relative">
                                                                 <img
                                                                     src={imgSrc}
-                                                                    alt={fullName}
+                                                                    alt={displayManagerName}
                                                                     className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all"
                                                                 />
                                                                 <div className="absolute inset-0 bg-primary/10 group-hover:bg-transparent transition-colors" />
@@ -166,7 +168,7 @@ export default function WorkspacePage() {
                                                         </button>
                                                     </TooltipTrigger>
                                                     <TooltipContent side="bottom" className="bg-black/90 border-white/10 text-[11px]">
-                                                        <p className="font-bold">{fullName.toUpperCase()}</p>
+                                                        <p className="font-bold">{displayManagerName.toUpperCase()}</p>
                                                         <p className="text-white/60">{roleTitle}</p>
                                                     </TooltipContent>
                                                 </Tooltip>

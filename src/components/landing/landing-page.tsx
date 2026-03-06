@@ -644,14 +644,14 @@ export default function LandingPage() {
                             </Link>
                         ) : (
                             <>
-                                <Link href="/auth/login" className="group relative">
-                                    <div className="absolute -inset-1 bg-gradient-to-r from-primary/50 via-violet-500/50 to-primary/50 rounded-2xl blur-xl opacity-50 group-hover:opacity-100 transition duration-700" />
-                                    <button className="relative h-14 px-10 rounded-xl text-sm font-semibold tracking-wide bg-white text-black hover:bg-white/94 transition-all shadow-[0_0_0_1px_rgba(255,255,255,0.15),0_4px_24px_rgba(255,255,255,0.1)] overflow-hidden flex items-center gap-3">
-                                        <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        <span className="relative">Démarrer avec KAEL</span>
-                                        <svg className="w-4 h-4 text-black/50 group-hover:translate-x-1 transition-transform relative" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                                    </button>
-                                </Link>
+                                <button
+                                    onClick={openModal}
+                                    className="group relative h-14 px-10 rounded-xl text-sm font-semibold tracking-wide bg-white text-black hover:bg-white/94 transition-all shadow-[0_0_0_1px_rgba(255,255,255,0.15),0_4px_24px_rgba(255,255,255,0.1)] overflow-hidden flex items-center gap-3"
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <span className="relative">Démarrer avec KAEL</span>
+                                    <svg className="w-4 h-4 text-black/50 group-hover:translate-x-1 transition-transform relative" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                </button>
                                 <div className="flex items-center gap-3 text-sm text-white/25">
                                     <div className="w-px h-7 bg-white/10 hidden sm:block" />
                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -1060,13 +1060,14 @@ export default function LandingPage() {
                                         </div>
                                     </div>
 
-                                    <Link href="/auth/login" className="block w-full">
-                                        <button className="w-full h-14 rounded-xl text-sm font-semibold tracking-wide bg-white text-black hover:bg-white/94 transition-all shadow-[0_0_0_1px_rgba(255,255,255,0.15),0_4px_24px_rgba(255,255,255,0.1)] overflow-hidden flex items-center justify-center gap-3 group/btn relative overflow-hidden">
-                                            <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity" />
-                                            <span className="relative">Soumettre ma candidature</span>
-                                            <svg className="w-4 h-4 text-black/50 group-hover/btn:translate-x-1 transition-transform relative" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                                        </button>
-                                    </Link>
+                                    <button
+                                        onClick={openModal}
+                                        className="w-full h-14 rounded-xl text-sm font-semibold tracking-wide bg-white text-black hover:bg-white/94 transition-all shadow-[0_0_0_1px_rgba(255,255,255,0.15),0_4px_24px_rgba(255,255,255,0.1)] overflow-hidden flex items-center justify-center gap-3 group/btn relative overflow-hidden"
+                                    >
+                                        <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity" />
+                                        <span className="relative">Soumettre ma candidature</span>
+                                        <svg className="w-4 h-4 text-black/50 group-hover/btn:translate-x-1 transition-transform relative" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                    </button>
                                     <p className="text-center text-[10px] text-white/20 mt-4 uppercase tracking-wider font-jakarta">
                                         Places restreintes. Accès non garanti.
                                     </p>

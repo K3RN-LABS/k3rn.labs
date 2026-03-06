@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { useWorkspaceStore } from "@/store/workspace.store"
 import type { PoleData } from "@/hooks/use-poles"
+import { normalizeManagerName, getExpertImage } from "@/lib/experts"
 import { Sparkles, Search, LayoutGrid, Layers, SlidersHorizontal, X, Volume2, VolumeX, Plus, Target, CheckCircle2, User } from "lucide-react"
 
 // ─── Pole config ─────────────────────────────────────────────────────────────
@@ -486,11 +487,8 @@ export function Dock({ dossierId, poles, subFolders, currentLab, onOpenKael, onO
                             const unread = unreadCounts[chatKey] ?? 0
 
                             // Map manager name to image
-                            let managerName = pole.managerName.split(" ")[0] // Handle "Marcus" from "Marcus"
-                            if (managerName.toLowerCase() === "zara") managerName = "Sky"
-
-                            const displayManagerName = managerName === "Sky" ? "Sky" : pole.managerName
-                            const imgSrc = `/images/experts/${managerName}.webp`
+                            const displayManagerName = normalizeManagerName(pole.managerName)
+                            const imgSrc = getExpertImage(pole.managerName)
                             const tooltipText = cfg.title ? `${displayManagerName.toUpperCase()} - ${cfg.title}` : displayManagerName.toUpperCase()
 
                             return (

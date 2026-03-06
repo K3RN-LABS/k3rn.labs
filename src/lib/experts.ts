@@ -241,3 +241,30 @@ export function getExpertsByLab(lab: LabType): ExpertDefinition[] {
 export function getExpertBySlug(slug: string): ExpertDefinition | undefined {
   return EXPERTS_REGISTRY.find((e) => e.slug === slug)
 }
+
+/**
+ * Normalizes a manager name from the database (often UPPERCASE) 
+ * to Title Case and handles special mappings (e.g., Zara -> Sky).
+ */
+export function normalizeManagerName(name: string): string {
+  if (!name) return ""
+
+  // Check if it's already a complex name with spaces, but usually they are single names
+  const trimmed = name.trim()
+  const lowerName = trimmed.toLowerCase()
+
+  // Handle special mapping for Zara -> Sky
+  if (lowerName === "zara") return "Sky"
+
+  // Capitalize first letter, lower rest for names like "AXEL" -> "Axel"
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase()
+}
+
+/**
+ * Returns the public path for an expert's profile image.
+ */
+export function getExpertImage(name: string): string {
+  const normalized = normalizeManagerName(name)
+  // All profile images are expected to be .webp in /public/images/experts/
+  return `/images/experts/${normalized}.webp`
+}
