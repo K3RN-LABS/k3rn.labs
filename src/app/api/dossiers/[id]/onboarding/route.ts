@@ -55,9 +55,16 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const trimmed = history.filter((_, i) => i !== expertIdx && i !== userIdx)
 
+  // Rollback onboardingState to the snapshot stored before this expert turn
+  const expertMsg = history[expertIdx]
+  const rollbackState = expertMsg?._stateBefore ?? null
+
   await prisma.dossier.update({
     where: { id },
-    data: { onboardingMessages: trimmed },
+    data: {
+      onboardingMessages: trimmed,
+      ...(rollbackState ? { onboardingState: rollbackState as Record<string, unknown> } : {}),
+    },
   })
 
   return apiSuccess({ messages: trimmed, retryText })
@@ -98,6 +105,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // Restore authoritative state from DB
   const existingState = deserializeState(dossier.onboardingState)
+
+  // Mark dossier as ONBOARDING on first active POST (macroState transition)
+  if (dossier.macroState === "WORKSPACE_IDLE" && existingState.status !== "COMPLETE") {
+    await prisma.dossier.update({
+      where: { id },
+      data: { macroState: "ONBOARDING" },
+    })
+  }
 
   // Bail early if already complete (idempotency)
   if (existingState.status === "COMPLETE") {
@@ -164,6 +179,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       timestamp: new Date().toISOString(),
       choices: safeChoices,
       questions: safeQuestions,
+      // Snapshot of state BEFORE this turn — used by DELETE to rollback correctly
+      _stateBefore: existingState as unknown as Record<string, unknown>,
     }
 
     // Strip choices+questions from all previous messages — only the latest expert message may show them
@@ -200,13 +217,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     })
     console.log("[onboarding POST] persisted messages count:", (saved?.onboardingMessages as unknown[])?.length ?? "save failed")
 
-    // If onboarding is complete, trigger initial score calculation
+    // If onboarding is complete, trigger initial score calculation + restore macroState
+    let scoreStatus: "computed" | "failed" | "pending" = "pending"
     if (newState.step === "COMPLETE") {
       try {
         await computeAndPersistScore(id)
+        scoreStatus = "computed"
       } catch (scoreErr) {
+        scoreStatus = "failed"
         console.error("[onboarding POST] failed to trigger initial score:", scoreErr)
       }
+      // Restore macroState to WORKSPACE_IDLE — onboarding done, workspace is accessible
+      await prisma.dossier.update({
+        where: { id },
+        data: { macroState: "WORKSPACE_IDLE" },
+      })
     }
 
     return apiSuccess({
@@ -214,6 +239,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       onboardingState: stateDTO,
       recommendedLab: stateDTO.recommendedLab,
       isComplete: stateForClient.step === "COMPLETE",
+      scoreStatus,
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erreur interne"

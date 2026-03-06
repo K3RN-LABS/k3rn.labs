@@ -48,12 +48,17 @@ export async function computeAndPersistScore(dossierId: string, triggeredByCardI
   let rawFinance = 0
 
   // 1. Point attribution from onboarding
+  // problem + target → market (customer discovery)
+  // outcome + constraint → finance (business viability)
+  // quality: "weak" (accepted after 2 challenges) counts half
   if (dossier?.onboardingState) {
     const onboarding = deserializeState(dossier.onboardingState)
-    if (onboarding.confirmedAspects.problem?.value) rawMarket += 10
-    if (onboarding.confirmedAspects.target?.value) rawMarket += 10
-    if (onboarding.confirmedAspects.outcome?.value) rawTech += 10
-    if (onboarding.confirmedAspects.constraint?.value) rawTech += 10
+    const q = (aspect: { value: string; quality?: string } | undefined) =>
+      aspect?.value ? (aspect.quality === "weak" ? 0.5 : 1.0) : 0
+    rawMarket += 10 * q(onboarding.confirmedAspects.problem)
+    rawMarket += 10 * q(onboarding.confirmedAspects.target)
+    rawFinance += 10 * q(onboarding.confirmedAspects.outcome)
+    rawFinance += 10 * q(onboarding.confirmedAspects.constraint)
   }
 
   // 2. Point attribution from validated cards

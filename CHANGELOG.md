@@ -7,6 +7,29 @@ Types: FEATURE, FIX, REFACTOR, CHORE.
 
 ## 2026-03-06
 
+FIX: POST /api/dossiers — remplacer `{ decrement: 1 }` (syntaxe Prisma non supportée par le wrapper Supabase) par `user.missionBudget - 1` pour débiter le budget missions correctement
+
+## 2026-03-06 (KAEL Chief of Staff)
+
+FEATURE: KAEL workspace — réécriture complète du prompt invokeKAEL : identité Chief of Staff, ton conseiller senior, comportement ancré dans le brief, interdiction de reformuler ou de poser des questions vagues
+FEATURE: buildProjectMemory() enrichi — brief onboarding avec quality tags, scores par dimension (marché/finance/tech), cartes par état (validées/brouillons/rejetées), lab transition status
+FEATURE: generateKAELOpener() — message initial proactif généré via LLM à partir du brief ; remplace le message hardcodé "Qu'est-ce que tu veux explorer ?"
+FEATURE: triggerKAELPostSessionNote() — synthèse KAEL asynchrone après chaque session pôle expert, stockée comme kael_note dans kaelSession
+REFACTOR: /api/kael/route.ts — buildProjectMemory() appelé avant la création de session pour alimenter generateKAELOpener()
+REFACTOR: /api/poles/sessions/[sessionId]/route.ts — trigger triggerKAELPostSessionNote fire-and-forget après chaque réponse expert
+
+## 2026-03-06 (suite)
+
+FIX: score-engine — outcome + constraint scorés sur Finance (viabilité business) au lieu de Tech ; quality "weak" compte 0.5x au lieu de 1x
+FIX: onboarding DELETE — rollback de onboardingState via snapshot _stateBefore stocké dans le message expert ; état cohérent après Retry
+FIX: onboarding POST — macroState passe à "ONBOARDING" au premier message, revient à "WORKSPACE_IDLE" à la complétion ; scoreStatus "computed"|"failed"|"pending" retourné dans la réponse
+FIX: dossiers POST — onboardingState initialisé à createInitialState() à la création (plus de null DB)
+FIX: claude.ts — critère "problem" retire "population identifiable" (appartient à target) ; remplacé par "fréquence ou intensité mesurable"
+FIX: ChatMessage interface — ajout champ _stateBefore?: Record<string, unknown> pour rollback DELETE
+REFACTOR: onboarding page.tsx — useMemo sur lastKaelWithInteraction (scan O(n) à chaque render → memoïsé) ; banner "Session en cours" si IN_PROGRESS avec aspects confirmés
+
+## 2026-03-06
+
 FIX: Workspace — exclusivité des panneaux flottants : ouvrir CommandPalette ferme KaelCommandBar et vice-versa, une seule fenêtre ouverte à la fois
 FIX: CommandPalette — navigation directionnelle cohérente : ←/→ dans sections horizontales (types, disposition), ↑/↓ entre sections verticales et pour Interface (sons/minimap) ; onglet Recherche : ←/→ entre sous-dossiers, ↑ retour à l'input
 FIX: KaelCommandBar — navigation clavier ↑↓ dans la liste d'experts : ArrowDown depuis l'input descend vers le premier expert, ArrowUp depuis le premier remonte à l'input, Enter sélectionne, scroll automatique de l'item focalisé

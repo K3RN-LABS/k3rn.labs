@@ -1,5 +1,16 @@
 # K3RN — Instructions Claude Code
 
+## LECTURE OBLIGATOIRE EN DEBUT DE SESSION
+
+Avant tout travail, lire dans l'ordre :
+1. **Ce fichier** (CLAUDE.md) — stack, règles, architecture
+2. **`.claude/rules/project-state.md`** — état vivant du projet, dernières avancées, next steps
+3. **`memory/MEMORY.md`** (auto-memory Claude) — patterns, fichiers clés, workflows n8n
+
+Ces 3 fichiers constituent le contexte minimum pour travailler sur K3RN sans régresser ni dupliquer du travail déjà fait.
+
+---
+
 ## Stack
 Next.js 14 (App Router) · TypeScript · Prisma + PostgreSQL (Supabase) · OpenAI gpt-4o · Stripe · Upstash Redis · ReactFlow · Zustand · TanStack Query · Radix UI · Tailwind CSS
 
@@ -9,6 +20,12 @@ Next.js 14 (App Router) · TypeScript · Prisma + PostgreSQL (Supabase) · OpenA
 Après tout changement de code : mettre à jour `CHANGELOG.md` à la racine.
 Format : `FIX:` / `FEATURE:` / `REFACTOR:` / `CHORE:` · une ligne par changement · section `## YYYY-MM-DD`.
 Voir `.claude/rules/changelog.md` pour le détail complet.
+
+### 2b. Mise à jour documentation — OBLIGATOIRE
+Après toute feature significative ou changement architectural :
+- Mettre à jour `.claude/rules/project-state.md` (section "Dernières avancées" + "État des modules")
+- Mettre à jour `memory/progress.md` si une phase ou un module change de statut
+- Voir `.claude/rules/documentation-process.md` pour le process complet
 
 ### 2. TypeCheck avant tout commit
 ```bash

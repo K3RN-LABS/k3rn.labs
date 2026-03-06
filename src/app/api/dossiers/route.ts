@@ -4,6 +4,7 @@ import { db as prisma } from "@/lib/db"
 import { validateBody, apiError, apiSuccess } from "@/lib/validate"
 import { createAuditLog } from "@/lib/audit"
 import { checkRateLimit } from "@/lib/rate-limit"
+import { createInitialState } from "@/lib/onboarding-state"
 import { z } from "zod"
 
 const createDossierSchema = z.object({
@@ -50,15 +51,16 @@ export async function POST(req: NextRequest) {
     // 1. Débiter le budget
     await tx.user.update({
       where: { id: session.userId },
-      data: { missionBudget: { decrement: 1 } }
+      data: { missionBudget: user.missionBudget - 1 }
     })
 
-    // 2. Créer le dossier
+    // 2. Créer le dossier avec l'état initial d'onboarding déjà persisté
     const d = await tx.dossier.create({
       data: {
         name: result.data.name,
         ownerId: session.userId,
         macroState: "WORKSPACE_IDLE",
+        onboardingState: createInitialState() as unknown as Record<string, unknown>,
       },
     })
 

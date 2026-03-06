@@ -2,7 +2,7 @@ import { NextRequest } from "next/server"
 import { verifySession } from "@/lib/auth"
 import { db as prisma } from "@/lib/db"
 import { apiError, apiSuccess, validateBody } from "@/lib/validate"
-import { invokeKAEL, detectPoleRouting } from "@/lib/claude"
+import { invokeKAEL, generateKAELOpener } from "@/lib/claude"
 import { buildProjectMemory } from "@/lib/project-memory"
 import { z } from "zod"
 import { randomUUID } from "node:crypto"
@@ -33,19 +33,20 @@ export async function POST(req: NextRequest) {
     if (!exists) activeSessionId = undefined
   }
 
+  const projectMemory = await buildProjectMemory(dossierId)
+
   if (!activeSessionId) {
+    const openerMessage = await generateKAELOpener(dossier.name, projectMemory)
     const newSession = await prisma.kaelSession.create({
       data: {
         dossierId,
         labAtCreation: (dossier.labState as any)?.currentLab ?? "DISCOVERY",
-        messages: [{ role: "kael", content: "Bonjour. Je suis KAEL, ton orchestrateur.\n\nJ'ai une vue globale de ton workspace. Qu'est-ce que tu veux explorer ou débloquer ?", id: randomUUID(), timestamp: new Date().toISOString() }],
+        messages: [{ role: "kael", content: openerMessage, id: randomUUID(), timestamp: new Date().toISOString() }],
         status: "ACTIVE"
       }
     })
     activeSessionId = newSession.id
   }
-
-  const projectMemory = await buildProjectMemory(dossierId)
 
   const kaelResponse = await invokeKAEL(
     dossier.name,

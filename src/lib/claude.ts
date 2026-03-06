@@ -34,6 +34,8 @@ export interface ChatMessage {
   proposedCard?: { type: string; title: string; content: unknown }
   confidence?: number
   attachments?: { name: string; type: string; size?: number }[]
+  /** Snapshot of onboardingState before this expert turn — used for DELETE rollback */
+  _stateBefore?: Record<string, unknown>
 }
 
 export interface ExpertChatResponse {
@@ -245,44 +247,63 @@ export async function invokeKAEL(
   projectMemory?: string
 ): Promise<KAELResponse> {
   const routing = detectPoleRouting(userInput)
+  if (routing) {
+    return {
+      message: `Je vous connecte à **${routing.managerName}** — ${getPoleDescription(routing.poleCode)}.`,
+      routedPole: routing.poleCode,
+      routedManager: routing.managerName,
+      routingReason: "Hashtag détecté dans le message",
+    }
+  }
 
-  const memoryBlock = projectMemory
-    ? `\n\n--- MÉMOIRE PROJET ---\n${projectMemory}\n--- FIN MÉMOIRE ---`
+  const briefBlock = projectMemory
+    ? `\n\n[BRIEF PROJET]\n${projectMemory}\n[FIN BRIEF]`
     : ""
 
-  const system = `Tu es KAEL, l'orchestrateur central de k3rn.labs — copilote cognitif du projet "${dossierName}".
-Tu combines mémoire totale du projet, routing intelligent vers les 7 pôles experts, et vision stratégique.${memoryBlock}
+  const system = `Tu es KAEL, Chief of Staff de k3rn.labs pour le projet "${dossierName}".
+Tu es un conseiller senior : tu analyses, tu challenges, tu délègues avec précision.
+Tu parles avec autorité naturelle — ni distant, ni complaisant. Ton style : factuel, direct, orienté action.
+Tu as une mémoire complète du projet ci-dessous — tu t'en sers activement dans chaque réponse.${briefBlock}
 
-Ton rôle:
-1. Comprendre et enrichir la vision du projet
-2. Router vers le bon pôle expert quand le besoin est identifié
-3. Maintenir la cohérence globale du projet
-4. Recommander le bon LAB de départ et les experts à engager
+TON RÔLE :
+1. Analyser la situation à partir du brief — ne jamais demander ce qui est déjà connu
+2. Identifier les prochains leviers critiques : score faible, lab bloqué, aspect weak, carte manquante
+3. Déléguer proactivement vers le bon pôle quand le besoin est identifié
+4. Challenger les décisions avec des questions précises — jamais de validation creuse
 
-Pôles disponibles (routing via #hashtag ou contexte):
-- AXEL (P01) — Stratégie & Innovation → #brainstorming #strategie #pitch
-- MAYA (P02) — Market & Intelligence → #market #veille #concurrents
-- KAI (P03) — Produit & Tech → #produit #tech #mvp #stack
-- ELENA (P04) — Finance → #finance #budget #investisseur
-- SKY (P05) — Marketing & Brand → #marketing #brand #seo
-- MARCUS (P06) — Legal → #legal #rgpd #contrat
-- NOVA (P07) — Talent & Ops → #talent #ops #recrutement
+PÔLES DISPONIBLES :
+- AXEL (P01_STRATEGIE) — stratégie, pitch, vision, positionnement
+- MAYA (P02_MARKET) — marché, veille, concurrents, TAM
+- KAI (P03_PRODUIT_TECH) — produit, tech, MVP, architecture
+- ELENA (P04_FINANCE) — finance, modèle économique, investisseurs, budget
+- SKY (P05_MARKETING) — marketing, brand, SEO, growth
+- MARCUS (P06_LEGAL) — legal, RGPD, contrats, compliance
+- NOVA (P07_TALENT_OPS) — talent, recrutement, opérations
 
-LABs: DISCOVERY, STRUCTURATION, VALIDATION_MARCHE, DESIGN_PRODUIT, ARCHITECTURE_TECHNIQUE, BUSINESS_FINANCE
-Démarre TOUJOURS par DISCOVERY sauf cas exceptionnel justifié.
+COMPORTEMENT :
+- Si un score de dimension est < 30% → signale le gap et propose l'expert adapté
+- Si l'onboarding est incomplet ou des aspects sont "à affiner" → identifie lesquels et propose une action
+- Si le lab est bloqué → explique concrètement ce qui manque pour avancer
+- Si l'utilisateur évoque un sujet métier → route vers le bon pôle avec une raison ancrée dans le brief
+- Toujours 2-3 phrases max + action concrète proposée (routing ou question ciblée)
 
-Réponds en JSON:
+INTERDITS :
+- "Qu'est-ce que tu veux explorer ?" quand tu as un brief complet → propose, ne demande pas
+- Reformuler le projet comme si tu ne le connaissais pas
+- "Super idée !", "Excellent !", validation sans substance
+- Router sans raison ancrée dans le brief du projet
+
+Réponds en JSON :
 {
-  "message": "réponse naturelle en français (2-3 phrases max)",
-  "choices": ["option1", "option2"],
+  "message": "réponse naturelle en français — 2-3 phrases, ton conseiller senior",
+  "choices": ["action concrète 1", "action concrète 2"],
   "routedPole": "P01_STRATEGIE",
   "routedManager": "AXEL",
-  "routingReason": "raison courte",
+  "routingReason": "raison courte et concrète liée au brief",
   "recommendedLab": "NOM_DU_LAB",
-  "recommendedExperts": ["slug1"],
-  "isComplete": false
+  "recommendedExperts": ["slug1"]
 }
-Tous les champs sauf message sont OPTIONNELS. Inclus routedPole+routedManager uniquement si routing pertinent.`
+Tous les champs sauf message sont OPTIONNELS.`
 
   const msgs: LLMMessage[] = [
     { role: "system", content: system },
@@ -293,21 +314,112 @@ Tous les champs sauf message sont OPTIONNELS. Inclus routedPole+routedManager un
     { role: "user", content: userInput },
   ]
 
-  if (routing) {
-    const directRouting: KAELResponse = {
-      message: `Je te connecte directement à **${routing.managerName}** — ${getPoleDescription(routing.poleCode)}.`,
-      routedPole: routing.poleCode,
-      routedManager: routing.managerName,
-      routingReason: `Hashtag détecté dans le message`,
-    }
-    return directRouting
-  }
-
   const { content: text } = await callLLMProxy(msgs, { maxTokens: 1024 })
   try {
     return JSON.parse(text) as KAELResponse
   } catch {
-    return { message: "Intéressant ! Parlez-moi du problème principal que vous souhaitez résoudre." }
+    return { message: "Pouvez-vous me préciser le point que vous souhaitez avancer en priorité ?" }
+  }
+}
+
+/**
+ * Génère le message d'ouverture proactif de KAEL pour une nouvelle session.
+ * KAEL analyse le brief et identifie le levier critique le plus important.
+ */
+export async function generateKAELOpener(dossierName: string, projectMemory: string): Promise<string> {
+  if (!projectMemory) {
+    return `Bonjour. Je suis KAEL, votre Chief of Staff sur **${dossierName}**.\n\nJe n'ai pas encore de contexte sur ce projet. Décrivez votre situation et je vous guide sur les prochaines priorités.`
+  }
+
+  const system = `Tu es KAEL, Chief of Staff de k3rn.labs pour le projet "${dossierName}".
+Tu as une mémoire complète du projet ci-dessous. Tu ouvres la session avec un message court et proactif.
+
+[BRIEF PROJET]
+${projectMemory}
+[FIN BRIEF]
+
+RÈGLES DU MESSAGE D'OUVERTURE :
+- Commence par une observation précise tirée du brief (score, aspect faible, lab bloqué, carte manquante)
+- Propose immédiatement une action concrète (routing vers un pôle, question ciblée)
+- 2-3 phrases max
+- Ton : conseiller senior, direct, factuel — pas "Bonjour je suis KAEL bla bla"
+- INTERDIT : reformuler tout le projet, poser des questions vagues, faire du remplissage
+
+Exemples corrects :
+- "Votre score marché est à 15% — la cible reste floue. Je peux vous connecter à Maya pour un cadrage TAM, ou on affine l'aspect 'Cible' directement ?"
+- "Le lab DISCOVERY est actif mais la transition est bloquée — il manque des cartes validées. KAI peut vous aider à structurer un premier livrable produit."
+- "Trois aspects de votre onboarding sont marqués 'à affiner'. On commence par le problème ou la contrainte ?"
+
+Réponds en JSON : { "message": "ton message d'ouverture" }`
+
+  const { content: text } = await callLLMProxy(
+    [{ role: "system", content: system }],
+    { maxTokens: 300, temperature: 0.4 }
+  )
+  try {
+    const parsed = JSON.parse(text) as { message: string }
+    return parsed.message || `Bonjour. Je suis KAEL, votre Chief of Staff sur **${dossierName}**. Que souhaitez-vous avancer ?`
+  } catch {
+    return `Bonjour. Je suis KAEL, votre Chief of Staff sur **${dossierName}**. Que souhaitez-vous avancer ?`
+  }
+}
+
+/**
+ * Déclenche une synthèse KAEL après une session avec un pôle expert.
+ * Fire and forget — ne bloque pas la réponse API.
+ * La note est persistée dans la kaelSession active du dossier.
+ */
+export async function triggerKAELPostSessionNote(
+  dossierId: string,
+  poleCode: string,
+  managerName: string,
+  exchangeSummary: string
+): Promise<void> {
+  const system = `Tu es KAEL, Chief of Staff de k3rn.labs.
+${managerName} (${poleCode}) vient de terminer un échange avec le fondateur. Voici le résumé de l'échange :
+
+${exchangeSummary}
+
+Génère une note de synthèse interne — 2-3 lignes max :
+- Ce qui a été décidé ou produit
+- Le point de vigilance ou la prochaine action critique
+- Aucun remplissage, aucune reformulation
+
+Réponds en JSON : { "note": "ta synthèse interne" }`
+
+  try {
+    const { content: text } = await callLLMProxy(
+      [{ role: "system", content: system }],
+      { maxTokens: 200, temperature: 0.3 }
+    )
+    const parsed = JSON.parse(text) as { note: string }
+    if (!parsed.note) return
+
+    // Import dynamique pour éviter une dépendance circulaire
+    const { db: prisma } = await import("./db")
+    const activeSession = await prisma.kaelSession.findFirst({
+      where: { dossierId, status: "ACTIVE" },
+      orderBy: { createdAt: "desc" },
+    })
+    if (!activeSession) return
+
+    const messages = (activeSession.messages as Array<Record<string, unknown>>) ?? []
+    await prisma.kaelSession.update({
+      where: { id: activeSession.id },
+      data: {
+        messages: [
+          ...messages,
+          {
+            id: crypto.randomUUID(),
+            role: "kael_note",
+            content: `[Note post-session ${managerName}] ${parsed.note}`,
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      },
+    })
+  } catch {
+    // Fire and forget — never throw
   }
 }
 
@@ -412,13 +524,13 @@ TON RÔLE DUAL :
 2. Extracteur silencieux — pendant la conversation, tu extrais et valides les 4 aspects du concept
 
 4 ASPECTS À COLLECTER (dans cet ordre si possible) :
-1. "problem"     → Douleur concrète + qui la ressent (niveau pitch seed : un pôle stratégie peut déjà agir)
+1. "problem"     → Douleur concrète avec fréquence ou intensité mesurable (niveau pitch seed : un pôle stratégie peut déjà agir)
 2. "target"      → Segment identifiable avec attribut discriminant (un pôle market peut esquisser un TAM)
 3. "outcome"     → Direction mesurable ou état avant/après (un pôle finance peut cadrer un modèle)
 4. "constraint"  → Obstacle réel anticipé (concurrence, régulation, adoption, ressource)
 
 CRITÈRES DE SOLIDITÉ — standard pitch seed, pas thèse de doctorat :
-- "problem" FORT : douleur nommée + population identifiable | FAIBLE : vague, générique, solution déguisée
+- "problem" FORT : douleur nommée + fréquence ou intensité mesurable (ex: "perdent 3h/semaine") | FAIBLE : vague, générique, solution déguisée
 - "target" FORT : segment précis avec attribut discriminant | FAIBLE : "tout le monde", trop large
 - "outcome" FORT : direction mesurable ou état avant/après clair | FAIBLE : "gagner du temps" sans précision
 - "constraint" FORT : obstacle réel et spécifique | FAIBLE : "trouver des clients" (universel, non discriminant)

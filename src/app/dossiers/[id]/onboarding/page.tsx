@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -136,11 +136,21 @@ export default function OnboardingPage({ params }: { params: { id: string } }) {
   // isComplete is exclusively derived from the server state.
   // Safety guard: never show the completion banner while an unanswered
   // question with choices/questions is still visible on screen.
-  const lastKaelWithInteraction = [...messages]
-    .reverse()
-    .find((m) => m.role === "expert" && (m.choices?.length || m.questions?.length))
+  const lastKaelWithInteraction = useMemo(
+    () => [...messages].reverse().find((m) => m.role === "expert" && (m.choices?.length || m.questions?.length)),
+    [messages]
+  )
   const hasPendingChoices = !!lastKaelWithInteraction
   const isComplete = onboardingState?.step === "COMPLETE" && !hasPendingChoices
+
+  // True if onboarding is in progress with at least one confirmed aspect (resumable session)
+  const isResumable = useMemo(
+    () =>
+      onboardingState?.step === "IN_PROGRESS" &&
+      Object.keys(onboardingState.confirmedAspects ?? {}).length > 0 &&
+      messages.length <= 1,
+    [onboardingState, messages.length]
+  )
 
   // Choices/questions only on the last KAEL message that has them
   const lastKaelWithInteractionId = lastKaelWithInteraction?.id
@@ -355,6 +365,16 @@ export default function OnboardingPage({ params }: { params: { id: string } }) {
       {/* Chat */}
       <div className="flex-1 overflow-y-auto px-4 md:px-0 py-6 min-h-0">
         <div className="max-w-2xl mx-auto space-y-5">
+
+          {/* Resume banner — shown when returning to an in-progress onboarding */}
+          {isResumable && (
+            <div className="border border-amber-500/30 rounded-2xl p-4 bg-amber-500/5 text-sm text-center space-y-1">
+              <p className="font-medium text-amber-400">Session en cours</p>
+              <p className="text-muted-foreground text-xs">
+                {Object.keys(onboardingState?.confirmedAspects ?? {}).length}/4 aspects collectés — continuez où vous en étiez.
+              </p>
+            </div>
+          )}
 
           {/* Messages */}
           {messages.map((msg) => (
