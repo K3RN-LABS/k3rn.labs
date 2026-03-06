@@ -10,6 +10,7 @@ import { useAutoResize } from "@/hooks/use-auto-resize"
 import { useKaelRoute } from "@/hooks/use-poles"
 import { Send, Mic, MicOff, Loader2, Sparkles, X, ChevronRight } from "lucide-react"
 import { useWorkspaceStore } from "@/store/workspace.store"
+import { useUserProfile } from "@/hooks/use-user-profile"
 
 interface KaelPanelProps {
     dossierId: string
@@ -29,6 +30,7 @@ interface KaelMsg {
  */
 export function KaelPanel({ dossierId, currentLab }: KaelPanelProps) {
     const { kaelPanelOpen, toggleKaelPanel } = useWorkspaceStore()
+    const { profile } = useUserProfile()
 
     const [messages, setMessages] = useState<KaelMsg[]>([{
         id: "kael-welcome",
@@ -129,9 +131,9 @@ export function KaelPanel({ dossierId, currentLab }: KaelPanelProps) {
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0 text-sm">
                 {messages.map((msg) => (
-                    <div key={msg.id} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
+                    <div key={msg.id} className={cn("flex items-end gap-1.5", msg.role === "user" ? "justify-end" : "justify-start")}>
                         {msg.role === "kael" && (
-                            <div className="w-5 h-5 rounded-full overflow-hidden flex items-center justify-center mr-1.5 shrink-0 mt-0.5 bg-primary/10 border border-primary/20">
+                            <div className="w-5 h-5 rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-primary/10 border border-primary/20">
                                 <img src="/images/experts/Kael.webp" alt="KAEL" className="w-full h-full object-cover" />
                             </div>
                         )}
@@ -146,6 +148,17 @@ export function KaelPanel({ dossierId, currentLab }: KaelPanelProps) {
                                 {new Date(msg.timestamp).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                             </p>
                         </div>
+                        {msg.role === "user" && (
+                            <div className="w-5 h-5 rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-white/10 border border-white/10">
+                                {profile?.avatarUrl ? (
+                                    <img src={profile.avatarUrl} alt="Vous" className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-[8px] font-bold text-white/60">
+                                        {profile?.firstName?.[0] ?? "U"}
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </div>
                 ))}
 

@@ -5,6 +5,45 @@ All notable changes to this project are documented in this file.
 Format based on Keep a Changelog.
 Types: FEATURE, FIX, REFACTOR, CHORE.
 
+## 2026-03-06
+
+FIX: Workspace — exclusivité des panneaux flottants : ouvrir CommandPalette ferme KaelCommandBar et vice-versa, une seule fenêtre ouverte à la fois
+FIX: CommandPalette — navigation directionnelle cohérente : ←/→ dans sections horizontales (types, disposition), ↑/↓ entre sections verticales et pour Interface (sons/minimap) ; onglet Recherche : ←/→ entre sous-dossiers, ↑ retour à l'input
+FIX: KaelCommandBar — navigation clavier ↑↓ dans la liste d'experts : ArrowDown depuis l'input descend vers le premier expert, ArrowUp depuis le premier remonte à l'input, Enter sélectionne, scroll automatique de l'item focalisé
+FIX: CommandPalette onglet Recherche — ArrowDown depuis la barre de recherche passe au premier item (Vue globale), ArrowUp depuis Vue globale retourne le focus à la barre de recherche
+FIX: CommandPalette — supprimer raccourcis ⌘+lettre (conflits système), remplacés par navigation flèches (← → ↑ ↓) + Entrée pour activer ; focusedIndex avec ring visuel sur chaque item
+FIX: KaelCommandBar — ZARA renommé SKY en DB, photos experts à la place des initiales, bouton "Trouver un expert", recherche par mot-clé libre (sans #), hashtags enrichis pour les 7 experts (~15-20 triggers chacun)
+FIX: Francisation complète V1 — labels types de cartes (Idée/Décision/Tâche/Analyse/Hypothèse/Problème/Vision), sous-dossiers (Produit/Marché/Technologie/Business), états cartes (Brouillon/Validée/Rejetée/Archivée), card-detail-panel entièrement traduit
+FEATURE: CommandPalette — raccourcis ⌘ intuitifs par type de carte (⌘I/D/T/N/H/P/V), disposition ⌘G/⌘R, S/M sons/minimap ; navigation 0-4 sous-dossiers dans Recherche
+FIX: CommandPalette — tab contrôlé par le parent (plus de defaultTab) : ⌘K/⌘L basculent l'onglet en temps réel sans fermer/rouvrir
+FIX: Dock workspace — cliquer sur un panneau fermé l'autre instantanément (plus besoin de fermer manuellement)
+FIX: Dock workspace — raccourci ⌘L ajouté pour Filtres & Vue (⌘K = Recherche, ⌘L = Filtres)
+FIX: Dock workspace — boutons Recherche et Filtres fonctionnent en toggle (clic sur le bouton actif ferme la palette, clic sur l'autre tab bascule sans conflit)
+FIX: Workspace — conflit ⌘K résolu : KaelCommandBar passe à ⌘J (sélection expert), Dock garde ⌘K (recherche canvas)
+FIX: Dock (home) — bouton profil remplacé par icône User standard avec tooltip "Mon profil" au survol
+FEATURE: Dock (workspace) — bouton profil avec panel rapide identique (quota missions, plan, lien paramètres)
+FIX: Settings — schema Zod PATCH accepte désormais null (z.string().nullable()) pour les champs optionnels, corrige le 400 à la sauvegarde
+FIX: Settings — bouton Enregistrer désactivé si aucune modification (dirty tracking sur 5 champs profil)
+FIX: Settings — handleSave n'envoyait que les champs du schema (firstName/lastName/company/industry/goal) au lieu de tout l'objet user
+FIX: Settings — invalidateUserProfileCache() maintenant appelé après sauvegarde pour synchroniser le dock
+FIX: Settings — feedback visuel post-sauvegarde : bouton passe en vert "Modifications enregistrées" pendant 3s
+FEATURE: Dock — bouton profil ouvre un panel rapide (avatar, nom, quota missions, plan, lien paramètres) au lieu de naviguer directement vers /settings
+FIX: Budget Missions — dénominateur "/30" et barre de progression désormais dynamiques (Math.max(30, missionBudget)) pour gérer les bonus ambassadeur > 30
+FIX: AvatarCropper — modale ne se fermait pas si toBlob() retournait null (fenêtre bloquée après clic Valider)
+FIX: Bucket Supabase Storage avatars — fallback corrigé de "avatars" vers "Avatars" (cause racine du bug upload)
+FEATURE: Avatar utilisateur affiché dans le dock dashboard (bouton Paramètres)
+FEATURE: Avatar utilisateur affiché dans les bulles chat du KaelPanel
+FEATURE: Hook useUserProfile avec cache partagé et invalidation post-upload
+CHORE: invalidateUserProfileCache() appelé après upload/delete avatar dans settings
+FEATURE: Capture cookie referral_code au signup pour écrire referredById sur le nouvel utilisateur
+FEATURE: Écriture ReferralLog SIGNUP dès la création du compte avec ambassadorId
+FEATURE: Trigger ACTIVATED idempotent à la première PoleSession — crédit +5 missions ambassadeur
+FEATURE: API GET /api/user/referral enrichie avec stats complètes (signupsCount, activatedCount, totalMissions, historique)
+FEATURE: Settings tab Ambassadeur — stats dynamiques temps réel (3 cards + historique des récompenses)
+FEATURE: Settings tab Abonnement — affichage dynamique du plan (FREE/PRO)
+FEATURE: Ajout enum Plan (FREE/PRO) + champ plan sur User + champ ambassadorId sur ReferralLog (migration Supabase)
+CHORE: Ajout plan dans SessionUser interface (src/lib/auth.ts)
+
 ## [0.3.0] - 2026-03-04
 
 ### Added

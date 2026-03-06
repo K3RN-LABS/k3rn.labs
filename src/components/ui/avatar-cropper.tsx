@@ -150,14 +150,17 @@ export function AvatarCropper({ onClose, onUpload }: AvatarCropperProps) {
             outCtx.drawImage(canvas, 0, 0, 300, 300, 0, 0, 400, 400)
 
             outputCanvas.toBlob(async (blob) => {
-                if (blob) {
-                    try {
-                        await onUpload(blob)
-                        onClose()
-                    } catch (err) {
-                        console.error("Upload failed", err)
-                        setIsUploading(false)
-                    }
+                if (!blob) {
+                    console.error("Canvas toBlob returned null")
+                    setIsUploading(false)
+                    return
+                }
+                try {
+                    await onUpload(blob)
+                    onClose()
+                } catch (err) {
+                    console.error("Upload failed", err)
+                    setIsUploading(false)
                 }
             }, "image/webp", 0.9)
         }

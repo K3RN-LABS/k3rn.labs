@@ -1,12 +1,15 @@
 import { NextRequest } from "next/server"
 import { verifySession } from "@/lib/auth"
 import { db as prisma } from "@/lib/db"
+import { prisma as prismaDirect } from "@/lib/prisma"
 import { apiError, apiSuccess, validateBody } from "@/lib/validate"
 import { buildProjectMemory } from "@/lib/project-memory"
 import { invokeN8nPole } from "@/lib/n8n"
 import { createAuditLog } from "@/lib/audit"
 import { z } from "zod"
 import { randomUUID } from "node:crypto"
+
+const REFERRAL_BONUS_MISSIONS = 5
 
 const schema = z.object({
   dossierId: z.string().min(1),
@@ -97,6 +100,42 @@ export async function POST(req: NextRequest, { params }: { params: { poleId: str
     entity: "PoleSession",
     entityId: poleSession.id,
   })
+
+  // Déclencher ACTIVATED si c'est la première interaction pôle du filleul (idempotent)
+  try {
+    const alreadyActivated = await prismaDirect.referralLog.findFirst({
+      where: { userId: session.userId, type: "ACTIVATED" },
+      select: { id: true },
+    })
+
+    if (!alreadyActivated) {
+      const dbUser = await prismaDirect.user.findUnique({
+        where: { id: session.userId },
+        select: { referredById: true },
+      })
+
+      if (dbUser?.referredById) {
+        await prismaDirect.$transaction([
+          prismaDirect.referralLog.create({
+            data: {
+              userId: session.userId,
+              ambassadorId: dbUser.referredById,
+              type: "ACTIVATED",
+              missions: REFERRAL_BONUS_MISSIONS,
+              metadata: { trigger: "first_pole_session", poleId: params.poleId },
+            },
+          }),
+          prismaDirect.user.update({
+            where: { id: dbUser.referredById },
+            data: { missionBudget: { increment: REFERRAL_BONUS_MISSIONS } },
+          }),
+        ])
+      }
+    }
+  } catch (err) {
+    // Ne pas bloquer la réponse si le tracking referral échoue
+    console.error("Referral ACTIVATED tracking error:", err)
+  }
 
   return apiSuccess({ session: poleSession, pole })
 }

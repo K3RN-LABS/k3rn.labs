@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { useWorkspaceStore } from "@/store/workspace.store"
 import type { PoleData } from "@/hooks/use-poles"
 import { normalizeManagerName, getExpertImage } from "@/lib/experts"
-import { Sparkles, Search, LayoutGrid, Layers, SlidersHorizontal, X, Volume2, VolumeX, Plus, Target, CheckCircle2, User } from "lucide-react"
+import { Sparkles, Search, LayoutGrid, Layers, SlidersHorizontal, X, Volume2, VolumeX, Plus, Target, CheckCircle2, User, Settings } from "lucide-react"
+import { useUserProfile } from "@/hooks/use-user-profile"
 
 // ─── Pole config ─────────────────────────────────────────────────────────────
 
@@ -21,13 +22,24 @@ export const POLE_CONFIG: Record<string, { gradient: string; glow: string; title
 }
 
 const SUBFOLDER_CONFIG: Record<string, { gradient: string; emoji: string; label: string }> = {
-    PRODUIT: { gradient: "from-blue-600 to-blue-800", emoji: "📦", label: "Product" },
-    MARCHE: { gradient: "from-green-600 to-emerald-800", emoji: "📈", label: "Market" },
-    TECHNOLOGIE: { gradient: "from-violet-600 to-purple-800", emoji: "⚙️", label: "Technology" },
+    PRODUIT: { gradient: "from-blue-600 to-blue-800", emoji: "📦", label: "Produit" },
+    MARCHE: { gradient: "from-green-600 to-emerald-800", emoji: "📈", label: "Marché" },
+    TECHNOLOGIE: { gradient: "from-violet-600 to-purple-800", emoji: "⚙️", label: "Technologie" },
     BUSINESS: { gradient: "from-amber-600 to-orange-800", emoji: "💼", label: "Business" },
 }
 
 const CARD_TYPES = ["IDEA", "DECISION", "TASK", "ANALYSIS", "HYPOTHESIS", "PROBLEM", "VISION"]
+
+// Labels d'affichage français (les valeurs DB restent en anglais)
+const CARD_TYPE_LABELS: Record<string, string> = {
+    IDEA: "Idée",
+    DECISION: "Décision",
+    TASK: "Tâche",
+    ANALYSIS: "Analyse",
+    HYPOTHESIS: "Hypothèse",
+    PROBLEM: "Problème",
+    VISION: "Vision",
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +52,8 @@ interface DockProps {
     currentLab?: string
     onOpenKael: () => void
     onOpenPole: (poleId: string, poleCode: string, managerName: string) => void
+    onPaletteChange?: (open: boolean) => void
+    closePaletteRef?: React.MutableRefObject<(() => void) | null>
 }
 
 // ─── Tooltip ─────────────────────────────────────────────────────────────────
@@ -111,11 +125,12 @@ type PaletteTab = "search" | "filters"
 
 interface CommandPaletteProps {
     subFolders: SubFolderItem[]
-    defaultTab?: PaletteTab
+    tab: PaletteTab
+    onTabChange: (tab: PaletteTab) => void
     onClose: () => void
 }
 
-function CommandPalette({ subFolders, defaultTab = "search", onClose }: CommandPaletteProps) {
+function CommandPalette({ subFolders, tab, onTabChange, onClose }: CommandPaletteProps) {
     const {
         canvasSearch, setCanvasSearch,
         canvasFilterType, setCanvasFilterType,
@@ -124,15 +139,130 @@ function CommandPalette({ subFolders, defaultTab = "search", onClose }: CommandP
         notifSoundEnabled, toggleNotifSound,
         minimapEnabled, toggleMinimap,
     } = useWorkspaceStore()
-
-    const [tab, setTab] = useState<PaletteTab>(defaultTab)
     const inputRef = useRef<HTMLInputElement>(null)
+    const [focusedIndex, setFocusedIndex] = useState<number | null>(null)
+
+    // Refs so the keydown handler always reads fresh values (no stale closure)
+    const focusedIndexRef = useRef<number | null>(null)
+    const navLengthRef = useRef(0)
+    const tabRef = useRef(tab)
+
+    // Reset focus when switching tabs
+    useEffect(() => {
+        setFocusedIndex(null)
+        focusedIndexRef.current = null
+        tabRef.current = tab
+    }, [tab])
+
+    // Build flat list of navigable items depending on active tab
+    const navItems = tab === "filters"
+        ? [
+            { onActivate: () => setCanvasFilterType(null) },
+            ...CARD_TYPES.map(t => ({ onActivate: () => setCanvasFilterType(canvasFilterType === t ? null : t) })),
+            { onActivate: () => setCanvasLayout("auto") },
+            { onActivate: () => setCanvasLayout("free") },
+            { onActivate: () => toggleNotifSound() },
+            { onActivate: () => toggleMinimap() },
+        ]
+        : [
+            { onActivate: () => setActiveSubFolder(null, null) },
+            ...subFolders.map(sf => ({
+                onActivate: () => activeSubFolderId === sf.id
+                    ? setActiveSubFolder(null, null)
+                    : setActiveSubFolder(sf.id, sf.type as never)
+            })),
+        ]
+
+    // Keep refs in sync
+    navLengthRef.current = navItems.length
+    focusedIndexRef.current = focusedIndex
+    tabRef.current = tab
+
+    const navItemsRef = useRef(navItems)
+    navItemsRef.current = navItems
+
+    const move = (next: number | null) => {
+        setFocusedIndex(next)
+        focusedIndexRef.current = next
+    }
 
     useEffect(() => {
         if (tab === "search") inputRef.current?.focus()
-        const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
+        const handler = (e: KeyboardEvent) => {
+            if (e.key === "Escape") { onClose(); return }
+            if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "l")) return
+
+            const currentTab = tabRef.current
+            const cur = focusedIndexRef.current
+            const len = navLengthRef.current
+            const inInput = currentTab === "search" && document.activeElement === inputRef.current
+
+            if (inInput) {
+                if (e.key === "ArrowDown") {
+                    e.preventDefault()
+                    move(0)
+                    inputRef.current?.blur()
+                }
+                return
+            }
+
+            // ── Search tab ──
+            if (currentTab === "search") {
+                if (e.key === "ArrowRight") {
+                    e.preventDefault()
+                    move(cur === null ? 0 : Math.min(cur + 1, len - 1))
+                } else if (e.key === "ArrowLeft") {
+                    e.preventDefault()
+                    move(cur === null ? len - 1 : Math.max(cur - 1, 0))
+                } else if (e.key === "ArrowUp") {
+                    e.preventDefault()
+                    if (cur === null || cur === 0) {
+                        move(null)
+                        inputRef.current?.focus()
+                    } else {
+                        move(Math.max(cur - 1, 0))
+                    }
+                } else if (e.key === "Enter" && cur !== null) {
+                    e.preventDefault()
+                    navItemsRef.current[cur]?.onActivate()
+                }
+                return
+            }
+
+            // ── Filters tab ──
+            // [0-7] types (horizontal), [8-9] layout (horizontal), [10-11] interface (vertical)
+            if (currentTab === "filters") {
+                const c = cur ?? 0
+
+                if (e.key === "ArrowRight") {
+                    e.preventDefault()
+                    if (c <= 7) move(Math.min(c + 1, 7))
+                    else if (c <= 9) move(Math.min(c + 1, 9))
+                    // interface section: no horizontal movement
+                } else if (e.key === "ArrowLeft") {
+                    e.preventDefault()
+                    if (c <= 7) move(Math.max(c - 1, 0))
+                    else if (c <= 9) move(Math.max(c - 1, 8))
+                } else if (e.key === "ArrowDown") {
+                    e.preventDefault()
+                    if (c <= 7) move(8)
+                    else if (c <= 9) move(10)
+                    else if (c === 10) move(11)
+                } else if (e.key === "ArrowUp") {
+                    e.preventDefault()
+                    if (c === 11) move(10)
+                    else if (c === 10) move(8)
+                    else if (c <= 9 && c >= 8) move(7)
+                    else if (c <= 7) move(Math.max(c - 1, 0))
+                } else if (e.key === "Enter" && cur !== null) {
+                    e.preventDefault()
+                    navItemsRef.current[cur]?.onActivate()
+                }
+            }
+        }
         window.addEventListener("keydown", handler)
         return () => window.removeEventListener("keydown", handler)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tab, onClose])
 
     return (
@@ -151,7 +281,7 @@ function CommandPalette({ subFolders, defaultTab = "search", onClose }: CommandP
                     {([["search", "Recherche"], ["filters", "Filtres & Vue"]] as [PaletteTab, string][]).map(([t, label]) => (
                         <button
                             key={t}
-                            onClick={() => setTab(t)}
+                            onClick={() => onTabChange(t)}
                             className={cn(
                                 "px-3 py-2 text-xs font-medium transition-all border-b-2 -mb-px",
                                 tab === t
@@ -162,7 +292,9 @@ function CommandPalette({ subFolders, defaultTab = "search", onClose }: CommandP
                             {label}
                         </button>
                     ))}
-                    <div className="ml-auto flex items-center gap-1 pb-2">
+                    <div className="ml-auto flex items-center gap-2 pb-2">
+                        <span className="text-[10px] text-white/20 font-jakarta">↑↓←→ naviguer</span>
+                        <span className="text-[10px] text-white/20 font-jakarta">↵ activer</span>
                         <kbd className="text-[10px] text-white/20 bg-white/5 px-1.5 py-0.5 rounded border border-white/[0.08]">ESC</kbd>
                         <button onClick={onClose} className="p-1 text-white/20 hover:text-white/50 transition-colors">
                             <X className="h-3.5 w-3.5" />
@@ -199,12 +331,13 @@ function CommandPalette({ subFolders, defaultTab = "search", onClose }: CommandP
                                             onClick={() => setActiveSubFolder(null, null)}
                                             className={cn(
                                                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                                                !activeSubFolderId ? "bg-white/10 text-white" : "bg-white/[0.04] text-white/40 hover:bg-white/[0.07] hover:text-white/70"
+                                                !activeSubFolderId ? "bg-white/10 text-white" : "bg-white/[0.04] text-white/40 hover:bg-white/[0.07] hover:text-white/70",
+                                                focusedIndex === 0 && "ring-1 ring-white/40"
                                             )}
                                         >
                                             ✦ Vue globale
                                         </button>
-                                        {subFolders.map((sf) => {
+                                        {subFolders.map((sf, i) => {
                                             const cfg = SUBFOLDER_CONFIG[sf.type] ?? { emoji: "📁", label: sf.type }
                                             const isActive = activeSubFolderId === sf.id
                                             return (
@@ -213,7 +346,8 @@ function CommandPalette({ subFolders, defaultTab = "search", onClose }: CommandP
                                                     onClick={() => isActive ? setActiveSubFolder(null, null) : setActiveSubFolder(sf.id, sf.type as never)}
                                                     className={cn(
                                                         "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                                                        isActive ? "bg-white/10 text-white" : "bg-white/[0.04] text-white/40 hover:bg-white/[0.07] hover:text-white/70"
+                                                        isActive ? "bg-white/10 text-white" : "bg-white/[0.04] text-white/40 hover:bg-white/[0.07] hover:text-white/70",
+                                                        focusedIndex === i + 1 && "ring-1 ring-white/40"
                                                     )}
                                                 >
                                                     {cfg.emoji} {cfg.label}
@@ -236,24 +370,26 @@ function CommandPalette({ subFolders, defaultTab = "search", onClose }: CommandP
                                     <button
                                         onClick={() => setCanvasFilterType(null)}
                                         className={cn(
-                                            "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                                            !canvasFilterType ? "bg-primary/20 text-primary border border-primary/30" : "bg-white/[0.04] text-white/40 hover:bg-white/[0.07] hover:text-white/70"
+                                            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                            !canvasFilterType ? "bg-primary/20 text-primary border border-primary/30" : "bg-white/[0.04] text-white/40 hover:bg-white/[0.07] hover:text-white/70",
+                                            focusedIndex === 0 && "ring-1 ring-white/40"
                                         )}
                                     >
                                         Tous
                                     </button>
-                                    {CARD_TYPES.map((t) => (
+                                    {(CARD_TYPES as string[]).map((t, i) => (
                                         <button
                                             key={t}
                                             onClick={() => setCanvasFilterType(canvasFilterType === t ? null : t)}
                                             className={cn(
-                                                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
                                                 canvasFilterType === t
                                                     ? "bg-primary/20 text-primary border border-primary/30"
-                                                    : "bg-white/[0.04] text-white/40 hover:bg-white/[0.07] hover:text-white/70"
+                                                    : "bg-white/[0.04] text-white/40 hover:bg-white/[0.07] hover:text-white/70",
+                                                focusedIndex === i + 1 && "ring-1 ring-white/40"
                                             )}
                                         >
-                                            {t}
+                                            {CARD_TYPE_LABELS[t] ?? t}
                                         </button>
                                     ))}
                                 </div>
@@ -263,13 +399,14 @@ function CommandPalette({ subFolders, defaultTab = "search", onClose }: CommandP
                             <div>
                                 <p className="text-[10px] font-jakarta tracking-widest text-white/20 uppercase mb-2">Disposition</p>
                                 <div className="flex gap-1.5">
-                                    {(["auto", "free"] as const).map((l) => (
+                                    {(["auto", "free"] as const).map((l, i) => (
                                         <button
                                             key={l}
                                             onClick={() => setCanvasLayout(l)}
                                             className={cn(
                                                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                                                canvasLayout === l ? "bg-white/10 text-white" : "bg-white/[0.04] text-white/40 hover:bg-white/[0.07] hover:text-white/70"
+                                                canvasLayout === l ? "bg-white/10 text-white" : "bg-white/[0.04] text-white/40 hover:bg-white/[0.07] hover:text-white/70",
+                                                focusedIndex === 8 + i && "ring-1 ring-white/40"
                                             )}
                                         >
                                             {l === "auto" ? <LayoutGrid className="h-3 w-3" /> : <Layers className="h-3 w-3" />}
@@ -289,7 +426,8 @@ function CommandPalette({ subFolders, defaultTab = "search", onClose }: CommandP
                                             "flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all w-full",
                                             notifSoundEnabled
                                                 ? "bg-primary/10 text-primary border border-primary/20"
-                                                : "bg-white/[0.04] text-white/35 border border-white/[0.06] hover:bg-white/[0.07]"
+                                                : "bg-white/[0.04] text-white/35 border border-white/[0.06] hover:bg-white/[0.07]",
+                                            focusedIndex === 10 && "ring-1 ring-white/40"
                                         )}
                                     >
                                         {notifSoundEnabled
@@ -314,7 +452,8 @@ function CommandPalette({ subFolders, defaultTab = "search", onClose }: CommandP
                                             "flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all w-full",
                                             minimapEnabled
                                                 ? "bg-primary/10 text-primary border border-primary/20"
-                                                : "bg-white/[0.04] text-white/35 border border-white/[0.06] hover:bg-white/[0.07]"
+                                                : "bg-white/[0.04] text-white/35 border border-white/[0.06] hover:bg-white/[0.07]",
+                                            focusedIndex === 11 && "ring-1 ring-white/40"
                                         )}
                                     >
                                         <LayoutGrid className="h-3.5 w-3.5 shrink-0" />
@@ -341,29 +480,64 @@ function CommandPalette({ subFolders, defaultTab = "search", onClose }: CommandP
 
 // ─── Dock ─────────────────────────────────────────────────────────────────────
 
-export function Dock({ dossierId, poles, subFolders, currentLab, onOpenKael, onOpenPole }: DockProps) {
+export function Dock({ dossierId, poles, subFolders, currentLab, onOpenKael, onOpenPole, onPaletteChange, closePaletteRef }: DockProps) {
     const { openChats, canvasSearch, canvasFilterType, activeSubFolderId, unreadCounts } = useWorkspaceStore()
     const [paletteOpen, setPaletteOpen] = useState(false)
-    const [paletteTab, setPaletteTab] = useState<PaletteTab>("search")
-    const router = useRouter()
+    const onPaletteChangeRef = useRef(onPaletteChange)
+    onPaletteChangeRef.current = onPaletteChange
 
-    function openPalette(tab: PaletteTab) {
-        setPaletteTab(tab)
-        setPaletteOpen(true)
+    // Expose closePalette to parent
+    useEffect(() => {
+        if (closePaletteRef) closePaletteRef.current = () => { setPaletteOpen(false); onPaletteChangeRef.current?.(false) }
+        return () => { if (closePaletteRef) closePaletteRef.current = null }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+    const [paletteTab, setPaletteTab] = useState<PaletteTab>("search")
+    const [profileOpen, setProfileOpen] = useState(false)
+    const profileRef = useRef<HTMLDivElement>(null)
+    const router = useRouter()
+    const { profile } = useUserProfile()
+
+    useEffect(() => {
+        function onClickOutside(e: MouseEvent) {
+            if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false)
+        }
+        document.addEventListener("mousedown", onClickOutside)
+        return () => document.removeEventListener("mousedown", onClickOutside)
+    }, [])
+
+    function togglePalette(tab: PaletteTab) {
+        if (paletteOpen && paletteTab === tab) {
+            setPaletteOpen(false)
+            onPaletteChangeRef.current?.(false)
+        } else {
+            setPaletteTab(tab)
+            setPaletteOpen(true)
+            onPaletteChangeRef.current?.(true)
+        }
     }
 
-    // ⌘K → search tab
+    function closePalette() {
+        setPaletteOpen(false)
+        onPaletteChangeRef.current?.(false)
+    }
+
+    // ⌘K → Recherche | ⌘L → Filtres & Vue
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+            if (!(e.metaKey || e.ctrlKey)) return
+            if (e.key === "k") {
                 e.preventDefault()
-                setPaletteTab("search")
-                setPaletteOpen((s) => !s)
+                togglePalette("search")
+            } else if (e.key === "l") {
+                e.preventDefault()
+                togglePalette("filters")
             }
         }
         window.addEventListener("keydown", handler)
         return () => window.removeEventListener("keydown", handler)
-    }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [paletteOpen, paletteTab])
 
     const hasActiveSearch = !!canvasSearch || !!activeSubFolderId
     const hasActiveFilters = !!canvasFilterType
@@ -376,8 +550,9 @@ export function Dock({ dossierId, poles, subFolders, currentLab, onOpenKael, onO
             {paletteOpen && (
                 <CommandPalette
                     subFolders={subFolders}
-                    defaultTab={paletteTab}
-                    onClose={() => setPaletteOpen(false)}
+                    tab={paletteTab}
+                    onTabChange={setPaletteTab}
+                    onClose={closePalette}
                 />
             )}
 
@@ -400,8 +575,8 @@ export function Dock({ dossierId, poles, subFolders, currentLab, onOpenKael, onO
                     <div className="flex items-center gap-1 relative z-10">
                         <DockButton
                             tooltip="Recherche  ⌘K"
-                            onClick={() => openPalette("search")}
-                            active={paletteOpen && paletteTab === "search" || hasActiveSearch}
+                            onClick={() => togglePalette("search")}
+                            active={(paletteOpen && paletteTab === "search") || hasActiveSearch}
                             className={cn(
                                 "border",
                                 (paletteOpen && paletteTab === "search") || hasActiveSearch
@@ -413,9 +588,9 @@ export function Dock({ dossierId, poles, subFolders, currentLab, onOpenKael, onO
                         </DockButton>
 
                         <DockButton
-                            tooltip="Filtres & Vue"
-                            onClick={() => openPalette("filters")}
-                            active={paletteOpen && paletteTab === "filters" || hasActiveFilters}
+                            tooltip="Filtres & Vue  ⌘L"
+                            onClick={() => togglePalette("filters")}
+                            active={(paletteOpen && paletteTab === "filters") || hasActiveFilters}
                             className={cn(
                                 "border",
                                 (paletteOpen && paletteTab === "filters") || hasActiveFilters
@@ -427,16 +602,94 @@ export function Dock({ dossierId, poles, subFolders, currentLab, onOpenKael, onO
                         </DockButton>
 
 
-                        <DockButton
-                            tooltip="Paramètres"
-                            onClick={() => router.push("/settings")}
-                            className={cn(
-                                "border",
-                                "bg-white/[0.06] border-white/[0.06] text-white/40 hover:text-white/70 hover:bg-white/[0.09]"
+                        <div ref={profileRef} className="relative flex flex-col items-center">
+                            {profileOpen && (
+                                <div className={cn(
+                                    "absolute bottom-full mb-3 right-0 w-64 rounded-2xl p-4",
+                                    "border border-white/[0.08] bg-black/70 backdrop-blur-2xl shadow-[0_24px_60px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.06)]",
+                                    "animate-in slide-in-from-bottom-2 duration-200"
+                                )}>
+                                    {/* Avatar + nom */}
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/[0.08] shrink-0 flex items-center justify-center bg-white/[0.06]">
+                                            {profile?.avatarUrl ? (
+                                                <img src={profile.avatarUrl} alt="Profil" className="w-full h-full object-cover" />
+                                            ) : profile?.firstName ? (
+                                                <span className="text-[11px] font-bold font-jakarta text-white/50">
+                                                    {profile.firstName[0]}{profile.lastName?.[0] ?? ""}
+                                                </span>
+                                            ) : (
+                                                <User className="h-4 w-4 text-white/30" />
+                                            )}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-jakarta font-semibold text-white/90 truncate">
+                                                {profile?.firstName ? `${profile.firstName} ${profile.lastName ?? ""}`.trim() : "Mon profil"}
+                                            </p>
+                                            <p className="text-[11px] text-white/30 truncate">{profile?.email ?? ""}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Budget missions */}
+                                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 mb-3">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-[10px] font-jakarta tracking-widest text-white/30 uppercase">Missions</span>
+                                            <span className="text-sm font-jakarta font-bold text-white/80">
+                                                {profile?.missionBudget ?? "—"}
+                                                <span className="text-white/25 font-normal">
+                                                    /{Math.max(30, profile?.missionBudget ?? 30)}
+                                                </span>
+                                            </span>
+                                        </div>
+                                        <div className="h-[2px] w-full bg-white/[0.05] rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-white/40 transition-all duration-700"
+                                                style={{
+                                                    width: profile?.missionBudget != null
+                                                        ? `${Math.min(100, (profile.missionBudget / Math.max(30, profile.missionBudget)) * 100)}%`
+                                                        : "0%"
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Plan badge */}
+                                    <div className="flex items-center justify-between mb-4">
+                                        <span className="text-[10px] font-jakarta tracking-widest text-white/30 uppercase">Plan</span>
+                                        <span className={cn(
+                                            "text-[10px] font-jakarta font-bold tracking-widest uppercase px-2 py-0.5 rounded-md",
+                                            profile?.plan === "PRO"
+                                                ? "bg-primary/15 text-primary border border-primary/30"
+                                                : "bg-white/[0.06] text-white/40 border border-white/[0.08]"
+                                        )}>
+                                            {profile?.plan === "PRO" ? "K3RN Pro" : "Alpha Labs"}
+                                        </span>
+                                    </div>
+
+                                    {/* Lien settings */}
+                                    <button
+                                        onClick={() => { router.push("/settings"); setProfileOpen(false) }}
+                                        className="w-full text-left px-3 py-2 rounded-lg text-xs text-white/40 hover:text-white/70 hover:bg-white/[0.05] transition-all flex items-center gap-2"
+                                    >
+                                        <Settings className="h-3.5 w-3.5" />
+                                        Ouvrir les paramètres
+                                    </button>
+                                </div>
                             )}
-                        >
-                            <User className="h-3.5 w-3.5" />
-                        </DockButton>
+                            <DockButton
+                                tooltip="Mon profil"
+                                onClick={() => setProfileOpen(p => !p)}
+                                active={profileOpen}
+                                className={cn(
+                                    "border",
+                                    profileOpen
+                                        ? "bg-primary/20 border-primary/30 text-primary"
+                                        : "bg-white/[0.06] border-white/[0.06] text-white/40 hover:text-white/70 hover:bg-white/[0.09]"
+                                )}
+                            >
+                                <User className="h-3.5 w-3.5" />
+                            </DockButton>
+                        </div>
 
                         {/* Separator */}
                         <div className="w-px h-6 bg-white/[0.07] mx-1 shrink-0" />

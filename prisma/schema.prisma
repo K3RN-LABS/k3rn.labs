@@ -12,6 +12,11 @@ enum UserRole {
   VIEWER
 }
 
+enum Plan {
+  FREE
+  PRO
+}
+
 enum MacroState {
   SYSTEM_READY
   DASHBOARD
@@ -130,13 +135,15 @@ model User {
   avatarUrl           String?
   onboardingCompleted Boolean @default(false)
   missionBudget       Int     @default(30)
+  plan                Plan    @default(FREE)
   preferences         Json    @default("{}")
 
-  referralCode String? @unique
-  referredById String?
-  referredBy   User?   @relation("UserToReferral", fields: [referredById], references: [id])
-  referrals    User[]  @relation("UserToReferral")
-  referralLogs ReferralLog[]
+  referralCode    String? @unique
+  referredById    String?
+  referredBy      User?        @relation("UserToReferral", fields: [referredById], references: [id])
+  referrals       User[]       @relation("UserToReferral")
+  referralLogs    ReferralLog[] @relation("ReferralLogUser")
+  ambassadorLogs  ReferralLog[] @relation("ReferralLogAmbassador")
 
   dossiers             Dossier[]
   auditLogs            AuditLog[]
@@ -144,16 +151,19 @@ model User {
 }
 
 model ReferralLog {
-  id        String   @id @default(cuid())
-  userId    String
-  type      String   // "CLICK", "SIGNUP", "ACTIVATED"
-  missions  Int      // Nombre de missions créditées
-  metadata  Json     @default("{}")
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  userId       String
+  ambassadorId String
+  type         String   // "SIGNUP", "ACTIVATED"
+  missions     Int      // Nombre de missions créditées
+  metadata     Json     @default("{}")
+  createdAt    DateTime @default(now())
 
-  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User? @relation("ReferralLogUser", fields: [userId], references: [id], onDelete: Cascade)
+  ambassador User? @relation("ReferralLogAmbassador", fields: [ambassadorId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([ambassadorId])
 }
 
 model Dossier {

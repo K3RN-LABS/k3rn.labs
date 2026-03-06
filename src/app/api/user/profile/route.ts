@@ -5,11 +5,11 @@ import { validateBody, apiError, apiSuccess } from "@/lib/validate"
 import { z } from "zod"
 
 const updateProfileSchema = z.object({
-    firstName: z.string().optional(),
-    lastName: z.string().optional(),
-    company: z.string().optional(),
-    industry: z.string().optional(),
-    goal: z.string().optional(),
+    firstName: z.string().nullable().optional(),
+    lastName: z.string().nullable().optional(),
+    company: z.string().nullable().optional(),
+    industry: z.string().nullable().optional(),
+    goal: z.string().nullable().optional(),
     onboardingCompleted: z.boolean().optional(),
     preferences: z.record(z.string(), z.any()).optional(),
 })

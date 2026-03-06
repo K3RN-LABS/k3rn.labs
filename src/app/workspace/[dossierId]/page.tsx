@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useDossier } from "@/hooks/use-dossier"
 import { useLab, useTransitionLab } from "@/hooks/use-lab"
@@ -43,6 +43,10 @@ export default function WorkspacePage() {
 
     // Active panel state — null | "kael" | pole id
     const [activePanel, setActivePanel] = useState<null | "kael" | string>(null)
+
+    // Exclusive overlay state: only one of palette or kaelBar can be open at a time
+    const closePaletteRef = useRef<(() => void) | null>(null)
+    const closeKaelBarRef = useRef<(() => void) | null>(null)
 
     const currentLab = labData?.labState?.currentLab as string | undefined
 
@@ -184,6 +188,8 @@ export default function WorkspacePage() {
                             dossierId={dossierId}
                             currentLab={currentLab}
                             onSelectPole={(pole) => handleOpenPole(pole.id, pole.code, pole.managerName)}
+                            onOpen={() => closePaletteRef.current?.()}
+                            closeRef={closeKaelBarRef}
                         />
                         <PermissionGate dossierId={dossierId} permission="canCreateCrowdfunding">
                             <Button variant="ghost" size="sm" className="h-7 text-xs text-white/40 hover:text-white/80"
@@ -226,6 +232,8 @@ export default function WorkspacePage() {
                         currentLab={currentLab}
                         onOpenKael={handleOpenKael}
                         onOpenPole={handleOpenPole}
+                        onPaletteChange={(open) => { if (open) closeKaelBarRef.current?.() }}
+                        closePaletteRef={closePaletteRef}
                     />
                 </div>
 

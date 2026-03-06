@@ -2,12 +2,13 @@ import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { NextRequest } from "next/server"
 import { db as prisma } from "./db"
-import type { UserRole } from "@prisma/client"
+import type { UserRole, Plan } from "@prisma/client"
 
 export interface SessionUser {
   userId: string
   email: string
   role: UserRole
+  plan: Plan
   onboardingCompleted: boolean
   missionBudget: number
 }
@@ -52,6 +53,7 @@ export async function verifySession(req?: NextRequest): Promise<SessionUser | nu
       userId: dbUser.id,
       email: dbUser.email,
       role: dbUser.role,
+      plan: dbUser.plan,
       onboardingCompleted: dbUser.onboardingCompleted,
       missionBudget: dbUser.missionBudget
     }

@@ -28,7 +28,7 @@ export async function getSignedExportUrl(storagePath: string, expiresIn = 3600):
   return data.signedUrl
 }
 
-const AVATARS_BUCKET = process.env.SUPABASE_STORAGE_AVATARS_BUCKET ?? "avatars"
+const AVATARS_BUCKET = process.env.SUPABASE_STORAGE_AVATARS_BUCKET ?? "Avatars"
 
 export async function uploadAvatar(userId: string, buffer: Buffer, contentType = "image/webp"): Promise<string> {
   const supabase = createSupabaseAdmin()

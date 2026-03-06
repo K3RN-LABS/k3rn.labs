@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { invalidateUserProfileCache } from "@/hooks/use-user-profile"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,12 +15,30 @@ import { Badge } from "@/components/ui/badge"
 import { AvatarCropper } from "@/components/ui/avatar-cropper"
 import { Suspense } from "react"
 
+type ReferralStats = {
+    signupsCount: number
+    activatedCount: number
+    totalMissions: number
+}
+
+type ReferralHistoryEntry = {
+    id: string
+    type: string
+    missions: number
+    createdAt: string
+    user: { firstName: string | null; email: string } | null
+}
+
 function SettingsContent() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
+    const [saveSuccess, setSaveSuccess] = useState(false)
     const [activeTab, setActiveTab] = useState<"profile" | "preferences" | "subscription" | "ambassador">("profile")
     const [user, setUser] = useState<any>(null)
+    const [savedUser, setSavedUser] = useState<any>(null)
     const [showCropper, setShowCropper] = useState(false)
+    const [referralStats, setReferralStats] = useState<ReferralStats>({ signupsCount: 0, activatedCount: 0, totalMissions: 0 })
+    const [referralHistory, setReferralHistory] = useState<ReferralHistoryEntry[]>([])
     const router = useRouter()
     const searchParams = useSearchParams()
 
@@ -37,24 +56,49 @@ function SettingsContent() {
                 return res.json()
             })
             .then(data => {
-                // L'API renvoie l'objet user directement via apiSuccess
                 setUser(data)
+                setSavedUser(data)
             })
             .catch(err => console.error(err))
             .finally(() => setLoading(false))
     }, [])
 
+    useEffect(() => {
+        if (activeTab === "ambassador") {
+            fetch("/api/user/referral")
+                .then(res => res.json())
+                .then(data => {
+                    if (data.stats) setReferralStats(data.stats)
+                    if (data.history) setReferralHistory(data.history)
+                    if (data.referralCode && user && !user.referralCode) {
+                        setUser((u: any) => ({ ...u, referralCode: data.referralCode }))
+                    }
+                })
+                .catch(err => console.error("Referral stats error:", err))
+        }
+    }, [activeTab])
+
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault()
         setSaving(true)
+        setSaveSuccess(false)
         try {
             const res = await fetch("/api/user/profile", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(user),
+                body: JSON.stringify({
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    company: user.company,
+                    industry: user.industry,
+                    goal: user.goal,
+                }),
             })
             if (!res.ok) throw new Error("Failed to save")
-
+            invalidateUserProfileCache()
+            setSavedUser({ ...user })
+            setSaveSuccess(true)
+            setTimeout(() => setSaveSuccess(false), 3000)
         } catch (err) {
             console.error(err)
         } finally {
@@ -74,13 +118,20 @@ function SettingsContent() {
 
         const data = await res.json()
         setUser({ ...user, avatarUrl: data.avatarUrl })
+        invalidateUserProfileCache()
     }
 
     const handleAvatarDelete = async () => {
         const res = await fetch("/api/user/avatar", { method: "DELETE" })
         if (!res.ok) console.error("Failed to delete avatar")
         setUser({ ...user, avatarUrl: null })
+        invalidateUserProfileCache()
     }
+
+    const PROFILE_FIELDS = ["firstName", "lastName", "company", "industry", "goal"] as const
+    const isDirty = savedUser !== null && PROFILE_FIELDS.some(
+        f => (user?.[f] ?? null) !== (savedUser?.[f] ?? null)
+    )
 
     // Helper initiales
     const getInitials = (first?: string, last?: string) => {
@@ -291,10 +342,17 @@ function SettingsContent() {
                                         </div>
                                         <Button
                                             type="submit"
-                                            disabled={saving}
-                                            className="px-8 h-11 bg-white text-black hover:bg-white/90 transition-all active:scale-[0.98] font-jakarta font-bold text-xs rounded-xl disabled:opacity-50"
+                                            disabled={saving || (!isDirty && !saveSuccess)}
+                                            className={cn(
+                                                "px-8 h-11 transition-all active:scale-[0.98] font-jakarta font-bold text-xs rounded-xl",
+                                                saveSuccess
+                                                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                                    : isDirty
+                                                        ? "bg-white text-black hover:bg-white/90"
+                                                        : "bg-white/[0.04] text-white/20 border border-white/[0.06] cursor-not-allowed"
+                                            )}
                                         >
-                                            {saving ? "Synchronisation..." : "Enregistrer les modifications"}
+                                            {saving ? "Synchronisation..." : saveSuccess ? "✓ Enregistré" : "Enregistrer les modifications"}
                                         </Button>
                                     </div>
                                 </form>
@@ -311,12 +369,12 @@ function SettingsContent() {
                                         <div className="w-full md:w-64 space-y-4 text-right">
                                             <div className="flex items-baseline justify-end gap-1 font-jakarta font-bold">
                                                 <span className="text-5xl font-black text-white/90">{user.missionBudget}</span>
-                                                <span className="text-sm text-white/30">/30</span>
+                                                <span className="text-sm text-white/30">/{Math.max(30, user.missionBudget)}</span>
                                             </div>
                                             <div className="h-[2px] w-full bg-white/[0.03] rounded-full overflow-hidden">
                                                 <div
                                                     className="h-full bg-white/40 transition-all duration-1000"
-                                                    style={{ width: `${(user.missionBudget / 30) * 100}%` }}
+                                                    style={{ width: `${Math.min(100, (user.missionBudget / Math.max(30, user.missionBudget)) * 100)}%` }}
                                                 />
                                             </div>
                                             <p className="text-[10px] font-sans tracking-[0.2em] text-white/40 uppercase">Missions Disponibles</p>
@@ -355,12 +413,20 @@ function SettingsContent() {
                                         <div className="space-y-8">
                                             <div>
                                                 <Badge className="bg-white/[0.06] text-white/80 border-0 mb-6 px-3 py-0.5 rounded-full font-sans font-semibold text-[10px] uppercase tracking-wider">Palier Actif</Badge>
-                                                <h3 className="text-4xl font-jakarta font-black tracking-tight text-white/90">Alpha Labs</h3>
-                                                <p className="text-white/50 text-sm font-sans max-w-xs mt-4 leading-relaxed font-light">Accès illimité aux modules de DISCOVERY et STRUCTURATION pendant la phase 1.</p>
+                                                <h3 className="text-4xl font-jakarta font-black tracking-tight text-white/90">
+                                                    {user?.plan === "PRO" ? "K3RN Pro" : "Alpha Labs"}
+                                                </h3>
+                                                <p className="text-white/50 text-sm font-sans max-w-xs mt-4 leading-relaxed font-light">
+                                                    {user?.plan === "PRO"
+                                                        ? "Accès complet à tous les modules et experts K3RN."
+                                                        : "Accès illimité aux modules de DISCOVERY et STRUCTURATION pendant la phase 1."}
+                                                </p>
                                             </div>
                                             <div className="flex items-baseline gap-2 font-jakarta font-bold">
-                                                <span className="text-3xl">0,00 €</span>
-                                                <span className="text-white/40 text-[10px] font-sans uppercase tracking-widest italic font-normal">Offre Labs</span>
+                                                <span className="text-3xl">{user?.plan === "PRO" ? "49,00 €" : "0,00 €"}</span>
+                                                <span className="text-white/40 text-[10px] font-sans uppercase tracking-widest italic font-normal">
+                                                    {user?.plan === "PRO" ? "/ mois" : "Offre Labs"}
+                                                </span>
                                             </div>
                                         </div>
                                         <div className="flex flex-col gap-4 text-right">
@@ -460,23 +526,67 @@ function SettingsContent() {
                                     </CardContent>
                                 </Card>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div className="p-8 border border-white/[0.04] bg-white/[0.01] rounded-2xl flex flex-col gap-2">
                                         <p className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Filleuls Inscrits</p>
                                         <div className="flex items-end gap-3">
-                                            <span className="text-5xl font-black text-white/90">0</span>
+                                            <span className="text-5xl font-black text-white/90">{referralStats.signupsCount}</span>
                                             <span className="text-white/30 text-sm mb-1">personnes</span>
+                                        </div>
+                                    </div>
+                                    <div className="p-8 border border-white/[0.04] bg-white/[0.01] rounded-2xl flex flex-col gap-2">
+                                        <p className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Filleuls Activés</p>
+                                        <div className="flex items-end gap-3">
+                                            <span className="text-5xl font-black text-white/70">{referralStats.activatedCount}</span>
+                                            <span className="text-white/30 text-sm mb-1">actifs</span>
                                         </div>
                                     </div>
                                     <div className="p-8 border border-white/[0.04] bg-white/[0.01] rounded-2xl flex flex-col gap-2 relative overflow-hidden">
                                         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 blur-[50px] -mr-10 -mt-10 rounded-full pointer-events-none" />
                                         <p className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Missions Gagnées</p>
                                         <div className="flex items-end gap-3 relative z-10">
-                                            <span className="text-5xl font-black text-primary">0</span>
+                                            <span className="text-5xl font-black text-primary">{referralStats.totalMissions}</span>
                                             <span className="text-primary/50 text-sm mb-1">missions bonus</span>
                                         </div>
                                     </div>
                                 </div>
+
+                                {referralHistory.length > 0 && (
+                                    <Card className="bg-white/[0.01] border-white/[0.06]">
+                                        <CardHeader>
+                                            <CardTitle className="text-white text-base">Historique des Récompenses</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="space-y-3">
+                                                {referralHistory.map(log => (
+                                                    <div key={log.id} className="flex items-center justify-between text-sm py-2 border-b border-white/[0.04] last:border-0">
+                                                        <div className="flex items-center gap-3">
+                                                            <span className={cn(
+                                                                "text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-full",
+                                                                log.type === "ACTIVATED"
+                                                                    ? "bg-primary/10 text-primary"
+                                                                    : "bg-white/5 text-white/40"
+                                                            )}>
+                                                                {log.type === "ACTIVATED" ? "Activation" : "Inscription"}
+                                                            </span>
+                                                            <span className="text-white/40 text-xs">
+                                                                {log.user?.firstName || log.user?.email || "Filleul"}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-4">
+                                                            {log.missions > 0 && (
+                                                                <span className="text-primary font-medium">+{log.missions} missions</span>
+                                                            )}
+                                                            <span className="text-white/30 text-xs">
+                                                                {new Date(log.createdAt).toLocaleDateString("fr-FR")}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                )}
                             </div>
                         )}
                     </div>

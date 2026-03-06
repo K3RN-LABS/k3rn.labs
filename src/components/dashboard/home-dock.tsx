@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Plus, Tag, Layers, FlaskConical, X, User } from "lucide-react"
+import { Plus, Tag, Layers, FlaskConical, X, User, Settings } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { useUserProfile } from "@/hooks/use-user-profile"
 
 const LAB_OPTIONS = [
     { value: "DISCOVERY", label: "Discovery" },
@@ -31,7 +32,7 @@ interface HomeDockProps {
     onNewDossier: () => void
 }
 
-type OpenPanel = "tags" | "status" | "lab" | null
+type OpenPanel = "tags" | "status" | "lab" | "profile" | null
 
 function DockButton({
     icon,
@@ -92,6 +93,7 @@ export function HomeDock({
     const [openPanel, setOpenPanel] = useState<OpenPanel>(null)
     const ref = useRef<HTMLDivElement>(null)
     const router = useRouter()
+    const { profile } = useUserProfile()
 
     useEffect(() => {
         function onClickOutside(e: MouseEvent) {
@@ -180,6 +182,84 @@ export function HomeDock({
                 </div>
             )}
 
+            {openPanel === "profile" && (
+                <div className={cn(
+                    "absolute bottom-full mb-3 right-0 w-64 rounded-2xl p-4",
+                    "border border-white/[0.08] bg-black/70 backdrop-blur-2xl shadow-[0_24px_60px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.06)]",
+                    "animate-in slide-in-from-bottom-2 duration-200"
+                )}>
+                    {/* Avatar + nom */}
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/[0.08] shrink-0">
+                            {profile?.avatarUrl ? (
+                                <img src={profile.avatarUrl} alt="Profil" className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-white/[0.06] text-white/50">
+                                    {profile?.firstName ? (
+                                        <span className="text-[11px] font-bold font-jakarta">
+                                            {profile.firstName[0]}{profile.lastName?.[0] ?? ""}
+                                        </span>
+                                    ) : (
+                                        <User className="h-4 w-4" />
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-sm font-jakarta font-semibold text-white/90 truncate">
+                                {profile?.firstName ? `${profile.firstName} ${profile.lastName ?? ""}`.trim() : "Mon profil"}
+                            </p>
+                            <p className="text-[11px] text-white/30 truncate">{profile?.email ?? ""}</p>
+                        </div>
+                    </div>
+
+                    {/* Budget missions */}
+                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 mb-3">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-jakarta tracking-widest text-white/30 uppercase">Missions</span>
+                            <span className="text-sm font-jakarta font-bold text-white/80">
+                                {profile?.missionBudget ?? "—"}
+                                <span className="text-white/25 font-normal">
+                                    /{Math.max(30, profile?.missionBudget ?? 30)}
+                                </span>
+                            </span>
+                        </div>
+                        <div className="h-[2px] w-full bg-white/[0.05] rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-white/40 transition-all duration-700"
+                                style={{
+                                    width: profile?.missionBudget != null
+                                        ? `${Math.min(100, (profile.missionBudget / Math.max(30, profile.missionBudget)) * 100)}%`
+                                        : "0%"
+                                }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Plan badge */}
+                    <div className="flex items-center justify-between mb-4">
+                        <span className="text-[10px] font-jakarta tracking-widest text-white/30 uppercase">Plan</span>
+                        <span className={cn(
+                            "text-[10px] font-jakarta font-bold tracking-widest uppercase px-2 py-0.5 rounded-md",
+                            profile?.plan === "PRO"
+                                ? "bg-primary/15 text-primary border border-primary/30"
+                                : "bg-white/[0.06] text-white/40 border border-white/[0.08]"
+                        )}>
+                            {profile?.plan === "PRO" ? "K3RN Pro" : "Alpha Labs"}
+                        </span>
+                    </div>
+
+                    {/* Lien settings */}
+                    <button
+                        onClick={() => { router.push("/settings"); setOpenPanel(null) }}
+                        className="w-full text-left px-3 py-2 rounded-lg text-xs text-white/40 hover:text-white/70 hover:bg-white/[0.05] transition-all flex items-center gap-2"
+                    >
+                        <Settings className="h-3.5 w-3.5" />
+                        Ouvrir les paramètres
+                    </button>
+                </div>
+            )}
+
             {openPanel === "lab" && (
                 <div className={cn(
                     "absolute bottom-full mb-3 left-1/2 -translate-x-1/2 w-56 rounded-2xl p-2",
@@ -265,9 +345,9 @@ export function HomeDock({
 
                     <DockButton
                         icon={<User className="h-4 w-4" />}
-                        label="Paramètres"
-                        active={false}
-                        onClick={() => router.push("/settings")}
+                        label="Mon profil"
+                        active={openPanel === "profile"}
+                        onClick={() => togglePanel("profile")}
                     />
 
                     <div className="w-px h-6 bg-white/[0.07] mx-1 shrink-0" />
