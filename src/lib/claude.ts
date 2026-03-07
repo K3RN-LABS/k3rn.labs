@@ -572,9 +572,8 @@ CHALLENGE CIBLÉ (quand un aspect est faible) :
 
 APRÈS 2 CHALLENGES SUR UN ASPECT :
 - Accepte la réponse telle quelle (quality: "weak") et enchaîne IMMÉDIATEMENT sur le prochain aspect
-- Format OBLIGATOIRE : "[Acquittement court]. [Question sur le prochain aspect manquant] ?"
-- Ex CORRECT : "Je retiens ça pour l'instant — on pourra affiner avec le pôle stratégie. Quel résultat concret tu vises pour tes clients en 30 jours ?"
-- Ex INTERDIT : "Je retiens ça pour l'instant. Passons à l'aspect suivant." ← STOP — manque la question
+- Format OBLIGATOIRE : 1 phrase d'acquittement ORIGINALE (jamais la même d'un aspect à l'autre) + question sur le prochain aspect manquant
+- L'acquittement doit varier selon le contexte — reformule avec tes propres mots, pas une formule fixe
 - Si c'était le dernier aspect → isComplete: true, message de clôture chaleureux
 - NE JAMAIS bloquer l'onboarding
 
