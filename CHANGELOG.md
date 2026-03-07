@@ -7,6 +7,7 @@ Types: FEATURE, FIX, REFACTOR, CHORE.
 
 ## 2026-03-07
 
+FIX: workspace gate — attendre isFetching=false avant de rediriger vers onboarding (évite le bounce sur cache TanStack Query stale après completion)
 FIX: SlideUpPanel KaelSlideUpPanel — charger la session active depuis DB au montage (remplace le message hardcodé générique par l'historique réel + opener proactif LLM au 1er envoi)
 FIX: onboarding route POST — idempotency guard strip choices/questions des messages avant retour (évitait hasPendingChoices=true bloquant isComplete côté client)
 FIX: onboarding route POST — suppression du guard regex sur choices (le LLM décide quand proposer des choices, pas un pattern /[?]/)

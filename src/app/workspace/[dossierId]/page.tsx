@@ -34,7 +34,7 @@ import { normalizeManagerName, getExpertImage } from "@/lib/experts"
 export default function WorkspacePage() {
     const { dossierId } = useParams<{ dossierId: string }>()
     const router = useRouter()
-    const { data: dossier, isLoading } = useDossier(dossierId)
+    const { data: dossier, isLoading, isFetching } = useDossier(dossierId)
     const { data: labData } = useLab(dossierId)
     const { mutate: transitionLab, isPending: transitioning } = useTransitionLab()
     const { data: poles = [] } = usePoles()
@@ -81,9 +81,27 @@ export default function WorkspacePage() {
 
     if (!dossier) return <div className="p-8 text-destructive">Dossier not found</div>
 
-    // Gate: redirect to onboarding if not completed
+    // Gate: redirect to onboarding if not completed.
+    // Guard: if still fetching (stale cache), wait for fresh data before deciding to redirect —
+    // avoids bouncing back to onboarding right after completion due to a stale TanStack Query cache.
     const onboardingStep = (dossier.onboardingState as { step?: string } | null)?.step
     if (onboardingStep !== "COMPLETE") {
+        if (isFetching) {
+            return (
+                <div className="h-dvh bg-[#0a0a0a] flex items-center justify-center">
+                    <div className="flex flex-col items-center gap-4">
+                        <img
+                            src="/logo-icon/logo.svg"
+                            alt="k3rn"
+                            width={48}
+                            height={48}
+                            className="animate-spin-double drop-shadow-[0_0_12px_rgba(255,255,255,0.25)]"
+                        />
+                        <p className="text-sm text-white/40 animate-pulse tracking-wide">Chargement du workspace…</p>
+                    </div>
+                </div>
+            )
+        }
         router.replace(`/dossiers/${dossierId}/onboarding`)
         return null
     }
