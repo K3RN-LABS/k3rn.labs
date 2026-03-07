@@ -244,8 +244,10 @@ export async function callLLMProxy(
     temperature?: number
   } = {}
 ): Promise<{ content: string }> {
+  const proxyUrl = env.N8N_LLM_PROXY_URL
+  if (!proxyUrl) throw new Error("N8N_LLM_PROXY_URL is not configured — check environment variables")
   const webhookSecret = process.env.N8N_WEBHOOK_SECRET
-  const res = await fetch(env.N8N_LLM_PROXY_URL, {
+  const res = await fetch(proxyUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

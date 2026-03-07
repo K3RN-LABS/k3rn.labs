@@ -7,6 +7,8 @@ Types: FEATURE, FIX, REFACTOR, CHORE.
 
 ## 2026-03-07
 
+FIX: n8n.ts — callLLMProxy : guard explicite si N8N_LLM_PROXY_URL est undefined (remplace le cryptique "Cannot read properties of undefined (reading 'toString')" par un message clair sur la variable d'env manquante)
+
 FIX: KaelPanel — charger l'historique de session depuis GET /api/kael/session/active au montage (supprime le message hardcodé "Bonjour. Je suis KAEL")
 FIX: onboarding/page.tsx — suppression redirection automatique isComplete (court-circuitait le message de clôture normal)
 FIX: onboarding-state.ts — guard serveur : COMPLETE bloqué si un aspect weak n'a pas challengeCount >= 1 (empêche isComplete prématuré même si LLM met les 4 aspects dès le 1er échange)
