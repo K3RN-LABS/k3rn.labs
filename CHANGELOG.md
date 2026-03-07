@@ -7,6 +7,7 @@ Types: FEATURE, FIX, REFACTOR, CHORE.
 
 ## 2026-03-07
 
+FIX: onboarding/page.tsx — scroll automatique déclenché aussi quand isComplete passe à true (carte de complétion visible sans avoir à scroller manuellement)
 FIX: claude.ts — suppression phrase d'acquittement hardcodée "Je retiens ça pour l'instant" du prompt APRÈS 2 CHALLENGES (KAEL la copiait mot pour mot à chaque fois)
 FIX: onboarding GET — message de bienvenue KAEL persisté en DB dès le premier chargement (retour en arrière et reprise de session conservent l'historique complet)
 FIX: api/og/invite/route.tsx — ajout `export const dynamic = 'force-dynamic'` pour éviter l'erreur de build Next.js (route utilisait request.url)

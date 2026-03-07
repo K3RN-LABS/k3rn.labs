@@ -157,7 +157,7 @@ export default function OnboardingPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
+  }, [messages, isComplete])
 
   useEffect(() => {
     if (initialized.current) return
