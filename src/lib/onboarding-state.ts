@@ -83,7 +83,14 @@ export function assertValidLab(lab: string): asserts lab is OnboardingLab {
 // ─── Pure helpers ──────────────────────────────────────────────────────────
 
 export function isComplete(state: OnboardingState): boolean {
-  return ASPECT_KEYS.every((k) => !!state.confirmedAspects[k]?.value?.trim())
+  const allPresent = ASPECT_KEYS.every((k) => !!state.confirmedAspects[k]?.value?.trim())
+  if (!allPresent) return false
+  return ASPECT_KEYS.every((k) => {
+    const entry = state.confirmedAspects[k]
+    if (!entry) return false
+    if (entry.quality === "weak") return (entry.challengeCount ?? 0) >= 1
+    return true
+  })
 }
 
 /** Invariant 3 : premier aspect non confirmé */
@@ -154,13 +161,31 @@ export function applyLLMResponse(
   const trimmed = userMessage.trim()
 
   // ── LLM-driven confirmation (primary) ────────────────────────────────────
-  // Le LLM juge la qualité sémantique — on lui fait confiance pour confirmer
+  // Le LLM juge la qualité sémantique — on lui fait confiance pour confirmer.
+  // Guard anti-skip : un aspect weak ne peut pas être confirmé sans avoir été
+  // challengé au moins 1 fois (challengeCount >= 1). S'il n'a pas été challengé,
+  // il est enregistré comme weak non-challengé mais pas encore confirmé —
+  // sauf si c'est le premier aspect (problem) qui peut être strong d'emblée.
   for (const aspect of llmAspects) {
     if (!ASPECT_KEYS.includes(aspect)) continue
     if (confirmed[aspect]) continue  // déjà confirmé — immuable
 
     const quality = llmQuality?.[aspect] ?? "strong"
     const challengeCount = llmChallengeCount?.[aspect] ?? 0
+
+    // Guard : aspect weak sans challenge → ne pas confirmer, laisser en attente
+    // Exception : "strong" peut être confirmé sans challenge
+    if (quality === "weak" && challengeCount < 1) {
+      // Stocker quand même avec challengeCount=0 pour que le prochain tour
+      // sache qu'il doit challenger cet aspect
+      confirmed[aspect] = {
+        value: trimmed || (existing.confirmedAspects[aspect]?.value ?? ""),
+        confirmedAt: now,
+        quality: "weak",
+        challengeCount: 0,
+      }
+      continue
+    }
 
     confirmed[aspect] = {
       value: trimmed || (existing.confirmedAspects[aspect]?.value ?? ""),
@@ -187,7 +212,15 @@ export function applyLLMResponse(
     }
   }
 
-  const complete = ASPECT_KEYS.every((k) => !!confirmed[k]?.value?.trim())
+  // COMPLETE exige : 4 aspects avec valeur + chaque aspect weak challengé >= 1 fois
+  const allPresent = ASPECT_KEYS.every((k) => !!confirmed[k]?.value?.trim())
+  const allChallenged = ASPECT_KEYS.every((k) => {
+    const entry = confirmed[k]
+    if (!entry) return false
+    if (entry.quality === "weak") return (entry.challengeCount ?? 0) >= 1
+    return true // strong : pas besoin de challenge
+  })
+  const complete = allPresent && allChallenged
   const nextStep: OnboardingStep = complete ? "COMPLETE" : "IN_PROGRESS"
 
   return {

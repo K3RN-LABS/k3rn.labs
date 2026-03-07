@@ -9,6 +9,7 @@ Types: FEATURE, FIX, REFACTOR, CHORE.
 
 FIX: KaelPanel — charger l'historique de session depuis GET /api/kael/session/active au montage (supprime le message hardcodé "Bonjour. Je suis KAEL")
 FIX: onboarding/page.tsx — suppression redirection automatique isComplete (court-circuitait le message de clôture normal)
+FIX: onboarding-state.ts — guard serveur : COMPLETE bloqué si un aspect weak n'a pas challengeCount >= 1 (empêche isComplete prématuré même si LLM met les 4 aspects dès le 1er échange)
 FIX: claude.ts — isComplete interdit si un aspect weak n'a pas été challengé au moins 1 fois, séquence challenge obligatoire target→outcome→constraint
 FIX: claude.ts — exemples challenge retirés du prompt (KAEL les copiait mot pour mot au lieu d'adapter au contexte)
 FIX: claude.ts — invokeChefDeProjet : aspects faibles présents dans le 1er message confirmés weak immédiatement (ne plus les ignorer ni les redemander), challenge séquentiel à partir du 1er faible seulement
