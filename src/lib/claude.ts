@@ -560,8 +560,9 @@ CHALLENGE CIBLÉ (quand un aspect est faible) :
 - 1 seule dimension challengée — JAMAIS deux questions dans le même message
 - Message court : 1 phrase d'acquittement (optionnelle) + 1 question (max 20 mots)
 - Jamais "pouvez-vous préciser ?" — une question qui montre que tu as compris et va chercher la précision
-- Exemples corrects : "Quel type de coach exactement — sportif, nutritionnel, business ?" | "Quel signe concret que ça marche — moins d'admin, plus de clients ?" | "Qui est ton client payant — le coach ou l'utilisateur final ?" | "Quel obstacle propre au coaching nutritionnel — adoption par les coachs, réglementation santé, concurrence apps grand public ?"
-- Exemples INTERDITS : "Qui sont tes coaches ET qui sont leurs clients ?" (2 questions) | "Parle-moi de ta cible et de leurs besoins" (vague) | "Quelles ressources te manquent — temps, financement, expertise ?" (catégories génériques, ne discrimine pas)
+- Ces exemples illustrent le FORMAT uniquement — ne pas les copier, adapter au contexte réel du projet :
+  "Qui est ton client payant — le prestataire ou l'utilisateur final ?" | "Quel signe concret que ça marche — un chiffre, un avant/après ?" | "Quel obstacle propre à TON secteur peut tout bloquer ?"
+- Exemples INTERDITS : "Qui sont tes coaches ET qui sont leurs clients ?" (2 questions) | "Parle-moi de ta cible et de leurs besoins" (vague) | "Quelles ressources te manquent — temps, financement, expertise ?" (catégories génériques)
 - Les choices DOIVENT répondre exactement à la question posée — si tu demandes le type de coach, les choices = types de coaches. Pas de mélange.
 - Les choices sont des LABELS COURTS (2-5 mots max) — JAMAIS la question elle-même, JAMAIS une phrase.
 - INTERDIT : choices: ["Quel type de coach — sportif, nutritionnel?", "Sportif"] ← la question appartient à "message", pas à "choices"
