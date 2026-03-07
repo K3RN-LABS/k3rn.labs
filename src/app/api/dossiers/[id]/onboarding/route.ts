@@ -126,8 +126,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Bail early if already complete (idempotency)
   if (existingState.status === "COMPLETE") {
     const history = (dossier.onboardingMessages ?? []) as ChatMessage[]
+    // Strip choices/questions — elles n'ont plus de sens si COMPLETE
+    const cleanHistory = history.map((m) =>
+      (m.choices?.length || m.questions?.length) ? { ...m, choices: undefined, questions: undefined } : m
+    )
     return apiSuccess({
-      messages: history,
+      messages: cleanHistory,
       onboardingState: toDTO(existingState),
       isComplete: true,
       recommendedLab: existingState.recommendedLab,
@@ -174,11 +178,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
     )
 
-    // Guard: only attach choices if the message actually contains a question
-    const messageHasQuestion = /[?]|—\s*\w/.test(aiResponse.message)
     // questions block takes priority — if present, skip flat choices
     const hasQuestions = (aiResponse.questions?.length ?? 0) > 0
-    const safeChoices = hasQuestions ? undefined : (messageHasQuestion ? aiResponse.choices : undefined)
+    const safeChoices = hasQuestions ? undefined : aiResponse.choices
     const safeQuestions = hasQuestions ? aiResponse.questions : undefined
 
     const expertMsg: ChatMessage = {
