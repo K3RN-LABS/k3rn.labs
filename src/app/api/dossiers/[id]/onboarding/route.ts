@@ -80,8 +80,23 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   })
   if (!dossier) return apiError("Dossier not found", 404)
 
-  const history = (dossier.onboardingMessages ?? []) as ChatMessage[]
+  let history = (dossier.onboardingMessages ?? []) as ChatMessage[]
   const state = deserializeState(dossier.onboardingState)
+
+  // Si aucun message en DB, créer et persister le message de bienvenue maintenant
+  if (history.length === 0 && state.step !== "COMPLETE") {
+    const welcomeMsg: ChatMessage = {
+      id: randomUUID(),
+      role: "expert",
+      content: `Bonjour, je suis **KAEL**.\n\nDécrivez librement **"${dossier.name}"** — votre idée, le problème que vous cherchez à résoudre, à quel stade vous en êtes. Texte brut, notes, pitch, document… tout est bienvenu.\n\nJe prendrai le temps d'analyser avant de vous poser les questions essentielles.`,
+      timestamp: new Date().toISOString(),
+    }
+    history = [welcomeMsg]
+    await prisma.dossier.update({
+      where: { id },
+      data: { onboardingMessages: history },
+    })
+  }
 
   return apiSuccess({
     messages: history,
