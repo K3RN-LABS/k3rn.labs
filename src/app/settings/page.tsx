@@ -531,14 +531,20 @@ function SettingsContent() {
                                                     </div>
                                                 ) : (
                                                     <div className="space-y-4">
-                                                        <p className="text-[11px] text-white/50 leading-relaxed">
-                                                            Ouvrez <strong className="text-white/70">@k3rn_bot</strong> sur Telegram et envoyez cette commande :
-                                                        </p>
+                                                        <a
+                                                            href={`https://t.me/k3rn_bot?start=${telegramToken}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex items-center justify-center gap-2 w-full h-10 rounded-xl bg-[#229ED9]/15 border border-[#229ED9]/25 text-[#229ED9] hover:bg-[#229ED9]/20 transition-colors text-[13px] font-medium"
+                                                        >
+                                                            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current" xmlns="http://www.w3.org/2000/svg">
+                                                                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.26 13.563l-2.948-.924c-.64-.204-.654-.64.135-.954l11.57-4.461c.537-.194 1.006.131.877.997z"/>
+                                                            </svg>
+                                                            Ouvrir dans Telegram
+                                                        </a>
                                                         <div
                                                             className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.08] font-mono text-[13px] text-white/80 cursor-pointer hover:bg-white/[0.05] transition-colors group"
-                                                            onClick={() => {
-                                                                navigator.clipboard.writeText(`/link ${telegramToken}`)
-                                                            }}
+                                                            onClick={() => navigator.clipboard.writeText(`/link ${telegramToken}`)}
                                                         >
                                                             <span className="flex-1">/link {telegramToken}</span>
                                                             <span className="text-[10px] text-white/20 group-hover:text-white/40 transition-colors">Copier</span>
