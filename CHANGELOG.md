@@ -7,6 +7,7 @@ Types: FEATURE, FIX, REFACTOR, CHORE.
 
 ## 2026-03-07
 
+FIX: KaelPanel — charger l'historique de session depuis GET /api/kael/session/active au montage (supprime le message hardcodé "Bonjour. Je suis KAEL")
 FIX: onboarding/page.tsx — suppression redirection automatique isComplete (court-circuitait le message de clôture normal)
 FIX: claude.ts — isComplete interdit si un aspect weak n'a pas été challengé au moins 1 fois, séquence challenge obligatoire target→outcome→constraint
 FIX: claude.ts — exemples challenge retirés du prompt (KAEL les copiait mot pour mot au lieu d'adapter au contexte)

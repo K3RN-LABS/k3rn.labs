@@ -32,16 +32,39 @@ export function KaelPanel({ dossierId, currentLab }: KaelPanelProps) {
     const { kaelPanelOpen, toggleKaelPanel } = useWorkspaceStore()
     const { profile } = useUserProfile()
 
-    const [messages, setMessages] = useState<KaelMsg[]>([{
-        id: "kael-welcome",
-        role: "kael",
-        content: "Bonjour. Je suis KAEL, ton orchestrateur.\n\nJ'ai une vue globale de ton workspace. Qu'est-ce que tu veux explorer ou débloquer ?",
-        timestamp: new Date().toISOString(),
-    }])
+    const [messages, setMessages] = useState<KaelMsg[]>([])
+    const [sessionId, setSessionId] = useState<string | undefined>()
     const [input, setInput] = useState("")
     const bottomRef = useRef<HTMLDivElement>(null)
     const textareaRef = useAutoResize(input)
     const { mutateAsync: kaelRoute, isPending: sending } = useKaelRoute()
+    const initDone = useRef(false)
+
+    // Load active session opener on mount
+    useEffect(() => {
+        if (initDone.current) return
+        initDone.current = true
+        fetch(`/api/kael/session/active?dossierId=${dossierId}`)
+            .then((r) => r.json())
+            .then((data) => {
+                const s = data.session
+                if (s?.messages?.length) {
+                    setSessionId(s.id)
+                    setMessages(
+                        (s.messages as Array<{ id: string; role: string; content: string; timestamp: string }>).map((m) => ({
+                            id: m.id,
+                            role: m.role === "user" ? "user" : "kael",
+                            content: m.content,
+                            timestamp: m.timestamp,
+                        }))
+                    )
+                } else {
+                    // No session yet — show nothing, opener generated on first send
+                    setMessages([])
+                }
+            })
+            .catch(() => setMessages([]))
+    }, [dossierId])
 
     useEffect(() => {
         if (kaelPanelOpen) {
@@ -68,7 +91,8 @@ export function KaelPanel({ dossierId, currentLab }: KaelPanelProps) {
                 role: m.role === "user" ? "user" : "assistant",
                 content: m.content,
             }))
-            const res = await kaelRoute({ dossierId, message: text, history })
+            const res = await kaelRoute({ dossierId, message: text, history, sessionId })
+            if (res.sessionId) setSessionId(res.sessionId)
             setMessages((prev) => [...prev, {
                 id: crypto.randomUUID(),
                 role: "kael",
