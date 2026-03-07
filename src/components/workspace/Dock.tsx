@@ -6,8 +6,9 @@ import { cn } from "@/lib/utils"
 import { useWorkspaceStore } from "@/store/workspace.store"
 import type { PoleData } from "@/hooks/use-poles"
 import { normalizeManagerName, getExpertImage } from "@/lib/experts"
-import { Sparkles, Search, LayoutGrid, Layers, SlidersHorizontal, X, Volume2, VolumeX, Plus, Target, CheckCircle2, User, Settings } from "lucide-react"
+import { Sparkles, Search, LayoutGrid, Layers, SlidersHorizontal, X, Volume2, VolumeX, Plus, Target, CheckCircle2, User, Settings, MessageCircle } from "lucide-react"
 import { useUserProfile } from "@/hooks/use-user-profile"
+import { useNotificationSettings } from "@/hooks/use-notification-settings"
 
 // ─── Pole config ─────────────────────────────────────────────────────────────
 
@@ -497,6 +498,7 @@ export function Dock({ dossierId, poles, subFolders, currentLab, onOpenKael, onO
     const profileRef = useRef<HTMLDivElement>(null)
     const router = useRouter()
     const { profile } = useUserProfile()
+    const { settings: notifSettings } = useNotificationSettings()
 
     useEffect(() => {
         function onClickOutside(e: MouseEvent) {
@@ -665,6 +667,17 @@ export function Dock({ dossierId, poles, subFolders, currentLab, onOpenKael, onO
                                             {profile?.plan === "PRO" ? "K3RN Pro" : "Alpha Labs"}
                                         </span>
                                     </div>
+
+                                    {/* Telegram CTA si non configuré */}
+                                    {notifSettings !== null && !notifSettings?.telegramChatId && (
+                                        <button
+                                            onClick={() => { router.push("/settings?tab=preferences"); setProfileOpen(false) }}
+                                            className="w-full text-left px-3 py-2 mb-1 rounded-lg text-xs text-blue-400/80 hover:text-blue-300 hover:bg-blue-500/[0.08] border border-blue-500/15 hover:border-blue-500/30 transition-all flex items-center gap-2"
+                                        >
+                                            <MessageCircle className="h-3.5 w-3.5" />
+                                            Connecter Telegram
+                                        </button>
+                                    )}
 
                                     {/* Lien settings */}
                                     <button

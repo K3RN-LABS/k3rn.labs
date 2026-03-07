@@ -36,12 +36,12 @@ export async function POST(req: NextRequest) {
   const projectMemory = await buildProjectMemory(dossierId)
 
   if (!activeSessionId) {
-    const openerMessage = await generateKAELOpener(dossier.name, projectMemory)
+    const opener = await generateKAELOpener(dossier.name, projectMemory)
     const newSession = await prisma.kaelSession.create({
       data: {
         dossierId,
         labAtCreation: (dossier.labState as any)?.currentLab ?? "DISCOVERY",
-        messages: [{ role: "kael", content: openerMessage, id: randomUUID(), timestamp: new Date().toISOString() }],
+        messages: [{ role: "kael", content: opener.message, choices: opener.choices ?? [], id: randomUUID(), timestamp: new Date().toISOString() }],
         status: "ACTIVE"
       }
     })

@@ -17,6 +17,7 @@ const envSchema = z.object({
   N8N_GUICHET_URL: z.string().min(1).default("https://agent.k3rnlabs.com/webhook/k3rn-kael-guichet"),
   N8N_LLM_PROXY_URL: z.string().min(1).default("https://agent.k3rnlabs.com/webhook/k3rn-llm-proxy"),
   N8N_WEBHOOK_SECRET: z.string().optional(),
+  N8N_BASE_URL: z.string().min(1).default("https://agent.k3rnlabs.com"),
 })
 
 const _env = envSchema.safeParse(process.env)

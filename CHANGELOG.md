@@ -7,6 +7,33 @@ Types: FEATURE, FIX, REFACTOR, CHORE.
 
 ## 2026-03-07
 
+FIX: API /api/user/notifications + /api/user/telegram/link — DbModel.create() injectait id: newId() sur une table sans colonne id (userId = PK), remplacé par supabaseAdmin upsert direct
+FIX: Skeleton loading des dossiers — forme exacte de la vraie carte (tab content-driven + diagonal + body 90% + blocs hiérarchiques)
+FEATURE: Telegram setup banner persistante sur la home (dismissible, lien vers Settings → Préférences)
+FEATURE: Raccourci "Connecter Telegram" dans le panel profil du HomeDock et du Dock workspace si non configuré
+FEATURE: Hook useNotificationSettings avec cache layer (pattern identique à useUserProfile)
+FEATURE: Settings onglet Préférences — flow /link token Redis + deep link Telegram + toggles notifications
+FEATURE: n8n K3RN__TelegramGateway__v1 — détection /link token + webhook vers API + réponse confirmation
+CHORE: Tooltip "Nouveau dossier" sur le bouton + du HomeDock
+
+FEATURE: Liaison Telegram — token generation (POST /api/user/telegram/token, Redis TTL 15min) + webhook link (POST /api/user/telegram/link) + UI flow complet dans Settings
+FEATURE: Settings — UserNotificationSettings configurable (toggles missions + Telegram, section intégration Telegram)
+FEATURE: API GET/PATCH /api/user/notifications — lecture et mise à jour des préférences de notification
+FEATURE: Missions autonomes — UI complète dans KAEL chat (MissionProposalCard, MissionUpdateBubble, MissionResultBubble, Supabase Realtime subscription)
+FEATURE: db.ts — ajout autonomousMission + userNotificationSettings dans DbClient
+FEATURE: env.ts — ajout N8N_BASE_URL avec default k3rnlabs.com
+
+## 2026-03-07
+
+FEATURE: Score engine refonte — 4 dimensions (Marché/Produit/Finance/Validation) alignées YC+BCG, pondérations par lab, labels Embryonnaire→Mature, levier prioritaire dans brief KAEL
+FEATURE: score-engine.ts — LAB_WEIGHTS par phase, validation_interviews déplacé vers dimension Validation, productScore via techScore DB compat, getScoreLabel/getScoreTier/getScoreTierColor exportés
+FEATURE: project-memory.ts — section score 4 dimensions avec labels et LEVIER PRIORITAIRE déterministe pour routing KAEL
+FEATURE: claude.ts invokeKAEL — prompt référence les 4 dimensions nommées et le levier prioritaire du brief
+FEATURE: poles/sessions/[sessionId]/route.ts — fire-and-forget computeAndPersistScore après chaque échange expert
+CHORE: prisma schema + Supabase migration — ajout colonne validationScore Float sur ScoreSnapshot
+FEATURE: KAEL workspace — choices obligatoires si pas de routedPole, règle anti-répétition, framing DISCOVERY positif, explication workspace process dans le prompt invokeKAEL
+FEATURE: generateKAELOpener retourne maintenant { message, choices } au lieu d'un string — choices sauvegardées en DB avec le message opener
+FEATURE: SlideUpPanel KAEL — rendu des choices comme chips cliquables sur le dernier message KAEL, guard client si choices absents
 FIX: onboarding handleEnterWorkspace — hard navigation window.location.href vers /workspace/${id} (bypasse le cache TanStack Query, évite le bounce vers onboarding)
 FIX: claude.ts — stateReminder : instruction "TON MESSAGE DOIT SE TERMINER PAR UNE QUESTION" remplacée par logique conditionnelle (si user vient de répondre → confirmer + compléter ou avancer ; sinon → poser la question)
 FIX: workspace gate — attendre isFetching=false avant de rediriger vers onboarding (évite le bounce sur cache TanStack Query stale après completion)

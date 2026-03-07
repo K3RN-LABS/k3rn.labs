@@ -90,6 +90,22 @@ export async function sendEmail(
 }
 
 /**
+ * Envoie un message Telegram à un chat_id via le bot K3RN (n8n gateway).
+ */
+export async function notifyTelegram(
+  chatId: string,
+  message: string
+): Promise<void> {
+  const baseUrl = process.env.N8N_BASE_URL ?? ""
+  if (!baseUrl) return
+  await fetch(`${baseUrl}/webhook/k3rn-telegram-notify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, message }),
+  }).catch(() => undefined)
+}
+
+/**
  * Écrit un audit log via n8n → Supabase direct (pas de task Zapier).
  */
 export async function logAuditN8n(

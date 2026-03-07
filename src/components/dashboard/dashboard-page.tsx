@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Logo } from "@/components/ui/logo"
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
-import { Plus, Trash2, ArrowRight, ArchiveRestore, Tag, X, Check, Pencil } from "lucide-react"
+import { Plus, Trash2, ArrowRight, ArchiveRestore, Tag, X, Check, Pencil, MessageCircle } from "lucide-react"
 import { HomeDock } from "@/components/dashboard/home-dock"
 import { cn } from "@/lib/utils"
+import { useNotificationSettings } from "@/hooks/use-notification-settings"
 
 const LAB_LABELS: Record<string, string> = {
     DISCOVERY: "Discovery",
@@ -268,37 +269,53 @@ function ProjectFolderCard({
                 {/* Body */}
                 <div className="relative min-h-[170px] rounded-tr-[28px] rounded-b-[28px] bg-zinc-800/55 transition-colors duration-150 group-hover:bg-zinc-800/75 group-active:brightness-95 overflow-hidden" style={{ width: "90%" }}>
                     {/* Content */}
-                    <div className="relative flex flex-col gap-4 px-6 pt-6 pb-6">
-                        {/* Title + actions */}
-                        <div className="flex items-start gap-2">
-                            <div className="flex-1 min-w-0">
-                                {renaming ? (
-                                    <input
-                                        ref={renameInputRef}
-                                        value={renameValue}
-                                        autoFocus
-                                        onChange={(e) => setRenameValue(e.target.value)}
-                                        onBlur={commitRename}
-                                        onKeyDown={(e) => {
-                                            e.stopPropagation()
-                                            if (e.key === "Enter") commitRename()
-                                            if (e.key === "Escape") cancelRename()
-                                        }}
-                                        onClick={(e) => e.stopPropagation()}
-                                        className="w-full bg-transparent border-b border-zinc-600 outline-none text-[19px] font-semibold font-jakarta text-zinc-100 pb-0.5"
-                                    />
-                                ) : (
-                                    <h3 className="font-jakarta font-semibold text-[19px] leading-snug text-zinc-200 group-hover:text-white transition-colors duration-150 truncate">
-                                        {d.name}
-                                    </h3>
-                                )}
-                                <p className="mt-1.5 text-[11px] font-medium tracking-wide uppercase text-zinc-500">
-                                    {d.macroState === "WORKSPACE_IDLE" ? "Actif" : d.macroState.replace(/_/g, " ")}
-                                </p>
-                            </div>
+                    <div className="relative flex flex-col min-h-[170px] px-6 pt-5 pb-4">
 
-                            {/* Hover actions */}
-                            <div className="flex items-center gap-px opacity-0 group-hover:opacity-100 transition-opacity duration-150 shrink-0 -mt-0.5">
+                        {/* Nom + statut — groupés en haut */}
+                        <div className="min-w-0">
+                            {renaming ? (
+                                <input
+                                    ref={renameInputRef}
+                                    value={renameValue}
+                                    autoFocus
+                                    onChange={(e) => setRenameValue(e.target.value)}
+                                    onBlur={commitRename}
+                                    onKeyDown={(e) => {
+                                        e.stopPropagation()
+                                        if (e.key === "Enter") commitRename()
+                                        if (e.key === "Escape") cancelRename()
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="w-full bg-transparent border-b border-zinc-600 outline-none text-[18px] font-semibold font-jakarta text-zinc-100 pb-0.5"
+                                />
+                            ) : (
+                                <h3 className="font-jakarta font-semibold text-[18px] leading-snug text-zinc-200 group-hover:text-white transition-colors duration-150 break-words line-clamp-2">
+                                    {d.name}
+                                </h3>
+                            )}
+                            <p className="mt-1.5 text-[10px] font-medium tracking-widest uppercase text-zinc-500">
+                                {d.macroState === "WORKSPACE_IDLE" ? "Actif" : d.macroState.replace(/_/g, " ")}
+                            </p>
+                        </div>
+
+                        {/* Spacer */}
+                        <div className="flex-1" />
+
+                        {/* Tags — juste au-dessus des boutons */}
+                        {tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-2.5">
+                                {tags.slice(0, 3).map((t) => <TagBadge key={t} raw={t} />)}
+                                {tags.length > 3 && (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] text-zinc-500 bg-zinc-800/80">
+                                        +{tags.length - 3}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Bas : boutons (gauche) + flèche (droite) */}
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-px opacity-0 group-hover:opacity-100 transition-opacity duration-150 -ml-1.5">
                                 {!showArchived && (
                                     <button
                                         onClick={startRename}
@@ -332,18 +349,6 @@ function ProjectFolderCard({
                                     <Trash2 className="h-3.5 w-3.5" />
                                 </button>
                             </div>
-                        </div>
-
-                        {/* Tags + open arrow */}
-                        <div className="mt-8 flex items-center justify-between gap-2">
-                            <div className="flex flex-wrap gap-1.5">
-                                {tags.slice(0, 3).map((t) => <TagBadge key={t} raw={t} />)}
-                                {tags.length > 3 && (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] text-zinc-500 bg-zinc-800/80">
-                                        +{tags.length - 3}
-                                    </span>
-                                )}
-                            </div>
                             {!showArchived && (
                                 <ArrowRight className="h-3.5 w-3.5 shrink-0 text-zinc-700 group-hover:text-zinc-400 group-hover:translate-x-0.5 transition-all duration-150" />
                             )}
@@ -351,33 +356,29 @@ function ProjectFolderCard({
                     </div>
                 </div>
 
-                {/* Tab */}
+                {/* Tab + diagonal connector — largeur adaptée au contenu du label */}
                 <div
                     aria-hidden="true"
-                    className="pointer-events-none absolute left-0 top-0 h-[28px] bg-zinc-800/95 transition-colors duration-150 group-hover:bg-zinc-800 rounded-tl-[18px]"
-                    style={{ width: TAB_W }}
-                />
-
-                {/* Diagonal connector */}
-                <div
-                    aria-hidden="true"
-                    className="pointer-events-none absolute top-0 h-[28px] bg-zinc-800/95 transition-colors duration-150 group-hover:bg-zinc-800"
-                    style={{
-                        left: `calc(${TAB_W} - 1px)`,
-                        width: `${TAB_SLOPE}px`,
-                        clipPath: "polygon(0 0, 0 100%, 100% 100%)",
-                    }}
-                />
-
-                {/* Lab label inside tab */}
-                <div
-                    className="pointer-events-none absolute top-0 left-0 flex items-center gap-1.5 px-3"
-                    style={{ height: `${TAB_H}px`, width: TAB_W }}
+                    className="pointer-events-none absolute left-0 top-0 flex items-end"
                 >
-                    <span className="shrink-0 w-1.5 h-1.5 rounded-full opacity-80" style={{ backgroundColor: accent }} />
-                    <span className="text-[8px] font-semibold tracking-[0.14em] uppercase text-zinc-400 group-hover:text-zinc-300 transition-colors duration-150 truncate">
-                        {labLabel}
-                    </span>
+                    {/* Tab principal — s'élargit selon le label */}
+                    <div
+                        className="h-[28px] bg-zinc-800/95 transition-colors duration-150 group-hover:bg-zinc-800 rounded-tl-[18px] flex items-center gap-1.5 pl-6 pr-[35px]"
+                        style={{ maxWidth: "75%" }}
+                    >
+                        <span className="shrink-0 w-1.5 h-1.5 rounded-full opacity-80" style={{ backgroundColor: accent }} />
+                        <span className="text-[8px] font-semibold tracking-[0.14em] uppercase text-zinc-400 group-hover:text-zinc-300 transition-colors duration-150 whitespace-nowrap">
+                            {labLabel}
+                        </span>
+                    </div>
+                    {/* Connecteur diagonal — collé juste après le tab */}
+                    <div
+                        className="shrink-0 h-[28px] bg-zinc-800/95 transition-colors duration-150 group-hover:bg-zinc-800"
+                        style={{
+                            width: `${TAB_SLOPE}px`,
+                            clipPath: "polygon(0 0, 0 100%, 100% 100%)",
+                        }}
+                    />
                 </div>
             </div>
 
@@ -407,6 +408,8 @@ export default function DashboardPage() {
     const [filterStatus, setFilterStatus] = useState<"all" | "active" | "archived">("all")
     const [filterLab, setFilterLab] = useState<string | null>(null)
     const router = useRouter()
+    const { settings: notifSettings } = useNotificationSettings()
+    const [telegramBannerDismissed, setTelegramBannerDismissed] = useState(false)
 
     // Onboarding redirect
     useEffect(() => {
@@ -503,6 +506,35 @@ export default function DashboardPage() {
             </header>
 
             <main className="max-w-5xl mx-auto px-6 py-10">
+                {/* Telegram setup banner */}
+                {!telegramBannerDismissed && notifSettings !== null && !notifSettings?.telegramChatId && (
+                    <div className={cn(
+                        "mb-6 flex items-center gap-3 px-4 py-3 rounded-2xl",
+                        "border border-blue-500/20 bg-blue-500/[0.06] backdrop-blur-sm",
+                    )}>
+                        <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-blue-500/15 shrink-0">
+                            <MessageCircle className="h-4 w-4 text-blue-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-white/80">Connectez Telegram pour recevoir vos rapports de mission</p>
+                            <p className="text-xs text-white/35 mt-0.5">Vos experts vous enverront leurs livrables directement sur Telegram.</p>
+                        </div>
+                        <button
+                            onClick={() => router.push("/settings?tab=preferences")}
+                            className="shrink-0 text-xs font-medium text-blue-400 hover:text-blue-300 px-3 py-1.5 rounded-lg border border-blue-500/20 hover:border-blue-500/40 transition-all whitespace-nowrap"
+                        >
+                            Configurer
+                        </button>
+                        <button
+                            onClick={() => setTelegramBannerDismissed(true)}
+                            className="shrink-0 text-white/20 hover:text-white/50 transition-colors"
+                            title="Fermer"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
+                )}
+
                 <div className="mb-8 flex items-end justify-between">
                     <div>
                         <h1 className="text-3xl font-bold">Vos dossiers</h1>
@@ -527,17 +559,33 @@ export default function DashboardPage() {
                 {isCurrentLoading && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                         {Array.from({ length: 3 }).map((_, i) => (
-                            <div key={i} className="animate-pulse relative pt-[28px]" style={{ width: "80%" }}>
-                                <div className="absolute top-0 left-0 h-[28px] bg-zinc-900 rounded-tl-[18px]" style={{ width: TAB_W }} />
+                            <div key={i} className="animate-pulse relative pt-[28px]">
+                                {/* Tab — même structure que le vrai : content-driven width */}
                                 <div
-                                    className="absolute top-0 h-[28px] bg-zinc-900"
-                                    style={{
-                                        left: `calc(${TAB_W} - 1px)`,
-                                        width: `${TAB_SLOPE}px`,
-                                        clipPath: "polygon(0 0, 0 100%, 100% 100%)",
-                                    }}
-                                />
-                                <div className="h-[170px] bg-zinc-800/30 rounded-tr-[28px] rounded-b-[28px]" />
+                                    aria-hidden="true"
+                                    className="pointer-events-none absolute left-0 top-0 flex items-end"
+                                >
+                                    <div
+                                        className="h-[28px] bg-zinc-800/95 rounded-tl-[18px] flex items-center gap-1.5 pl-6 pr-[35px]"
+                                        style={{ maxWidth: "75%" }}
+                                    >
+                                        <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-zinc-600" />
+                                        <span className="h-1.5 w-14 rounded bg-zinc-700" />
+                                    </div>
+                                    <div
+                                        className="shrink-0 h-[28px] bg-zinc-800/95"
+                                        style={{ width: `${TAB_SLOPE}px`, clipPath: "polygon(0 0, 0 100%, 100% 100%)" }}
+                                    />
+                                </div>
+                                {/* Body — même forme que la vraie carte */}
+                                <div className="min-h-[170px] rounded-tr-[28px] rounded-b-[28px] bg-zinc-800/55" style={{ width: "90%" }}>
+                                    <div className="flex flex-col min-h-[170px] px-6 pt-5 pb-4">
+                                        <div className="h-[18px] w-2/3 bg-zinc-700/50 rounded-md mb-2" />
+                                        <div className="h-2 w-1/4 bg-zinc-700/30 rounded-md" />
+                                        <div className="flex-1" />
+                                        <div className="h-2.5 w-1/3 bg-zinc-700/25 rounded-md" />
+                                    </div>
+                                </div>
                             </div>
                         ))}
                     </div>

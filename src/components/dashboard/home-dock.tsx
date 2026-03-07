@@ -1,10 +1,11 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Plus, Tag, Layers, FlaskConical, X, User, Settings } from "lucide-react"
+import { Plus, Tag, Layers, FlaskConical, X, User, Settings, MessageCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { useUserProfile } from "@/hooks/use-user-profile"
+import { useNotificationSettings } from "@/hooks/use-notification-settings"
 
 const LAB_OPTIONS = [
     { value: "DISCOVERY", label: "Discovery" },
@@ -94,6 +95,7 @@ export function HomeDock({
     const ref = useRef<HTMLDivElement>(null)
     const router = useRouter()
     const { profile } = useUserProfile()
+    const { settings: notifSettings } = useNotificationSettings()
 
     useEffect(() => {
         function onClickOutside(e: MouseEvent) {
@@ -249,6 +251,17 @@ export function HomeDock({
                         </span>
                     </div>
 
+                    {/* Telegram CTA si non configuré */}
+                    {notifSettings !== null && !notifSettings?.telegramChatId && (
+                        <button
+                            onClick={() => { router.push("/settings?tab=preferences"); setOpenPanel(null) }}
+                            className="w-full text-left px-3 py-2 mb-1 rounded-lg text-xs text-blue-400/80 hover:text-blue-300 hover:bg-blue-500/[0.08] border border-blue-500/15 hover:border-blue-500/30 transition-all flex items-center gap-2"
+                        >
+                            <MessageCircle className="h-3.5 w-3.5" />
+                            Connecter Telegram
+                        </button>
+                    )}
+
                     {/* Lien settings */}
                     <button
                         onClick={() => { router.push("/settings"); setOpenPanel(null) }}
@@ -352,13 +365,11 @@ export function HomeDock({
 
                     <div className="w-px h-6 bg-white/[0.07] mx-1 shrink-0" />
 
-                    <button
+                    <DockButton
+                        icon={<Plus className="h-4 w-4" />}
+                        label="Nouveau dossier"
                         onClick={onNewDossier}
-                        className="w-9 h-9 rounded-xl flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-all hover:scale-110 active:scale-95 shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)]"
-                        title="Nouveau dossier"
-                    >
-                        <Plus className="h-4 w-4" />
-                    </button>
+                    />
                 </div>
             </div>
         </div>

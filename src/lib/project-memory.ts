@@ -1,5 +1,6 @@
 import { db as prisma } from "@/lib/db"
 import { deserializeState, ASPECT_LABELS, ASPECT_KEYS } from "@/lib/onboarding-state"
+import { getScoreLabel } from "@/lib/score-engine"
 import type { ChatMessage } from "@/lib/claude"
 
 export interface ProjectMemory {
@@ -86,13 +87,32 @@ export async function buildProjectMemory(dossierId: string): Promise<string> {
       }
     }
 
-    // ── Scores ───────────────────────────────────────────────────────────────
+    // ── Scores 4 dimensions ──────────────────────────────────────────────────
     if (scoreSnapshot) {
-      lines.push("SCORE PROJET :")
-      lines.push(`  Marché   : ${Math.round(scoreSnapshot.marketScore ?? 0)}%`)
-      lines.push(`  Finance  : ${Math.round((scoreSnapshot as any).financeScore ?? 0)}%`)
-      lines.push(`  Tech     : ${Math.round(scoreSnapshot.techScore ?? 0)}%`)
-      lines.push(`  Global   : ${Math.round(scoreSnapshot.globalScore ?? 0)}%`)
+      const ss = scoreSnapshot as any
+      const market = Math.round(ss.marketScore ?? 0)
+      const product = Math.round(ss.techScore ?? 0)          // techScore = Produit (DB compat)
+      const finance = Math.round(ss.financeScore ?? 0)
+      const validation = Math.round(ss.validationScore ?? 0)
+      const global = Math.round(ss.globalScore ?? 0)
+
+      lines.push("SCORE PROJET (4 dimensions) :")
+      lines.push(`  Marché     : ${market}% — ${getScoreLabel(market)}`)
+      lines.push(`  Produit    : ${product}% — ${getScoreLabel(product)}`)
+      lines.push(`  Finance    : ${finance}% — ${getScoreLabel(finance)}`)
+      lines.push(`  Validation : ${validation}% — ${getScoreLabel(validation)}`)
+      lines.push(`  Global     : ${global}% — ${getScoreLabel(global)}`)
+
+      // Levier prioritaire — dimension avec le score pondéré le plus faible
+      // Déterministe : KAEL sait exactement quelle dimension router en priorité
+      const dims = [
+        { name: "Marché", score: market, expert: "MAYA (P02_MARKET)" },
+        { name: "Produit", score: product, expert: "KAI (P03_PRODUIT_TECH)" },
+        { name: "Finance", score: finance, expert: "ELENA (P04_FINANCE)" },
+        { name: "Validation", score: validation, expert: "AXEL (P01_STRATEGIE) ou MAYA (P02_MARKET)" },
+      ]
+      const weakest = dims.reduce((a, b) => a.score <= b.score ? a : b)
+      lines.push(`  → LEVIER PRIORITAIRE : ${weakest.name} (${weakest.score}%) — expert recommandé : ${weakest.expert}`)
       lines.push("")
     }
 

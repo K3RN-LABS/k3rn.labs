@@ -1,6 +1,6 @@
 import { createSupabaseClient } from "./supabase"
 
-export type RealtimeChannel = "canvas" | "score" | "lab" | "graph"
+export type RealtimeChannel = "canvas" | "score" | "lab" | "graph" | "mission"
 
 export function subscribeToChannel(
   dossierId: string,

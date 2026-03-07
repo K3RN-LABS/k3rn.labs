@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Logo } from "@/components/ui/logo"
-import { ChevronLeft, Save, User, Building2, Target, Settings, Zap, Edit2, Trash2 } from "lucide-react"
+import { ChevronLeft, Save, User, Building2, Target, Settings, Zap, Edit2, Trash2, Bell, MessageSquare } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
@@ -39,6 +39,10 @@ function SettingsContent() {
     const [showCropper, setShowCropper] = useState(false)
     const [referralStats, setReferralStats] = useState<ReferralStats>({ signupsCount: 0, activatedCount: 0, totalMissions: 0 })
     const [referralHistory, setReferralHistory] = useState<ReferralHistoryEntry[]>([])
+    const [notifSettings, setNotifSettings] = useState<{ missionProgressUpdates: boolean; telegramOnComplete: boolean; telegramChatId?: string | null } | null>(null)
+    const [savingNotif, setSavingNotif] = useState(false)
+    const [telegramToken, setTelegramToken] = useState<string | null>(null)
+    const [generatingToken, setGeneratingToken] = useState(false)
     const router = useRouter()
     const searchParams = useSearchParams()
 
@@ -62,6 +66,15 @@ function SettingsContent() {
             .catch(err => console.error(err))
             .finally(() => setLoading(false))
     }, [])
+
+    useEffect(() => {
+        if (activeTab === "preferences" && !notifSettings) {
+            fetch("/api/user/notifications")
+                .then(r => r.json())
+                .then(data => setNotifSettings(data))
+                .catch(() => {})
+        }
+    }, [activeTab, notifSettings])
 
     useEffect(() => {
         if (activeTab === "ambassador") {
@@ -388,15 +401,180 @@ function SettingsContent() {
                             <div className="space-y-12">
                                 <header className="space-y-3">
                                     <h2 className="text-3xl font-jakarta font-bold tracking-tight text-white/90">Préférences Système</h2>
-                                    <p className="text-sm font-sans text-white/50 max-w-xl font-light">Paramètres de personnalisation de l'interface.</p>
+                                    <p className="text-sm font-sans text-white/50 max-w-xl font-light">Notifications et intégrations des missions autonomes.</p>
                                 </header>
-                                <div className="border border-dashed border-white/[0.06] rounded-2xl p-20 flex flex-col items-center justify-center text-center gap-4">
-                                    <div className="w-10 h-10 rounded-full border border-white/[0.04] flex items-center justify-center text-white/20">
-                                        <Settings className="w-4 h-4" />
+
+                                {/* Notifications missions */}
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-3 pb-4 border-b border-white/[0.04]">
+                                        <Bell className="w-4 h-4 text-white/30" />
+                                        <h3 className="text-sm font-jakarta font-semibold text-white/70 uppercase tracking-wider">Notifications Missions</h3>
                                     </div>
-                                    <div className="space-y-1">
-                                        <p className="text-xs font-jakarta font-medium text-white/50 uppercase">Module en cours de déploiement</p>
-                                        <p className="text-[11px] font-sans text-white/40 font-light italic">La configuration détaillée arrive prochainement.</p>
+
+                                    {notifSettings === null ? (
+                                        <div className="flex items-center gap-3 text-white/30 text-sm py-6">
+                                            <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white/60 animate-spin" />
+                                            Chargement…
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {[
+                                                {
+                                                    key: "missionProgressUpdates" as const,
+                                                    label: "Mises à jour en temps réel",
+                                                    description: "Affiche les messages de progression dans le chat KAEL pendant qu'une mission est en cours.",
+                                                },
+                                                {
+                                                    key: "telegramOnComplete" as const,
+                                                    label: "Notification Telegram à la fin",
+                                                    description: "Envoie un message Telegram quand un expert termine sa mission et retourne un livrable.",
+                                                },
+                                            ].map(({ key, label, description }) => (
+                                                <div key={key} className="flex items-start justify-between gap-6 p-5 rounded-xl border border-white/[0.05] bg-white/[0.01]">
+                                                    <div className="space-y-1 flex-1">
+                                                        <p className="text-sm font-sans font-medium text-white/80">{label}</p>
+                                                        <p className="text-[11px] font-sans text-white/40 font-light leading-relaxed">{description}</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={async () => {
+                                                            const next = { ...notifSettings, [key]: !notifSettings[key] }
+                                                            setNotifSettings(next)
+                                                            setSavingNotif(true)
+                                                            try {
+                                                                await fetch("/api/user/notifications", {
+                                                                    method: "PATCH",
+                                                                    headers: { "Content-Type": "application/json" },
+                                                                    body: JSON.stringify({ [key]: next[key] }),
+                                                                })
+                                                            } finally {
+                                                                setSavingNotif(false)
+                                                            }
+                                                        }}
+                                                        disabled={savingNotif}
+                                                        className={cn(
+                                                            "relative shrink-0 w-10 h-5.5 rounded-full transition-colors duration-200 disabled:opacity-50",
+                                                            notifSettings[key] ? "bg-primary" : "bg-white/10"
+                                                        )}
+                                                        style={{ height: "22px", width: "40px" }}
+                                                    >
+                                                        <span className={cn(
+                                                            "absolute top-[3px] left-[3px] w-4 h-4 rounded-full bg-white shadow transition-transform duration-200",
+                                                            notifSettings[key] ? "translate-x-[18px]" : "translate-x-0"
+                                                        )} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Telegram integration */}
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-3 pb-4 border-b border-white/[0.04]">
+                                        <MessageSquare className="w-4 h-4 text-white/30" />
+                                        <h3 className="text-sm font-jakarta font-semibold text-white/70 uppercase tracking-wider">Intégration Telegram</h3>
+                                    </div>
+
+                                    <div className="p-6 rounded-xl border border-white/[0.05] bg-white/[0.01] space-y-5">
+                                        {/* Header */}
+                                        <div className="flex items-start gap-4">
+                                            <div className="w-9 h-9 rounded-lg bg-[#229ED9]/10 border border-[#229ED9]/20 flex items-center justify-center shrink-0">
+                                                <svg className="w-4 h-4 text-[#229ED9]" fill="currentColor" viewBox="0 0 24 24">
+                                                    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                                                </svg>
+                                            </div>
+                                            <div className="flex-1 space-y-1">
+                                                <p className="text-sm font-sans font-medium text-white/80">
+                                                    {notifSettings?.telegramChatId ? "Telegram connecté" : "Connecter Telegram"}
+                                                </p>
+                                                <p className="text-[11px] font-sans text-white/40 font-light leading-relaxed">
+                                                    {notifSettings?.telegramChatId
+                                                        ? "Votre compte est lié. KAEL peut vous envoyer des notifications et livrables directement."
+                                                        : "Liez votre Telegram pour recevoir les livrables de missions directement dans votre messagerie."}
+                                                </p>
+                                            </div>
+                                            {notifSettings?.telegramChatId && (
+                                                <div className="shrink-0 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">
+                                                    Actif
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Link flow */}
+                                        {!notifSettings?.telegramChatId && (
+                                            <div className="border-t border-white/[0.05] pt-5 space-y-4">
+                                                {!telegramToken ? (
+                                                    <div className="space-y-3">
+                                                        <p className="text-[11px] text-white/40 leading-relaxed">
+                                                            Générez un code de liaison unique (valable 15 minutes), puis tapez la commande dans le bot Telegram K3RN.
+                                                        </p>
+                                                        <Button
+                                                            onClick={async () => {
+                                                                setGeneratingToken(true)
+                                                                try {
+                                                                    const res = await fetch("/api/user/telegram/token", { method: "POST" })
+                                                                    const data = await res.json()
+                                                                    if (res.ok && data.token) setTelegramToken(data.token)
+                                                                } finally {
+                                                                    setGeneratingToken(false)
+                                                                }
+                                                            }}
+                                                            disabled={generatingToken}
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-9 px-5 border-white/10 text-white/70 hover:text-white hover:bg-white/[0.04] rounded-xl text-[12px]"
+                                                        >
+                                                            {generatingToken ? (
+                                                                <><div className="w-3 h-3 rounded-full border border-white/30 border-t-white/70 animate-spin mr-2" />Génération…</>
+                                                            ) : "Générer un code de liaison"}
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-4">
+                                                        <p className="text-[11px] text-white/50 leading-relaxed">
+                                                            Ouvrez <strong className="text-white/70">@k3rn_bot</strong> sur Telegram et envoyez cette commande :
+                                                        </p>
+                                                        <div
+                                                            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.08] font-mono text-[13px] text-white/80 cursor-pointer hover:bg-white/[0.05] transition-colors group"
+                                                            onClick={() => {
+                                                                navigator.clipboard.writeText(`/link ${telegramToken}`)
+                                                            }}
+                                                        >
+                                                            <span className="flex-1">/link {telegramToken}</span>
+                                                            <span className="text-[10px] text-white/20 group-hover:text-white/40 transition-colors">Copier</span>
+                                                        </div>
+                                                        <p className="text-[10px] text-amber-400/60">
+                                                            Ce code expire dans 15 minutes. Rafraîchissez la page après avoir lié votre compte.
+                                                        </p>
+                                                        <button
+                                                            onClick={() => setTelegramToken(null)}
+                                                            className="text-[10px] text-white/20 hover:text-white/40 transition-colors"
+                                                        >
+                                                            Générer un nouveau code
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Unlink option */}
+                                        {notifSettings?.telegramChatId && (
+                                            <div className="border-t border-white/[0.05] pt-4">
+                                                <button
+                                                    onClick={async () => {
+                                                        await fetch("/api/user/notifications", {
+                                                            method: "PATCH",
+                                                            headers: { "Content-Type": "application/json" },
+                                                            body: JSON.stringify({ telegramChatId: null }),
+                                                        })
+                                                        setNotifSettings(prev => prev ? { ...prev, telegramChatId: null } : null)
+                                                    }}
+                                                    className="text-[11px] text-red-400/40 hover:text-red-400/70 transition-colors"
+                                                >
+                                                    Délier ce compte Telegram
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>

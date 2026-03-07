@@ -97,6 +97,15 @@ enum PoleSessionStatus {
   FAILED
 }
 
+enum MissionStatus {
+  BRIEFING
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+  CANCELLED
+}
+
 enum CardType {
   IDEA
   DECISION
@@ -148,6 +157,7 @@ model User {
   dossiers             Dossier[]
   auditLogs            AuditLog[]
   cardTransitionLogs   CardTransitionLog[]
+  notificationSettings UserNotificationSettings?
 }
 
 model ReferralLog {
@@ -192,6 +202,7 @@ model Dossier {
   cardIngestionLogs    CardIngestionLog[]
   cardIngestionJobs    CardIngestionJob[]
   kaelSessions         KaelSession[]
+  autonomousMissions   AutonomousMission[]
 
   @@index([ownerId])
   @@index([archived])
@@ -419,20 +430,58 @@ model KaelSession {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
-  dossier        Dossier           @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  dossier            Dossier             @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  autonomousMissions AutonomousMission[]
 
   @@index([dossierId])
 }
 
+model AutonomousMission {
+  id              String        @id @default(cuid())
+  dossierId       String
+  kaelSessionId   String
+  poleCode        String
+  managerName     String
+  objective       String        @db.Text
+  estimatedCost   Int
+  actualCost      Int           @default(0)
+  status          MissionStatus @default(BRIEFING)
+  updates         Json          @default("[]")
+  result          Json?
+  cascadeFrom     String?
+  createdAt       DateTime      @default(now())
+  completedAt     DateTime?
+
+  dossier     Dossier     @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  kaelSession KaelSession @relation(fields: [kaelSessionId], references: [id], onDelete: Cascade)
+  parent      AutonomousMission?  @relation("MissionCascade", fields: [cascadeFrom], references: [id], onDelete: SetNull)
+  children    AutonomousMission[] @relation("MissionCascade")
+
+  @@index([dossierId])
+  @@index([kaelSessionId])
+  @@index([status])
+}
+
+model UserNotificationSettings {
+  userId                 String  @id
+  missionProgressUpdates Boolean @default(true)
+  telegramOnComplete     Boolean @default(true)
+  telegramChatId         String?
+  telegramLinkedAt       DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 model ScoreSnapshot {
-  id           String   @id @default(cuid())
-  dossierId    String
-  marketScore  Float    @default(0)
-  techScore    Float    @default(0)
-  financeScore Float    @default(0)
-  globalScore  Float    @default(0)
-  triggeredBy  String?
-  createdAt    DateTime @default(now())
+  id              String   @id @default(cuid())
+  dossierId       String
+  marketScore     Float    @default(0)
+  techScore       Float    @default(0)
+  financeScore    Float    @default(0)
+  validationScore Float    @default(0)
+  globalScore     Float    @default(0)
+  triggeredBy     String?
+  createdAt       DateTime @default(now())
 
   dossier Dossier @relation(fields: [dossierId], references: [id], onDelete: Cascade)
 

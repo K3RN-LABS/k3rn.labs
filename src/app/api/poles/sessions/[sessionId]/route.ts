@@ -5,6 +5,7 @@ import { apiError, apiSuccess, validateBody } from "@/lib/validate"
 import { buildProjectMemory } from "@/lib/project-memory"
 import { invokeN8nPole } from "@/lib/n8n"
 import { triggerKAELPostSessionNote } from "@/lib/claude"
+import { computeAndPersistScore } from "@/lib/score-engine"
 import { z } from "zod"
 import { randomUUID } from "node:crypto"
 
@@ -81,6 +82,9 @@ export async function POST(req: NextRequest, { params }: { params: { sessionId: 
 
   // Récupérer le dernier message du manager pour la réponse API
   const lastManagerMsg = [...newMessages].reverse().find((m) => m.role === "manager")
+
+  // Score recompute post-session — fire and forget
+  computeAndPersistScore(poleSession.dossierId).catch(() => undefined)
 
   // Synthèse KAEL post-session — fire and forget, ne bloque pas la réponse
   if (lastManagerMsg) {
