@@ -7,6 +7,7 @@ Types: FEATURE, FIX, REFACTOR, CHORE.
 
 ## 2026-03-07
 
+REFACTOR: claude.ts — invokeChefDeProjet : critères solidité renforcés (cible double=weak, outcome sans chiffre=weak, contrainte universelle=weak), anti-validation prématurée, exemples challenges améliorés
 FIX: onboarding/route.ts — suppression macroState:"ONBOARDING" (enum invalide Supabase → 500 instantané)
 FIX: onboarding/route.ts — message max 50000 chars (était 10000, rejetait les pitchs longs)
 FIX: onboarding/route.ts — double try/catch outer pour capturer les erreurs hors du bloc inner
