@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og'
 import { prisma } from '@/lib/prisma'
 
-// runtime removed to use default Node.js environment
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
     try {

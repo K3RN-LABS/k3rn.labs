@@ -7,6 +7,7 @@ Types: FEATURE, FIX, REFACTOR, CHORE.
 
 ## 2026-03-07
 
+FIX: api/og/invite/route.tsx — ajout `export const dynamic = 'force-dynamic'` pour éviter l'erreur de build Next.js (route utilisait request.url)
 FIX: n8n.ts — callLLMProxy : guard explicite si N8N_LLM_PROXY_URL est undefined (remplace le cryptique "Cannot read properties of undefined (reading 'toString')" par un message clair sur la variable d'env manquante)
 
 FIX: KaelPanel — charger l'historique de session depuis GET /api/kael/session/active au montage (supprime le message hardcodé "Bonjour. Je suis KAEL")
