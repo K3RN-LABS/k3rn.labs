@@ -386,7 +386,7 @@ export default function OnboardingPage({ params }: { params: { id: string } }) {
                 <div className="flex items-start gap-3 max-w-[85%] group/expert">
                   <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-primary/20 bg-muted mt-0.5 shadow-sm">
                     <img
-                      src="/images/kael-avatar-onboarding.png"
+                      src="/images/experts/Kael.webp"
                       alt="KAEL"
                       className="w-full h-full object-cover grayscale-[0.2] group-hover/expert:grayscale-0 transition-all"
                     />
@@ -471,7 +471,7 @@ export default function OnboardingPage({ params }: { params: { id: string } }) {
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-primary/20 bg-muted mt-0.5">
                 <img
-                  src="/images/kael-avatar-onboarding.png"
+                  src="/images/experts/Kael.webp"
                   alt="KAEL"
                   className="w-full h-full object-cover animate-pulse grayscale-[0.5]"
                 />

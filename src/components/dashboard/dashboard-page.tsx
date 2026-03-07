@@ -2,15 +2,14 @@
 
 import { useState, useMemo, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useDossiers, useArchivedDossiers, useCreateDossier, useDeleteDossier, useArchiveDossier, useUnarchiveDossier, useUpdateDossierTags } from "@/hooks/use-dossier"
+import { useDossiers, useArchivedDossiers, useCreateDossier, useDeleteDossier, useArchiveDossier, useUnarchiveDossier, useUpdateDossierTags, useRenameDossier } from "@/hooks/use-dossier"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Logo } from "@/components/ui/logo"
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
-import { Plus, Trash2, ArrowRight, ArchiveRestore, Tag, X, Check } from "lucide-react"
+import { Plus, Trash2, ArrowRight, ArchiveRestore, Tag, X, Check, Pencil } from "lucide-react"
 import { HomeDock } from "@/components/dashboard/home-dock"
 import { cn } from "@/lib/utils"
 
@@ -44,20 +43,30 @@ function TagBadge({ raw, onRemove }: { raw: string; onRemove?: () => void }) {
     const { label, color } = parseTag(raw)
     return (
         <span
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
-            style={{ backgroundColor: color + "22", color, border: `1px solid ${color}44` }}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-[11px] font-medium transition-colors"
+            style={{ backgroundColor: color + "1a", color, border: `1px solid ${color}33` }}
         >
             {label}
             {onRemove && (
                 <button onClick={(e) => { e.stopPropagation(); onRemove() }} className="hover:opacity-70">
-                    <X className="h-2.5 w-2.5" />
+                    <X className="h-3 w-3" />
                 </button>
             )}
         </span>
     )
 }
 
-function TagEditor({ dossierId, tags, onClose }: { dossierId: string; tags: string[]; onClose: () => void }) {
+function TagEditor({
+    dossierId,
+    tags,
+    allTags,
+    onClose,
+}: {
+    dossierId: string
+    tags: string[]
+    allTags: string[]
+    onClose: () => void
+}) {
     const { mutate: updateTags } = useUpdateDossierTags()
     const [label, setLabel] = useState("")
     const [selectedColor, setSelectedColor] = useState(TAG_COLORS[0])
@@ -81,48 +90,303 @@ function TagEditor({ dossierId, tags, onClose }: { dossierId: string; tags: stri
         setLabel("")
     }
 
+    function toggleExistingTag(raw: string) {
+        if (tags.includes(raw)) {
+            updateTags({ id: dossierId, tags: tags.filter((t) => t !== raw) })
+        } else {
+            updateTags({ id: dossierId, tags: [...tags, raw] })
+        }
+    }
+
     function removeTag(raw: string) {
         updateTags({ id: dossierId, tags: tags.filter((t) => t !== raw) })
     }
+
+    // Tags from other dossiers not already on this one
+    const suggestions = allTags.filter((t) => !tags.includes(t))
 
     return (
         <div
             ref={ref}
             onClick={(e) => e.stopPropagation()}
-            className="absolute top-full left-0 mt-1 z-50 w-56 rounded-xl border border-zinc-800 bg-zinc-950 shadow-xl p-3 space-y-2"
+            className="absolute top-full left-0 mt-1 z-50 w-60 rounded-xl border border-zinc-800 bg-zinc-950 shadow-xl p-3 space-y-2.5"
         >
-            <div className="flex flex-wrap gap-1 min-h-[20px]">
-                {tags.length === 0 && <span className="text-[10px] text-zinc-600">Aucun tag</span>}
-                {tags.map((t) => (
-                    <TagBadge key={t} raw={t} onRemove={() => removeTag(t)} />
-                ))}
-            </div>
-            <div className="flex gap-1">
-                <input
-                    value={label}
-                    onChange={(e) => setLabel(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag() } }}
-                    placeholder="Nouveau tag…"
-                    className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-100 placeholder-zinc-600 outline-none focus:border-primary/40"
-                />
-                <button
-                    onClick={addTag}
-                    disabled={!label.trim()}
-                    className="p-1.5 rounded bg-primary/10 hover:bg-primary/20 text-primary disabled:opacity-30"
-                >
-                    <Check className="h-3 w-3" />
-                </button>
-            </div>
-            <div className="flex gap-1 flex-wrap">
-                {TAG_COLORS.map((c) => (
-                    <button
-                        key={c}
-                        onClick={() => setSelectedColor(c)}
-                        className={cn("w-4 h-4 rounded-full border-2 transition-all", selectedColor === c ? "border-white scale-110" : "border-transparent")}
-                        style={{ backgroundColor: c }}
+            {/* Current tags on this dossier */}
+            {tags.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                    {tags.map((t) => (
+                        <TagBadge key={t} raw={t} onRemove={() => removeTag(t)} />
+                    ))}
+                </div>
+            )}
+
+            {/* Suggestions from other dossiers */}
+            {suggestions.length > 0 && (
+                <div className="space-y-1">
+                    <p className="text-[9px] font-semibold uppercase tracking-widest text-zinc-600">Tags existants</p>
+                    <div className="flex flex-wrap gap-1">
+                        {suggestions.map((t) => (
+                            <button key={t} onClick={() => toggleExistingTag(t)}>
+                                <TagBadge raw={t} />
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* New tag input */}
+            <div className="space-y-1.5">
+                <p className="text-[9px] font-semibold uppercase tracking-widest text-zinc-600">Nouveau tag</p>
+                <div className="flex gap-1">
+                    <input
+                        value={label}
+                        onChange={(e) => setLabel(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag() } }}
+                        placeholder="Nom du tag…"
+                        className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-100 placeholder-zinc-600 outline-none focus:border-primary/40"
                     />
-                ))}
+                    <button
+                        onClick={addTag}
+                        disabled={!label.trim()}
+                        className="p-1.5 rounded bg-primary/10 hover:bg-primary/20 text-primary disabled:opacity-30"
+                    >
+                        <Check className="h-3 w-3" />
+                    </button>
+                </div>
+                <div className="flex gap-1 flex-wrap">
+                    {TAG_COLORS.map((c) => (
+                        <button
+                            key={c}
+                            onClick={() => setSelectedColor(c)}
+                            className={cn("w-4 h-4 rounded-full border-2 transition-all", selectedColor === c ? "border-white scale-110" : "border-transparent")}
+                            style={{ backgroundColor: c }}
+                        />
+                    ))}
+                </div>
             </div>
+        </div>
+    )
+}
+
+// ─── ProjectFolderCard ───────────────────────────────────────────────────────
+//
+// SHELL GEOMETRY — single container with clip-path:
+//
+// The main container uses border-radius + clip-path to form the folder silhouette.
+// clip-path cuts a tab notch from the top-left corner:
+//
+//   0,TAB_H  ──  TAB_W,TAB_H  ──  TAB_W+SLOPE,0  ──  100%,0
+//      |                                                  |
+//   0,100%  ─────────────────────────────────────────  100%,100%
+//
+// A darker absolute div covers the tab area (top-left rectangle).
+// The clip-path is applied to the background layer only — content is unclipped
+// so popovers and focus rings are not affected.
+
+// Tab geometry in px / %
+const TAB_H = 28
+const TAB_W = "27%"
+const TAB_SLOPE = 13
+
+const LAB_ACCENT: Record<string, string> = {
+    DISCOVERY: "#6366f1",
+    STRUCTURATION: "#3b82f6",
+    VALIDATION_MARCHE: "#10b981",
+    DESIGN_PRODUIT: "#06b6d4",
+    ARCHITECTURE_TECHNIQUE: "#f59e0b",
+    BUSINESS_FINANCE: "#f97316",
+}
+
+function ProjectFolderCard({
+    dossier: d,
+    showArchived,
+    tagEditorId,
+    allTags,
+    onOpen,
+    onTagEditor,
+    onRestore,
+    onDelete,
+}: {
+    dossier: DossierItem
+    showArchived: boolean
+    tagEditorId: string | null
+    allTags: string[]
+    onOpen: () => void
+    onTagEditor: (id: string | null) => void
+    onRestore: () => void
+    onDelete: () => void
+}) {
+    const { mutate: rename } = useRenameDossier()
+    const [renaming, setRenaming] = useState(false)
+    const [renameValue, setRenameValue] = useState(d.name)
+    const renameInputRef = useRef<HTMLInputElement>(null)
+
+    const labKey = d.labState?.currentLab ?? ""
+    const labLabel = labKey ? LAB_LABELS[labKey] ?? labKey : "Dossier"
+    const accent = LAB_ACCENT[labKey] ?? "#52525b"
+    const tags = d.tags ?? []
+
+    function startRename(e: React.MouseEvent) {
+        e.stopPropagation()
+        setRenameValue(d.name)
+        setRenaming(true)
+        setTimeout(() => renameInputRef.current?.select(), 0)
+    }
+
+    function commitRename() {
+        const trimmed = renameValue.trim()
+        if (trimmed && trimmed !== d.name) {
+            rename({ id: d.id, name: trimmed })
+        }
+        setRenaming(false)
+    }
+
+    function cancelRename() {
+        setRenameValue(d.name)
+        setRenaming(false)
+    }
+
+    return (
+        <div
+            role="button"
+            tabIndex={0}
+            aria-label={`Ouvrir le dossier ${d.name}`}
+            className={cn(
+                "group select-none outline-none relative",
+                "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-[28px]",
+                !showArchived ? "cursor-pointer" : "cursor-default opacity-40",
+            )}
+            onClick={!showArchived ? onOpen : undefined}
+            onKeyDown={(e) => {
+                if ((e.key === "Enter" || e.key === " ") && !showArchived) {
+                    e.preventDefault()
+                    onOpen()
+                }
+            }}
+        >
+            <div className="relative pt-[28px]">
+                {/* Body */}
+                <div className="relative min-h-[170px] rounded-tr-[28px] rounded-b-[28px] bg-zinc-800/55 transition-colors duration-150 group-hover:bg-zinc-800/75 group-active:brightness-95 overflow-hidden" style={{ width: "90%" }}>
+                    {/* Content */}
+                    <div className="relative flex flex-col gap-4 px-6 pt-6 pb-6">
+                        {/* Title + actions */}
+                        <div className="flex items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                                {renaming ? (
+                                    <input
+                                        ref={renameInputRef}
+                                        value={renameValue}
+                                        autoFocus
+                                        onChange={(e) => setRenameValue(e.target.value)}
+                                        onBlur={commitRename}
+                                        onKeyDown={(e) => {
+                                            e.stopPropagation()
+                                            if (e.key === "Enter") commitRename()
+                                            if (e.key === "Escape") cancelRename()
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="w-full bg-transparent border-b border-zinc-600 outline-none text-[19px] font-semibold font-jakarta text-zinc-100 pb-0.5"
+                                    />
+                                ) : (
+                                    <h3 className="font-jakarta font-semibold text-[19px] leading-snug text-zinc-200 group-hover:text-white transition-colors duration-150 truncate">
+                                        {d.name}
+                                    </h3>
+                                )}
+                                <p className="mt-1.5 text-[11px] font-medium tracking-wide uppercase text-zinc-500">
+                                    {d.macroState === "WORKSPACE_IDLE" ? "Actif" : d.macroState.replace(/_/g, " ")}
+                                </p>
+                            </div>
+
+                            {/* Hover actions */}
+                            <div className="flex items-center gap-px opacity-0 group-hover:opacity-100 transition-opacity duration-150 shrink-0 -mt-0.5">
+                                {!showArchived && (
+                                    <button
+                                        onClick={startRename}
+                                        className="p-1.5 rounded-md text-zinc-600 hover:text-zinc-200 hover:bg-zinc-700/50 transition-colors"
+                                        title="Renommer"
+                                    >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                    </button>
+                                )}
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onTagEditor(tagEditorId === d.id ? null : d.id) }}
+                                    className="p-1.5 rounded-md text-zinc-600 hover:text-zinc-200 hover:bg-zinc-700/50 transition-colors"
+                                    title="Tags"
+                                >
+                                    <Tag className="h-3.5 w-3.5" />
+                                </button>
+                                {showArchived && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onRestore() }}
+                                        className="p-1.5 rounded-md text-zinc-600 hover:text-zinc-200 hover:bg-zinc-700/50 transition-colors"
+                                        title="Restaurer"
+                                    >
+                                        <ArchiveRestore className="h-3.5 w-3.5" />
+                                    </button>
+                                )}
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onDelete() }}
+                                    className="p-1.5 rounded-md text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                    title="Supprimer"
+                                >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Tags + open arrow */}
+                        <div className="mt-8 flex items-center justify-between gap-2">
+                            <div className="flex flex-wrap gap-1.5">
+                                {tags.slice(0, 3).map((t) => <TagBadge key={t} raw={t} />)}
+                                {tags.length > 3 && (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] text-zinc-500 bg-zinc-800/80">
+                                        +{tags.length - 3}
+                                    </span>
+                                )}
+                            </div>
+                            {!showArchived && (
+                                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-zinc-700 group-hover:text-zinc-400 group-hover:translate-x-0.5 transition-all duration-150" />
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Tab */}
+                <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-0 top-0 h-[28px] bg-zinc-800/95 transition-colors duration-150 group-hover:bg-zinc-800 rounded-tl-[18px]"
+                    style={{ width: TAB_W }}
+                />
+
+                {/* Diagonal connector */}
+                <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-0 h-[28px] bg-zinc-800/95 transition-colors duration-150 group-hover:bg-zinc-800"
+                    style={{
+                        left: `calc(${TAB_W} - 1px)`,
+                        width: `${TAB_SLOPE}px`,
+                        clipPath: "polygon(0 0, 0 100%, 100% 100%)",
+                    }}
+                />
+
+                {/* Lab label inside tab */}
+                <div
+                    className="pointer-events-none absolute top-0 left-0 flex items-center gap-1.5 px-3"
+                    style={{ height: `${TAB_H}px`, width: TAB_W }}
+                >
+                    <span className="shrink-0 w-1.5 h-1.5 rounded-full opacity-80" style={{ backgroundColor: accent }} />
+                    <span className="text-[8px] font-semibold tracking-[0.14em] uppercase text-zinc-400 group-hover:text-zinc-300 transition-colors duration-150 truncate">
+                        {labLabel}
+                    </span>
+                </div>
+            </div>
+
+            {/* Tag editor popover */}
+            {tagEditorId === d.id && (
+                <div className="absolute left-0 z-50" style={{ top: "calc(100% + 4px)" }} onClick={(e) => e.stopPropagation()}>
+                    <TagEditor dossierId={d.id} tags={tags} allTags={allTags} onClose={() => onTagEditor(null)} />
+                </div>
+            )}
         </div>
     )
 }
@@ -206,17 +470,17 @@ export default function DashboardPage() {
                     <DialogTrigger asChild>
                         <Button size="sm">
                             <Plus className="h-4 w-4" />
-                            New Dossier
+                            Nouveau dossier
                         </Button>
                     </DialogTrigger>
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle>Create New Dossier</DialogTitle>
+                            <DialogTitle>Créer un nouveau dossier</DialogTitle>
                         </DialogHeader>
                         <form onSubmit={handleCreate} className="space-y-4 mt-2">
                             <div className="space-y-2">
                                 <Input
-                                    placeholder="Project name..."
+                                    placeholder="Nom du projet..."
                                     value={newName}
                                     onChange={(e) => setNewName(e.target.value)}
                                     required
@@ -231,7 +495,7 @@ export default function DashboardPage() {
                                 )}
                             </div>
                             <Button type="submit" className="w-full" disabled={creating}>
-                                {creating ? "Creating..." : "Create Dossier"}
+                                {creating ? "Création..." : "Créer le dossier"}
                             </Button>
                         </form>
                     </DialogContent>
@@ -241,8 +505,8 @@ export default function DashboardPage() {
             <main className="max-w-5xl mx-auto px-6 py-10">
                 <div className="mb-8 flex items-end justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold">Your Dossiers</h1>
-                        <p className="text-muted-foreground mt-1">Each dossier is a structured innovation workspace</p>
+                        <h1 className="text-3xl font-bold">Vos dossiers</h1>
+                        <p className="text-muted-foreground mt-1">Chaque dossier est un espace de travail d'innovation structuré</p>
                     </div>
                     <div className="flex items-center gap-1 rounded-lg border border-border/60 p-1 bg-muted/30">
                         <button
@@ -261,9 +525,20 @@ export default function DashboardPage() {
                 </div>
 
                 {isCurrentLoading && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                         {Array.from({ length: 3 }).map((_, i) => (
-                            <div key={i} className="animate-pulse h-40 bg-muted rounded-xl" />
+                            <div key={i} className="animate-pulse relative pt-[28px]" style={{ width: "80%" }}>
+                                <div className="absolute top-0 left-0 h-[28px] bg-zinc-900 rounded-tl-[18px]" style={{ width: TAB_W }} />
+                                <div
+                                    className="absolute top-0 h-[28px] bg-zinc-900"
+                                    style={{
+                                        left: `calc(${TAB_W} - 1px)`,
+                                        width: `${TAB_SLOPE}px`,
+                                        clipPath: "polygon(0 0, 0 100%, 100% 100%)",
+                                    }}
+                                />
+                                <div className="h-[170px] bg-zinc-800/30 rounded-tr-[28px] rounded-b-[28px]" />
+                            </div>
                         ))}
                     </div>
                 )}
@@ -284,77 +559,27 @@ export default function DashboardPage() {
                             </>
                         ) : (
                             <>
-                                <p className="text-lg">No dossiers yet.</p>
-                                <p className="text-sm mt-1">Create your first dossier to start your innovation journey.</p>
+                                <p className="text-lg">Aucun dossier pour l'instant.</p>
+                                <p className="text-sm mt-1">Créez votre premier dossier pour démarrer votre parcours d'innovation.</p>
                             </>
                         )}
                     </div>
                 )}
 
                 {!isCurrentLoading && filteredList.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                         {filteredList.map((d) => (
-                            <Card
+                            <ProjectFolderCard
                                 key={d.id}
-                                className={`group hover:shadow-lg hover:border-border/80 transition-all border border-border/50 relative ${showArchived ? "opacity-70 hover:opacity-100" : "cursor-pointer"}`}
-                                onClick={() => !showArchived && router.push(`/dossiers/${d.id}`)}
-                            >
-                                <CardHeader className="pb-2">
-                                    <div className="flex items-start justify-between">
-                                        <CardTitle className="text-base line-clamp-1">{d.name}</CardTitle>
-                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); setTagEditorId(tagEditorId === d.id ? null : d.id) }}
-                                                className="p-1 rounded hover:bg-primary/10 hover:text-primary"
-                                                title="Tags"
-                                            >
-                                                <Tag className="h-3.5 w-3.5" />
-                                            </button>
-                                            {showArchived && (
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); unarchiveDossier(d.id) }}
-                                                    className="p-1 rounded hover:bg-primary/10 hover:text-primary"
-                                                    title="Restaurer"
-                                                >
-                                                    <ArchiveRestore className="h-3.5 w-3.5" />
-                                                </button>
-                                            )}
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: d.id, name: d.name }) }}
-                                                className="p-1 rounded hover:bg-destructive/10 hover:text-destructive"
-                                                title="Supprimer"
-                                            >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <CardDescription className="text-xs uppercase tracking-wide">{d.macroState.replace(/_/g, " ")}</CardDescription>
-                                </CardHeader>
-                                <CardContent className="pt-0">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex flex-wrap gap-1">
-                                            {(d.tags ?? []).map((t: string) => (
-                                                <TagBadge key={t} raw={t} />
-                                            ))}
-                                            {d.labState && (
-                                                <Badge variant="outline" className="text-xs">
-                                                    {LAB_LABELS[d.labState.currentLab] ?? d.labState.currentLab}
-                                                </Badge>
-                                            )}
-                                        </div>
-                                        {!showArchived && (
-                                            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0" />
-                                        )}
-                                    </div>
-                                    {tagEditorId === d.id && (
-                                        <TagEditor
-                                            dossierId={d.id}
-                                            tags={d.tags ?? []}
-                                            onClose={() => setTagEditorId(null)}
-                                        />
-                                    )}
-                                </CardContent>
-                            </Card>
+                                dossier={d}
+                                showArchived={showArchived}
+                                tagEditorId={tagEditorId}
+                                allTags={allTags}
+                                onOpen={() => !showArchived && router.push(`/dossiers/${d.id}`)}
+                                onTagEditor={(id) => setTagEditorId(id)}
+                                onRestore={() => unarchiveDossier(d.id)}
+                                onDelete={() => setDeleteTarget({ id: d.id, name: d.name })}
+                            />
                         ))}
                     </div>
                 )}

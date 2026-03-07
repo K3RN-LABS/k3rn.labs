@@ -51,9 +51,11 @@ Modifier uniquement ce qui est demandé. Pas de refacto non sollicitée, pas de 
 
 ### IA / LLM
 - LLM principal : OpenAI `gpt-4o` via `OPENAI_API_KEY`
-- Appels IA complexes → passer par n8n (pas d'appel direct OpenAI depuis les routes Next.js sauf cas simples)
-- `src/lib/claude.ts` : invokeKAEL, detectPoleRouting, invokeExpertChat, invokeChefDeProjet
-- `src/lib/n8n.ts` : callN8nTool, notifySlack, sendEmail, logAuditN8n
+- Tous les appels LLM passent par `callLLMProxy()` dans `src/lib/n8n.ts` — jamais d'instance OpenAI directe
+- Appels complexes (pôles experts) → `invokeN8nPole()` via webhook n8n dédié
+- `src/lib/claude.ts` : invokeKAEL (Chief of Staff), invokeChefDeProjet (onboarding), generateKAELOpener, triggerKAELPostSessionNote, detectPoleRouting
+- `src/lib/n8n.ts` : callLLMProxy, invokeN8nPole, callN8nTool, notifySlack, sendEmail
+- Voir `.claude/rules/llm-calls.md` pour le détail complet et les interdits
 
 ### Onboarding (KAEL)
 - `OnboardingState` est **authoritative côté serveur** — jamais dériver `isComplete` uniquement côté client
@@ -77,13 +79,16 @@ Modifier uniquement ce qui est demandé. Pas de refacto non sollicitée, pas de 
 
 | Fichier | Rôle |
 |---------|------|
-| `src/lib/claude.ts` | invokeKAEL, detectPoleRouting, invokeExpertChat |
-| `src/lib/n8n.ts` | callN8nTool, notifySlack, sendEmail |
+| `src/lib/claude.ts` | invokeKAEL (Chief of Staff), invokeChefDeProjet (onboarding), generateKAELOpener, triggerKAELPostSessionNote |
+| `src/lib/n8n.ts` | callLLMProxy, invokeN8nPole, callN8nTool, notifySlack, sendEmail |
+| `src/lib/project-memory.ts` | buildProjectMemory — brief structuré injecté dans KAEL |
+| `src/lib/score-engine.ts` | computeAndPersistScore — 4 dimensions, quality multiplier |
 | `src/lib/db.ts` | Wrapper Supabase (DbModel) |
 | `src/lib/permissions.ts` | canExport, canCreateCrowdfunding (async) |
-| `src/lib/onboarding-state.ts` | State machine onboarding |
+| `src/lib/onboarding-state.ts` | State machine onboarding — deserializeState, applyLLMResponse, toDTO |
 | `src/lib/validate.ts` | validateBody, apiError, apiSuccess |
 | `src/lib/supabase-storage.ts` | Upload/Delete logic for avatars |
+| `src/app/api/poles/sessions/[sessionId]/route.ts` | Session pôle — messages + triggerKAELPostSessionNote |
 | `src/app/api/stories/render/route.ts` | Instagram Story Rendering (Satori) |
 | `src/app/api/user/referral/route.ts` | Referral slug & stats logic |
 | `prisma/schema.prisma` | Schéma complet |

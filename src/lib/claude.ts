@@ -601,14 +601,19 @@ choices : OBLIGATOIRE dès que "message" contient UNE question directe — propo
 confirmedAspects = TOUS les aspects collectés (inclure ceux déjà confirmés).
 aspectQuality = qualité de CHAQUE aspect confirmé ("strong" ou "weak").
 challengeCount = nombre de challenges effectués sur l'aspect en cours.${stateReminder}`
-  // Build messages — images go into content array for vision
-  const userContent: Array<{ type: string;[key: string]: unknown }> = [
-    { type: "text", text: userInput || (hasFiles ? "Voici les fichiers du projet." : "") },
-    ...imageFiles.map((f) => ({
-      type: "image_url",
-      image_url: { url: f.dataUrl!, detail: "high" },
-    })),
-  ]
+  // Build messages — images go into content array for vision, plain string otherwise
+  // OpenAI rejects response_format:json_object when content is an array → only use array if images present
+  const userText = userInput || (hasFiles ? "Voici les fichiers du projet." : "")
+  const userContent: string | Array<{ type: string;[key: string]: unknown }> =
+    imageFiles.length > 0
+      ? [
+          { type: "text", text: userText },
+          ...imageFiles.map((f) => ({
+            type: "image_url",
+            image_url: { url: f.dataUrl!, detail: "high" },
+          })),
+        ]
+      : userText
 
   const msgs: LLMMessage[] = [
     { role: "system", content: system },

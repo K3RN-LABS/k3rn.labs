@@ -5,8 +5,23 @@ All notable changes to this project are documented in this file.
 Format based on Keep a Changelog.
 Types: FEATURE, FIX, REFACTOR, CHORE.
 
+## 2026-03-07
+
+FIX: onboarding/route.ts — suppression macroState:"ONBOARDING" (enum invalide Supabase → 500 instantané)
+FIX: onboarding/route.ts — message max 50000 chars (était 10000, rejetait les pitchs longs)
+FIX: onboarding/route.ts — double try/catch outer pour capturer les erreurs hors du bloc inner
+FIX: claude.ts — invokeChefDeProjet : content en string si pas d'images (OpenAI rejette json_object avec content array)
+FIX: n8n.ts — log du body de réponse n8n en cas d'erreur HTTP
+FIX: onboarding/page.tsx — photo KAEL : kael-avatar-onboarding.png → /images/experts/Kael.webp
+REFACTOR: DashboardPage — traduction complète en français (titres, labels, boutons, placeholders, états vides)
+REFACTOR: ProjectFolderCard — silhouette dossier finale : tab (bg-zinc-900) + connecteur diagonal + body (bg-zinc-700/50, width 80%, rounded-tr+b), tab unifié avec body, ligne accent supprimée
+FIX: skeleton loading — aligné sur la vraie géométrie (pt-[28px], width 80%, tab bg-zinc-900, body rounded-tr+b)
+
 ## 2026-03-06
 
+REFACTOR: ProjectFolderCard — vraie silhouette folder via CSS clip-path polygon, rename inline au clic, tags suggérés depuis tous les dossiers existants, grille ajustée sm/xl
+FIX: skeleton loading — suppression des constantes OVERLAP/TAB_W obsolètes, remplacement par TAB_H/TAB_W_PCT
+FEATURE: useRenameDossier — hook PATCH /api/dossiers/[id] { name } avec cache invalidation
 FIX: POST /api/dossiers — remplacer `{ decrement: 1 }` (syntaxe Prisma non supportée par le wrapper Supabase) par `user.missionBudget - 1` pour débiter le budget missions correctement
 
 ## 2026-03-06 (KAEL Chief of Staff)

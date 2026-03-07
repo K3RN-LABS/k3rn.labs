@@ -112,3 +112,19 @@ export function useUpdateDossierTags() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["dossiers"] }),
   })
 }
+
+export function useRenameDossier() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const res = await fetch(`/api/dossiers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      })
+      if (!res.ok) throw new Error("Failed to rename dossier")
+      return res.json()
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["dossiers"] }),
+  })
+}

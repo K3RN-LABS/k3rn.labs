@@ -22,7 +22,7 @@ const fileContextSchema = z.object({
 })
 
 const schema = z.object({
-  message: z.string().max(10000).default(""),
+  message: z.string().max(50000).default(""),
   attachments: z
     .array(z.object({ name: z.string(), type: z.string(), size: z.number().optional() }))
     .optional(),
@@ -91,6 +91,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
   const session = await verifySession()
   if (!session) return apiError("Unauthorized", 401)
 
@@ -106,13 +107,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Restore authoritative state from DB
   const existingState = deserializeState(dossier.onboardingState)
 
-  // Mark dossier as ONBOARDING on first active POST (macroState transition)
-  if (dossier.macroState === "WORKSPACE_IDLE" && existingState.status !== "COMPLETE") {
-    await prisma.dossier.update({
-      where: { id },
-      data: { macroState: "ONBOARDING" },
-    })
-  }
 
   // Bail early if already complete (idempotency)
   if (existingState.status === "COMPLETE") {
@@ -243,7 +237,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erreur interne"
-    console.error("[onboarding POST]", msg)
+    console.error("[onboarding POST] ERROR:", msg)
+    console.error("[onboarding POST] STACK:", err instanceof Error ? err.stack : String(err))
     return apiError(`Erreur IA : ${msg}`, 500)
+  }
+  } catch (outerErr) {
+    const msg = outerErr instanceof Error ? outerErr.message : String(outerErr)
+    console.error("[onboarding POST] OUTER ERROR:", msg)
+    console.error("[onboarding POST] OUTER STACK:", outerErr instanceof Error ? outerErr.stack : String(outerErr))
+    return apiError(`Erreur : ${msg}`, 500)
   }
 }

@@ -260,7 +260,10 @@ export async function callLLMProxy(
     }),
     signal: AbortSignal.timeout(options.timeoutMs ?? 30000),
   })
-  if (!res.ok) throw new Error(`LLM proxy HTTP ${res.status}`)
+  if (!res.ok) {
+    const body = await res.text().catch(() => "")
+    throw new Error(`LLM proxy HTTP ${res.status} — ${body.slice(0, 300)}`)
+  }
   const data = (await res.json()) as { content?: string }
   return { content: data.content ?? "" }
 }
