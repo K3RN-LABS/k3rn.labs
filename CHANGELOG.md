@@ -7,6 +7,7 @@ Types: FEATURE, FIX, REFACTOR, CHORE.
 
 ## 2026-03-07
 
+FIX: claude.ts — invokeChefDeProjet : aspects faibles présents dans le 1er message confirmés weak immédiatement (ne plus les ignorer ni les redemander), challenge séquentiel à partir du 1er faible seulement
 FIX: claude.ts — invokeChefDeProjet : confusion problem/outcome corrigée (chiffre douleur prestataire ≠ outcome client final), contrainte multiple challengée, cible double→weak après 1 seul challenge
 REFACTOR: claude.ts — invokeChefDeProjet : critères solidité renforcés (cible double=weak, outcome sans chiffre=weak, contrainte universelle=weak), anti-validation prématurée, exemples challenges améliorés
 FIX: onboarding/route.ts — suppression macroState:"ONBOARDING" (enum invalide Supabase → 500 instantané)
