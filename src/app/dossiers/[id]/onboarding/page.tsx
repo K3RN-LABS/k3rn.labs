@@ -255,10 +255,6 @@ export default function OnboardingPage({ params }: { params: { id: string } }) {
       const data = await res.json()
       if (data.messages) setMessages(data.messages)
       if (data.onboardingState) setOnboardingState(data.onboardingState)
-      // If already complete (idempotent response), redirect immediately
-      if (data.isComplete) {
-        router.push(`/dossiers/${dossierId}`)
-      }
     } catch (err) {
       const msg =
         err instanceof Error
