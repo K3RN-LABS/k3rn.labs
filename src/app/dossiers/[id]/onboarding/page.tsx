@@ -294,7 +294,10 @@ export default function OnboardingPage({ params }: { params: { id: string } }) {
   }
 
   function handleEnterWorkspace() {
-    router.push(`/dossiers/${dossierId}`)
+    // Hard navigation to bypass any stale TanStack Query cache in the workspace page.
+    // router.push would reuse cached dossier data (step != COMPLETE) and trigger a
+    // redirect back to onboarding before the fresh fetch completes.
+    window.location.href = `/workspace/${dossierId}`
   }
 
   function handleCopy(id: string, content: string) {

@@ -497,8 +497,8 @@ export async function invokeChefDeProjet(
   const allAspects = ["problem", "target", "outcome", "constraint"]
   const remainingAspects = allAspects.filter((a) => !confirmedList.includes(a))
   const remainingStr = remainingAspects.length > 0
-    ? `\n→ Aspects RESTANTS à collecter : ${remainingAspects.join(", ")}\n→ Prochain aspect obligatoire : "${remainingAspects[0]}" — TON MESSAGE DOIT SE TERMINER PAR UNE QUESTION SUR CET ASPECT.`
-    : "\n→ Tous les aspects sont collectés → isComplete: true."
+    ? `\n→ Aspects RESTANTS à collecter : ${remainingAspects.join(", ")}\n→ Prochain aspect à traiter : "${remainingAspects[0]}"\n   · Si l'utilisateur vient de répondre sur cet aspect → confirme-le dans confirmedAspects (strong ou weak), puis pose la question sur l'aspect suivant (ou isComplete:true si c'était le dernier).\n   · Si l'utilisateur n'a pas encore répondu sur cet aspect → pose une question directe et courte dessus.\n   · JAMAIS un acquittement seul sans question ni complétion.`
+    : "\n→ Tous les aspects sont confirmés → isComplete: true OBLIGATOIRE — message de clôture chaleureux."
   const stateReminder = stateContext && confirmedList.length > 0
     ? `\n\n⚠️ ÉTAT FINAL — CRITIQUE :\nAspects VERROUILLÉS (ne plus poser de questions dessus) :\n${confirmedLines}\n→ Aspect en cours de challenge : "${currentQ}" (challenges : ${currentChallengeCount}/2)${remainingStr}`
     : ""
