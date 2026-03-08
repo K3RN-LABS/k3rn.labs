@@ -35,23 +35,49 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const cards = allCards ?? []
 
-  if (cards.length === 0) {
-    return apiSuccess({ cards: [], relations: [] })
+  // Fetch card relations
+  const cardIds = cards.map((c: { id: string }) => c.id)
+  let relations: unknown[] = []
+  if (cardIds.length > 0) {
+    const { data: allRelations } = await supabaseAdmin
+      .from("CardRelation")
+      .select("id,fromCardId,toCardId,type,createdAt")
+      .or(`fromCardId.in.(${cardIds.join(",")}),toCardId.in.(${cardIds.join(",")})`)
+    relations = (allRelations ?? []).filter(
+      (r: { fromCardId: string; toCardId: string }) =>
+        cardIds.includes(r.fromCardId) && cardIds.includes(r.toCardId)
+    )
   }
 
-  // Collect all card IDs
-  const cardIds = cards.map((c: { id: string }) => c.id)
+  // Fetch poles (hubs) — use supabaseAdmin directly (no dossierId FK)
+  const { data: polesData } = await supabaseAdmin
+    .from("Pole")
+    .select("id,code,managerName,managerSlug")
+    .order("code", { ascending: true })
+  const poles = polesData ?? []
 
-  // Fetch all relations where either fromCard or toCard is in our set
-  const { data: allRelations } = await supabaseAdmin
-    .from("CardRelation")
-    .select("id,fromCardId,toCardId,type,createdAt")
-    .or(`fromCardId.in.(${cardIds.join(",")}),toCardId.in.(${cardIds.join(",")})`)
+  // Fetch expert documents
+  const { data: documents } = await supabaseAdmin
+    .from("ExpertDocument")
+    .select("id,type,title,producedBy,poleCode,sourceKind,sourceId,content,metadata,createdAt,validatedAt")
+    .eq("dossierId", dossierId)
+    .order("createdAt", { ascending: false })
+    .limit(100)
 
-  const relations = (allRelations ?? []).filter(
-    (r: { fromCardId: string; toCardId: string }) =>
-      cardIds.includes(r.fromCardId) && cardIds.includes(r.toCardId)
-  )
+  // Fetch tasks (non-cancelled)
+  const { data: tasks } = await supabaseAdmin
+    .from("Task")
+    .select("id,title,description,status,origin,assignedPole,relatedDocuments,relatedCards,createdAt")
+    .eq("dossierId", dossierId)
+    .neq("status", "CANCELLED")
+    .order("createdAt", { ascending: false })
+    .limit(100)
 
-  return apiSuccess({ cards, relations })
+  return apiSuccess({
+    cards,
+    relations,
+    poles: poles ?? [],
+    documents: documents ?? [],
+    tasks: tasks ?? [],
+  })
 }

@@ -21,7 +21,8 @@ const STATE_LABELS: Record<CardState, string> = {
 
 interface CardNodeData {
   cardId: string
-  title: string
+  label: string
+  title?: string
   type: string
   state: CardState
   lab: string
@@ -40,7 +41,7 @@ export const CardNode = memo(({ data, selected }: NodeProps<CardNodeData>) => {
     >
       <Handle type="target" position={Position.Top} className="!bg-muted-foreground" />
       <div className="text-[10px] font-jakarta text-muted-foreground uppercase tracking-wide mb-1">{data.type}</div>
-      <div className="text-sm font-semibold leading-tight line-clamp-2">{data.title}</div>
+      <div className="text-sm font-semibold leading-tight line-clamp-2">{data.label ?? data.title}</div>
       <div className="mt-2 text-[9px] font-medium uppercase tracking-wider opacity-60">{STATE_LABELS[data.state]}</div>
       <Handle type="source" position={Position.Bottom} className="!bg-muted-foreground" />
     </div>

@@ -1,5 +1,86 @@
 import { callLLMProxy, type LLMMessage } from "./n8n"
 
+// ─── triggerDocumentExtraction ────────────────────────────────────────────────
+// Fire-and-forget: analyse les derniers messages d'une session pôle et extrait
+// un ExpertDocument si un livrable structuré est détecté.
+export async function triggerDocumentExtraction(
+  dossierId: string,
+  poleCode: string,
+  managerName: string,
+  sessionId: string,
+  messages: Array<{ role: string; content: string }>
+): Promise<void> {
+  try {
+    // Ne traiter que les messages manager (non vides, non courts)
+    const managerMessages = messages
+      .filter((m) => m.role === "manager" && m.content.length > 200)
+      .slice(-3) // Les 3 derniers messages manager
+    if (managerMessages.length === 0) return
+
+    const messagesText = managerMessages.map((m) => m.content).join("\n\n---\n\n")
+
+    const { content } = await callLLMProxy([
+      {
+        role: "system",
+        content: `Tu es un extracteur de livrables experts. Analyse les messages ci-dessous d'un expert (${managerName}, pôle ${poleCode}).
+Détermine s'ils contiennent un livrable structuré (analyse, rapport, recommandations techniques, projections, recherche).
+Si oui, extrait-le en JSON canonique. Si non, retourne { "hasDocument": false }.
+
+Réponds UNIQUEMENT en JSON valide :
+{
+  "hasDocument": true,
+  "type": "ANALYSIS | REPORT | STACK | PROJECTION | RESEARCH",
+  "title": "titre court et descriptif",
+  "content": {
+    "summary": "3-5 points clés",
+    "sections": [{ "title": "...", "body": "..." }],
+    "data": {}
+  },
+  "metadata": {
+    "confidence": 0.85,
+    "tags": ["tag1", "tag2"]
+  }
+}`,
+      },
+      {
+        role: "user",
+        content: messagesText,
+      },
+    ], { maxTokens: 1500, temperature: 0.2 })
+
+    let parsed: { hasDocument: boolean; type?: string; title?: string; content?: object; metadata?: object }
+    try {
+      parsed = JSON.parse(content)
+    } catch {
+      return
+    }
+
+    if (!parsed.hasDocument || !parsed.type || !parsed.title) return
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+    await fetch(`${appUrl}/api/documents`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-webhook-secret": process.env.N8N_WEBHOOK_SECRET ?? "",
+      },
+      body: JSON.stringify({
+        dossierId,
+        type: parsed.type,
+        title: parsed.title,
+        producedBy: managerName,
+        poleCode,
+        sourceKind: "session",
+        sourceId: sessionId,
+        content: parsed.content ?? { summary: "", sections: [], data: {} },
+        metadata: { ...(parsed.metadata ?? {}), relatedDocuments: [], relatedCards: [], relatedTasks: [] },
+      }),
+    })
+  } catch {
+    // Fire-and-forget — silently ignore errors
+  }
+}
+
 export interface ExpertResponse {
   analysis: string
   proposedCard: {
@@ -252,7 +333,8 @@ export async function invokeKAEL(
   dossierName: string,
   history: ChatMessage[],
   userInput: string,
-  projectMemory?: string
+  projectMemory?: string,
+  previousSessionContext?: string
 ): Promise<KAELResponse> {
   const routing = detectPoleRouting(userInput)
   if (routing) {
@@ -268,10 +350,14 @@ export async function invokeKAEL(
     ? `\n\n[BRIEF PROJET]\n${projectMemory}\n[FIN BRIEF]`
     : ""
 
+  const prevSessionBlock = previousSessionContext
+    ? `\n\n[SESSIONS PRÉCÉDENTES — RÉSUMÉ]\n${previousSessionContext}\n[FIN SESSIONS PRÉCÉDENTES]`
+    : ""
+
   const system = `Tu es KAEL, Chief of Staff de k3rn.labs pour le projet "${dossierName}".
 Tu es un conseiller senior : tu analyses, tu challenges, tu délègues avec précision.
 Tu parles avec autorité naturelle — ni distant, ni complaisant. Ton style : factuel, direct, orienté action.
-Tu as une mémoire complète du projet ci-dessous — tu t'en sers activement dans chaque réponse.${briefBlock}
+Tu as une mémoire complète du projet ci-dessous — tu t'en sers activement dans chaque réponse.${briefBlock}${prevSessionBlock}
 
 TON RÔLE :
 1. Analyser la situation à partir du brief — ne jamais demander ce qui est déjà connu
@@ -296,11 +382,11 @@ DIMENSIONS DU SCORE (4 — source de vérité pour tes recommandations) :
 → Le brief indique le "LEVIER PRIORITAIRE" — tu t'en sers en premier pour router.
 
 COMPORTEMENT :
-- Si un score de dimension est < 30% → signale le gap ET propose immédiatement l'expert adapté en routedPole
-- Si le brief indique un LEVIER PRIORITAIRE → commence par ce levier, route vers l'expert indiqué
+- Si un score de dimension est < 30% → signale le gap ET propose immédiatement l'expert adapté via missionProposal
+- Si le brief indique un LEVIER PRIORITAIRE → commence par ce levier, propose une mission à l'expert indiqué
 - Si l'onboarding est incomplet ou des aspects sont "à affiner" → identifie lesquels, propose une action concrète
 - Si le lab est bloqué → explique concrètement ce qui manque, propose le prochain pas actionnable
-- Si l'utilisateur évoque un sujet métier → route vers le bon pôle dès ce message (routedPole OBLIGATOIRE dans ce cas)
+- Si l'utilisateur évoque un sujet métier → propose une mission à l'expert adapté dès ce message (missionProposal OBLIGATOIRE dans ce cas)
 - Toujours 2-3 phrases max + action concrète
 
 FRAMING POSITIF (important) :
@@ -313,23 +399,29 @@ EXPLICATION DU WORKSPACE (si l'utilisateur semble perdu ou pose une question sur
 - Le workspace suit un processus : onboarding pour structurer le brief → experts pour approfondir chaque dimension → cartes validées dans le Memory Graph → transition vers le lab suivant
 - Chaque pôle expert produit des livrables concrets (cartes) qui alimentent le score et débloquent les transitions
 
-RÈGLE ANTI-RÉPÉTITION :
+RÈGLE ANTI-RÉPÉTITION (CRITIQUE) :
 - Ne répète JAMAIS une information ou une recommandation déjà donnée dans l'historique de cette session
-- Si tu as déjà mentionné un expert, change de levier ou approfondis avec une question plus précise
-- Si l'utilisateur revient sur le même sujet, explore un sous-angle différent
+- Si tu as déjà proposé un missionProposal dans l'historique ET que l'utilisateur répond "go", "oui", "ok", "lance" → ne répète pas le même missionProposal, dis-lui de cliquer sur "Envoyer en mission" dans la carte ci-dessus
+- JAMAIS répéter le même objectif de mission deux fois de suite
 
 RÈGLE choices OBLIGATOIRE :
-- Si tu ne routes PAS vers un pôle (pas de routedPole) et pas de missionProposal → tu DOIS inclure choices avec 2-3 options d'action concrètes
-- Si tu routes vers un pôle ou proposes une mission → choices est optionnel
-- JAMAIS un message sans choices ET sans routedPole ET sans missionProposal — l'utilisateur doit toujours avoir une action claire
+- Si tu n'inclus pas de missionProposal → tu DOIS inclure choices avec 2-3 options d'action concrètes
+- Si tu inclus un missionProposal → choices est optionnel
+- JAMAIS un message sans choices ET sans missionProposal — l'utilisateur doit toujours avoir une action claire
 
-MISSIONS AUTONOMES — RÈGLES CRITIQUES :
-- Quand tu recommandes un expert pour une tâche bien définie et délimitable (analyse de marché, étude concurrentielle, modélisation financière, veille juridique...) → propose SYSTÉMATIQUEMENT une mission autonome via missionProposal
-- Une mission autonome est adaptée quand : l'objectif est clair, le livrable est défini, l'utilisateur n'a pas besoin d'interagir avec l'expert en temps réel
-- Une session interactive est adaptée quand : le sujet est ouvert, créatif, itératif, ou nécessite un brainstorming
-- Dans missionProposal : inclure 1-3 questions de clarification ciblées si l'objectif n'est pas encore précis
+RÉPONDRE DIRECTEMENT vs PROPOSER UNE MISSION :
+- Si la question peut être répondue à partir du brief ou de tes connaissances générales → RÉPONDS DIRECTEMENT, sans missionProposal
+  (exemples : "c'est quoi un TAM ?", "comment structurer un pitch ?", "explique-moi ce lab", "donne-moi ton avis sur X")
+- Si la tâche nécessite une recherche externe, une analyse de données de marché, un audit approfondi, ou une production de livrable → propose un missionProposal
+  (exemples : "analyse mes concurrents", "estime le TAM de mon marché", "rédige mes projections financières")
+- Règle simple : peux-tu répondre correctement MAINTENANT avec ce que tu sais ? → réponds. Sinon → mission.
+
+MISSIONS — RÈGLE UNIVERSELLE :
+- TOUS les experts passent par missionProposal — il n'y a PAS de routedPole direct
+- Chaque proposition d'expert génère un missionProposal avec : objectif précis, poleCode, managerName
+- L'utilisateur choisit ensuite : "Envoyer en mission" (autonome, consomme budget) OU "Session interactive" (chat direct)
 - Ne JAMAIS lancer une mission sans que l'utilisateur l'ait confirmée — tu proposes, l'utilisateur décide
-- Formule le message de façon à présenter les DEUX options : "En mission autonome" ou "En session directe"
+- Dans missionProposal : formuler un objectif actionnable et précis (pas générique)
 
 INTERDITS :
 - "Qu'est-ce que tu veux explorer ?" quand tu as un brief complet → propose, ne demande pas
@@ -343,19 +435,15 @@ Réponds en JSON :
 {
   "message": "réponse naturelle en français — 2-3 phrases, ton conseiller senior",
   "choices": ["action concrète 1", "action concrète 2"],
-  "routedPole": "P01_STRATEGIE",
-  "routedManager": "AXEL",
-  "routingReason": "raison courte et concrète liée au brief",
   "recommendedLab": "NOM_DU_LAB",
-  "recommendedExperts": ["slug1"],
   "missionProposal": {
-    "poleCode": "P02_MARKET",
-    "managerName": "MAYA",
-    "initialObjective": "Analyse concurrentielle du secteur nutrition — identifier les 5 concurrents directs, leurs forces/faiblesses, pricing et parts de marché estimées",
-    "clarifyingQuestions": ["Quel segment géographique cibler en priorité ?"]
+    "poleCode": "P03_PRODUIT_TECH",
+    "managerName": "KAI",
+    "initialObjective": "Définir les spécifications techniques du MVP — stack, architecture, fonctionnalités prioritaires et estimations de délai",
+    "clarifyingQuestions": ["Quelles sont les 3 fonctionnalités absolument indispensables pour le MVP ?"]
   }
 }
-message est OBLIGATOIRE. choices est OBLIGATOIRE si routedPole ET missionProposal sont absents. Tous les autres champs sont optionnels.`
+message est OBLIGATOIRE. choices est OBLIGATOIRE si missionProposal est absent. routedPole N'EXISTE PLUS — utiliser exclusivement missionProposal pour recommander un expert.`
 
   const msgs: LLMMessage[] = [
     { role: "system", content: system },
@@ -378,7 +466,7 @@ message est OBLIGATOIRE. choices est OBLIGATOIRE si routedPole ET missionProposa
  * Génère le message d'ouverture proactif de KAEL pour une nouvelle session.
  * KAEL analyse le brief et identifie le levier critique le plus important.
  */
-export async function generateKAELOpener(dossierName: string, projectMemory: string): Promise<{ message: string; choices?: string[] }> {
+export async function generateKAELOpener(dossierName: string, projectMemory: string, previousSessionContext?: string): Promise<{ message: string; choices?: string[] }> {
   if (!projectMemory) {
     return {
       message: `Bonjour. Je suis KAEL, votre Chief of Staff sur **${dossierName}**.\n\nJe n'ai pas encore de contexte sur ce projet. Décrivez votre situation et je vous guide sur les prochaines priorités.`,
@@ -386,12 +474,16 @@ export async function generateKAELOpener(dossierName: string, projectMemory: str
     }
   }
 
+  const prevBlock = previousSessionContext
+    ? `\n\n[SESSIONS PRÉCÉDENTES]\n${previousSessionContext}\n[FIN SESSIONS PRÉCÉDENTES]`
+    : ""
+
   const system = `Tu es KAEL, Chief of Staff de k3rn.labs pour le projet "${dossierName}".
 Tu as une mémoire complète du projet ci-dessous. Tu ouvres la session avec un message court et proactif.
 
 [BRIEF PROJET]
 ${projectMemory}
-[FIN BRIEF]
+[FIN BRIEF]${prevBlock}
 
 RÈGLES DU MESSAGE D'OUVERTURE :
 - Commence par une observation précise tirée du brief (score, aspect faible, lab bloqué, carte manquante)
@@ -400,6 +492,7 @@ RÈGLES DU MESSAGE D'OUVERTURE :
 - Framing positif : "à renforcer" / "à préciser" — jamais "bloqué" ou "manque"
 - Ton : conseiller senior, direct, factuel — pas "Bonjour je suis KAEL bla bla"
 - INTERDIT : reformuler tout le projet, poser des questions vagues, faire du remplissage
+- Si des sessions précédentes existent → NE PAS répéter ce qui y a été dit ou décidé. Commence depuis où on en est.
 
 Exemples corrects :
 - message: "Votre score marché est à 15% — la cible est à préciser." | choices: ["Connecter Maya pour le TAM", "Affiner la cible directement", "Voir l'état du brief complet"]
@@ -560,11 +653,11 @@ export async function invokeChefDeProjet(
     ? `\n→ Aspects RESTANTS à collecter : ${remainingAspects.join(", ")}\n→ Prochain aspect à traiter : "${remainingAspects[0]}"\n   · Si l'utilisateur vient de répondre sur cet aspect → confirme-le dans confirmedAspects (strong ou weak), puis pose la question sur l'aspect suivant (ou isComplete:true si c'était le dernier).\n   · Si l'utilisateur n'a pas encore répondu sur cet aspect → pose une question directe et courte dessus.\n   · JAMAIS un acquittement seul sans question ni complétion.`
     : "\n→ Tous les aspects sont confirmés → isComplete: true OBLIGATOIRE — message de clôture chaleureux."
   const stateReminder = stateContext && confirmedList.length > 0
-    ? `\n\n⚠️ ÉTAT FINAL — CRITIQUE :\nAspects VERROUILLÉS (ne plus poser de questions dessus) :\n${confirmedLines}\n→ Aspect en cours de challenge : "${currentQ}" (challenges : ${currentChallengeCount}/2)${remainingStr}`
+    ? `\n\n⚠️ ÉTAT FINAL — CRITIQUE :\nAspects VERROUILLÉS (ne plus poser de questions dessus) :\n${confirmedLines}\n→ Aspect en cours de challenge : "${currentQ}" (challenges : ${currentChallengeCount}/4)${remainingStr}`
     : ""
 
   const stateBlock = stateContext
-    ? `\n⚙️ ÉTAT SERVEUR :\n${confirmedLines}\n→ Aspect en cours : "${currentQ}" | Challenges effectués : ${currentChallengeCount}/2`
+    ? `\n⚙️ ÉTAT SERVEUR :\n${confirmedLines}\n→ Aspect en cours : "${currentQ}" | Challenges effectués : ${currentChallengeCount}/4`
     : ""
 
   // JSON example dynamique — reflète l'état réel
@@ -576,90 +669,82 @@ export async function invokeChefDeProjet(
   )
 
   const system = `Tu es KAEL, copilote cognitif de k3rn.labs — tu accompagnes la construction du projet "${dossierName}".
-Tu es l'équivalent d'un associé YC en session de travail : direct, bienveillant, exigeant sur la clarté.
+Tu es l'équivalent d'un associé YC en session de travail : direct, curieux, exigeant sur la clarté — jamais condescendant, jamais générique.
 ${stateBlock}
 
 TON RÔLE DUAL :
-1. Assistant naturel — tu peux répondre à des questions, explorer des idées, discuter du projet librement
-2. Extracteur silencieux — pendant la conversation, tu extrais et valides les 4 aspects du concept
+1. Interlocuteur naturel — tu suis le fil de ce que l'utilisateur dit, tu réagis à CE QU'IL VIENT D'ÉCRIRE, pas à un script
+2. Extracteur contextuel — tu identifies silencieusement les 4 aspects dans ce qu'il dit
 
-4 ASPECTS À COLLECTER (dans cet ordre si possible) :
-1. "problem"     → Douleur concrète avec fréquence ou intensité mesurable (niveau pitch seed : un pôle stratégie peut déjà agir)
-2. "target"      → Segment identifiable avec attribut discriminant (un pôle market peut esquisser un TAM)
-3. "outcome"     → Direction mesurable ou état avant/après (un pôle finance peut cadrer un modèle)
-4. "constraint"  → Obstacle réel anticipé (concurrence, régulation, adoption, ressource)
+4 ASPECTS À COLLECTER :
+1. "problem"     → Douleur concrète avec fréquence ou intensité mesurable
+2. "target"      → Segment précis avec attribut discriminant
+3. "outcome"     → Résultat mesurable pour le client final (pas le prestataire)
+4. "constraint"  → Obstacle réel, spécifique à CE marché ou CE modèle
 
-CRITÈRES DE SOLIDITÉ — standard pitch seed, pas thèse de doctorat :
-- "problem" FORT : douleur nommée + fréquence ou intensité mesurable (ex: "perdent 3h/semaine sur X") | FAIBLE : vague, solution déguisée, manque de fréquence/intensité
-- "target" FORT : UN segment précis avec attribut discriminant (ex: "coachs nutritionnels indépendants < 3 ans d'expérience") | FAIBLE : deux segments en même temps (B2C + B2B), "tout le monde", "utilisateurs finaux + distributeurs" sans priorisation — challenger : qui est le client payant principal ?
-- "outcome" FORT : métrique concrète ou état avant/après mesurable (ex: "rétention +20%", "décision en < 5 min au lieu de 30") | FAIBLE : "amélioration", "optimisation", "résultats mesurables" sans chiffre ni comparaison — toujours challenger pour obtenir un chiffre ou un avant/après précis
-- "constraint" FORT : obstacle spécifique au secteur ou au modèle (ex: "adoption par les coachs = barrière formation", "réglementation santé RGPD données médicales") | FAIBLE : "ressources limitées", "trouver des clients", "financement" — universel, non discriminant — challenger : quel obstacle propre à TON marché ou TON modèle ?
+CRITÈRES DE SOLIDITÉ (standard pitch seed) :
+- problem FORT : douleur nommée + signal quantifiable (fréquence, intensité, coût temps/argent) | FAIBLE : vague, solution déguisée
+- target FORT : UN segment précis avec attribut discriminant — un VC peut esquisser un TAM | FAIBLE : "tout le monde", deux cibles simultanées sans priorisation
+- outcome FORT : métrique ou état avant/après mesurable pour le CLIENT FINAL | FAIBLE : "amélioration", "gain de temps" sans précision — ⚠️ distinguer la douleur du prestataire (problem) du résultat pour son client (outcome)
+- constraint FORT : obstacle propre à CE secteur ou CE modèle (adoption, régulation, switching cost, etc.) | FAIBLE : "ressources", "trouver des clients" — universel, non discriminant
 
 RÈGLES ANTI-VALIDATION PRÉMATURÉE :
-- Une cible double ("A + B") n'est JAMAIS strong — challenger UNE FOIS : "Qui est ton client payant principal ?" Si la réponse reste double → weak, enchaîner sur le prochain aspect
-- Un outcome sans chiffre ni comparaison n'est JAMAIS strong — toujours challenger : "Quel signe concret que ça marche — un chiffre, un avant/après ?"
-- Une contrainte multiple ("A + B + C") n'est JAMAIS strong — challenger : "Quel est l'obstacle N°1, celui qui peut tout bloquer ?"
-- Une contrainte universelle ("manque de temps/argent/tech") n'est JAMAIS strong — challenger : "Quel obstacle propre à TON marché ou TON modèle ?"
-- NE PAS valider strong sur la politesse ou la longueur de la réponse — valider sur la précision discriminante
-- ATTENTION CONFUSION problem/outcome : si l'utilisateur répond à la question outcome avec un chiffre qui décrit la DOULEUR DU PRESTATAIRE (ex: "2-3h/semaine") → ce n'est PAS un outcome. L'outcome = résultat pour le CLIENT FINAL (ex: "les clients des coachs perdent X kg en Y semaines", "rétention +20%"). Challenger : "Et pour leurs clients à eux — quel résultat concret en 30 jours ?"
+- Cible double ("A + B") → jamais strong — challenger une fois sur le client payant principal. Si double persiste → weak
+- Outcome sans chiffre ni avant/après → jamais strong — toujours challenger une fois
+- Contrainte universelle ("temps/argent/tech") → jamais strong — challenger : l'obstacle propre à CE marché
+- NE PAS valider sur la longueur ou l'enthousiasme de la réponse
+
+ULTRA-PERSONNALISATION — RÈGLE CENTRALE :
+Chaque question, chaque acquittement, chaque challenge DOIT être ancré dans les mots exacts de l'utilisateur.
+- Si l'utilisateur parle de "coachs sportifs à domicile" → ta question concerne les coachs sportifs à domicile, pas "les prestataires" ou "les professionnels"
+- Si l'utilisateur mentionne "Notion" → ta question peut référencer Notion, pas "les outils existants"
+- Si l'utilisateur cite "3 heures par semaine" → reprends ce chiffre précis
+- INTERDIT : questions qui pourraient s'appliquer à n'importe quel projet ("Quel est ton marché cible ?", "Quels obstacles anticipez-vous ?", "Qui sont vos utilisateurs ?")
+- INTERDIT : questions avec des catégories génériques en choices ("B2B / B2C", "Petites / Moyennes / Grandes entreprises", "Court terme / Long terme")
+- Les choices doivent être des options RÉELLES issues du contexte du projet — jamais des catégories abstraites
 
 COMPORTEMENT SUR MESSAGE RICHE (premier message ou message dense) :
-- Extrais silencieusement TOUS les aspects détectables — même partiels, même faibles
-- Confirme les aspects FORTS (quality: "strong") ET les aspects FAIBLES (quality: "weak") présents dans le message — dans les deux cas, les inclure dans confirmedAspects avec la bonne quality
-- Ne jamais ignorer un aspect déjà présent dans le message sous prétexte qu'il est faible — il est confirmé weak, pas absent
-- Ouvre uniquement sur le challenge du PREMIER aspect faible, dans l'ordre : target → outcome → constraint
-- NE PAS reposer une question sur un aspect déjà mentionné dans le message — même faiblement — sauf pour le challenger une fois
-- NE PAS lister ce que tu as compris — agis comme si tu suis le fil naturel
-- Un aspect détecté weak dans le 1er message DOIT être challengé au moins 1 fois avant d'être accepté — même si l'utilisateur confirme dans la réponse suivante, vérifier le challengeCount
+- Extrais tous les aspects détectables — forts ET faibles (weak, pas absent)
+- Commence par réagir naturellement à l'idée (1 phrase max qui montre que tu as compris CE projet spécifiquement)
+- Puis challenge uniquement le PREMIER aspect faible dans l'ordre : target → outcome → constraint
+- Ne pas lister ce que tu as compris — agis, ne résume pas
+- Un aspect weak dans le 1er message doit être challengé au moins 1 fois avant d'être verrouillé
 
-EXEMPLE : message contient "je vise les coachs ET leurs clients, les clients resteraient plus longtemps, le financement manque"
-→ confirmedAspects: ["problem", "target", "outcome", "constraint"] — problem strong, les 3 autres weak
-→ challengeCount: {"target": 0} (on commence par challenger target)
-→ message: challenge sur target uniquement — NE PAS redemander outcome ou constraint
-→ APRÈS réponse sur target : si strong → passer à challenge outcome. Si toujours faible → target=weak, passer à challenge outcome
-→ isComplete: true UNIQUEMENT quand les 4 sont dans confirmedAspects ET que chaque aspect weak a été challengé au moins 1 fois
+CHALLENGE CIBLÉ :
+- Tu peux poser 1 ou 2 questions dans le même message si tu as planifié une série (ex: "Q1/2 : … Q2/2 : …")
+- Si tu poses 2 questions, c'est une série déclarée — l'utilisateur répond aux deux avant que tu passes au suivant
+- Chaque question doit montrer que tu as LU et COMPRIS CE PROJET — pas une formule recyclable
+- JAMAIS : "pouvez-vous préciser ?", "qu'est-ce que vous entendez par là ?", "parlez-moi de X"
+- Les choices répondent exactement à la question posée, avec les termes du projet, labels 2-5 mots
+- ACQUITTEMENT : 1 phrase qui montre que tu as entendu — JAMAIS de compliment vague ("c'est ambitieux", "c'est intéressant", "ça aide à comprendre"). Reformule ce qui vient d'être dit dans tes propres mots, sans jugement.
+- TRANSITION entre aspects : ne JAMAIS annoncer "Passons maintenant aux contraintes" — enchaine directement avec la question sur le prochain aspect
 
-CHALLENGE CIBLÉ (quand un aspect est faible) :
-- 1 seule dimension challengée — JAMAIS deux questions dans le même message
-- Message court : 1 phrase d'acquittement (optionnelle) + 1 question (max 20 mots)
-- Jamais "pouvez-vous préciser ?" — une question qui montre que tu as compris et va chercher la précision
-- Ces exemples illustrent le FORMAT uniquement — ne pas les copier, adapter au contexte réel du projet :
-  "Qui est ton client payant — le prestataire ou l'utilisateur final ?" | "Quel signe concret que ça marche — un chiffre, un avant/après ?" | "Quel obstacle propre à TON secteur peut tout bloquer ?"
-- Exemples INTERDITS : "Qui sont tes coaches ET qui sont leurs clients ?" (2 questions) | "Parle-moi de ta cible et de leurs besoins" (vague) | "Quelles ressources te manquent — temps, financement, expertise ?" (catégories génériques)
-- Les choices DOIVENT répondre exactement à la question posée — si tu demandes le type de coach, les choices = types de coaches. Pas de mélange.
-- Les choices sont des LABELS COURTS (2-5 mots max) — JAMAIS la question elle-même, JAMAIS une phrase.
-- INTERDIT : choices: ["Quel type de coach — sportif, nutritionnel?", "Sportif"] ← la question appartient à "message", pas à "choices"
-
-APRÈS 2 CHALLENGES SUR UN ASPECT :
-- Accepte la réponse telle quelle (quality: "weak") et enchaîne IMMÉDIATEMENT sur le prochain aspect
-- Format OBLIGATOIRE : 1 phrase d'acquittement ORIGINALE (jamais la même d'un aspect à l'autre) + question sur le prochain aspect manquant
-- L'acquittement doit varier selon le contexte — reformule avec tes propres mots, pas une formule fixe
-- Si c'était le dernier aspect → isComplete: true, message de clôture chaleureux
-- NE JAMAIS bloquer l'onboarding
+APRÈS 4 CHALLENGES SUR UN ASPECT (max) :
+- Accepte (quality: "weak") et enchaîne immédiatement sur l'aspect suivant
+- Acquittement court ancré dans la réponse reçue + question directe sur le suivant
+- Jamais le même acquittement deux fois dans la conversation
+- Si dernier aspect → isComplete: true, message de clôture chaleureux et spécifique au projet
 
 CONVERSATION NATURELLE :
-- Si l'utilisateur pose une question → réponds-y en 1-2 phrases, puis guide vers l'aspect manquant
-- Si l'utilisateur explore un sujet lié → suis le fil, extrais les aspects au passage
-- Tu n'es pas un formulaire — tu es un associé qui travaille avec eux
-- ACQUITTEMENT si la réponse porte sur l'aspect en cours : 1 phrase qui montre que tu as entendu, puis avance
-- APRÈS CONFIRMATION OU ACCEPTATION D'UN ASPECT (strong ou weak) : TOUJOURS terminer le message par la question sur le prochain aspect manquant. Jamais d'acquittement seul. Exemple : "Je retiens ça. Quel résultat concret tu vises pour tes clients en 30 jours ?" Si tous les 4 aspects sont confirmés → isComplete: true, message de clôture.
-- UN MESSAGE NE PEUT PAS SE TERMINER PAR UN ACQUITTEMENT SEUL tant qu'il reste des aspects à collecter.
+- Si l'utilisateur pose une question → réponds en 1-2 phrases, puis reviens vers l'aspect manquant
+- Tu n'es pas un formulaire — tu as une vraie curiosité pour CE projet
+- Après chaque aspect confirmé (strong ou weak) : terminer par la question sur le suivant. Jamais d'acquittement seul.
+- UN MESSAGE NE PEUT PAS SE TERMINER PAR UN ACQUITTEMENT SEUL tant qu'il reste des aspects.
 
 RÈGLES ABSOLUES :
-- Les aspects marqués ✓ sont VERROUILLÉS — ne les repose JAMAIS, même si l'historique montre une ancienne question
-- isComplete: true UNIQUEMENT si les 4 aspects sont dans confirmedAspects
-- choices UNIQUEMENT si le message contient une question directe (se termine par "?" ou formulation interrogative) — JAMAIS sur un acquittement ou une transition
+- Aspects ✓ verrouillés — ne jamais les reposer
+- isComplete: true seulement si les 4 aspects sont dans confirmedAspects
+- choices UNIQUEMENT si le message contient une question directe — jamais sur une transition ou un acquittement
 - recommendedLab parmi : DISCOVERY, STRUCTURATION, VALIDATION_MARCHE, DESIGN_PRODUIT, ARCHITECTURE_TECHNIQUE, BUSINESS_FINANCE${fileBlock}
-${isFirstMessage && !hasFiles ? "\nPREMIER MESSAGE : analyse tout ce que l'utilisateur a écrit, confirme silencieusement les aspects solides, challenge le premier point faible ou manquant." : ""}
+${isFirstMessage && !hasFiles ? "\nPREMIER MESSAGE : réagis à l'idée spécifique présentée, extrais les aspects présents, challenge le premier point faible ou manquant avec une question ancrée dans CE projet." : ""}
 ${hasFiles ? "\nFICHIERS FOURNIS : extrais les aspects présents, challenge ce qui est faible ou manquant." : ""}
 
 Réponds en JSON :
 {
-  "message": "Ta réponse naturelle — acquittement si pertinent + intro du questionnaire ou challenge ciblé",
-  "choices": ["Option contextuelle 1", "Option contextuelle 2", "Option contextuelle 3"],
+  "message": "Ta réponse — ancrée dans les mots du projet, naturelle, jamais générique",
+  "choices": ["Option tirée du contexte projet 1", "Option tirée du contexte projet 2"],
   "questions": [
-    { "question": "Question 1 ?", "choices": ["A", "B", "C"], "multiSelect": false, "description": "Courte explication optionnelle" },
-    { "question": "Question 2 ?", "choices": ["X", "Y"], "multiSelect": true }
+    { "question": "Question spécifique au projet ?", "choices": ["Option réelle A", "Option réelle B"], "multiSelect": false }
   ],
   "confirmedAspects": ${exampleConfirmed},
   "aspectQuality": ${exampleQuality},
@@ -668,17 +753,9 @@ Réponds en JSON :
   "isComplete": false
 }
 
-RÈGLES choices vs questions :
-- choices : pour UNE seule question directe dans "message" (2-4 options, labels courts 2-5 mots)
-- questions : pour 2-4 aspects à collecter ensemble — un questionnaire guidé. Chaque item a "question" (phrase directe), "choices" (2-4 options), "multiSelect" (true si plusieurs réponses possibles), "description" (optionnel, 1 ligne de contexte)
-- N'utilise PAS les deux en même temps — soit choices, soit questions, jamais les deux
-- Si aucune question → omets choices ET questions
-- "message" avec questions : 1-2 phrases d'intro naturelle (ex: "Pour cadrer votre projet, j'ai quelques points à clarifier.")
-
-choices : OBLIGATOIRE dès que "message" contient UNE question directe — propose toujours 2-4 options concrètes et contextualisées. Si le message est un acquittement, une transition ou une confirmation SANS question → choices = null (omettre le champ). JAMAIS de choices sans question dans le message.
-confirmedAspects = TOUS les aspects collectés (inclure ceux déjà confirmés).
-aspectQuality = qualité de CHAQUE aspect confirmé ("strong" ou "weak").
-challengeCount = nombre de challenges effectués sur l'aspect en cours.${stateReminder}`
+choices : labels courts (2-5 mots), tirés du contexte du projet — JAMAIS des catégories abstraites.
+questions : pour un questionnaire multi-aspects (2-4 items). Jamais choices + questions simultanément.
+confirmedAspects = tous les aspects collectés. aspectQuality = qualité de chacun. challengeCount = challenges sur l'aspect en cours.${stateReminder}`
   // Build messages — images go into content array for vision, plain string otherwise
   // OpenAI rejects response_format:json_object when content is an array → only use array if images present
   const userText = userInput || (hasFiles ? "Voici les fichiers du projet." : "")
@@ -742,5 +819,48 @@ challengeCount = nombre de challenges effectués sur l'aspect en cours.${stateRe
       choices: ["Résoudre un problème métier précis", "Saisir une opportunité de marché", "Améliorer un processus existant"],
       confirmedAspects: [],
     }
+  }
+}
+
+/**
+ * invokeExpertDirect — Appel LLM direct pour une session pôle expert.
+ * Utilise le systemPrompt stocké en DB + le contexte projet.
+ * Remplace invokeN8nPole pour les sessions interactives.
+ */
+export async function invokeExpertDirect(params: {
+  managerName: string
+  systemPrompt: string
+  userMessage: string
+  history: Array<{ role: "user" | "assistant"; content: string }>
+  projectMemory: string
+  labContext: string
+}): Promise<string> {
+  const system = `${params.systemPrompt}
+
+[CONTEXTE DU PROJET]
+${params.projectMemory || "Contexte projet non disponible."}
+
+Lab actif : ${params.labContext}
+
+RÈGLES DE COMPORTEMENT :
+- Tu es ${params.managerName}, expert dans ton domaine. Incarne pleinement ce rôle.
+- Réponds de façon directe, concrète et actionnables — pas de généralités.
+- Chaque réponse doit apporter une valeur tangible : analyse, framework, plan, recommandations chiffrées.
+- Si tu produis un livrable structuré (rapport, analyse, plan technique, modélisation), structure-le clairement avec des sections numérotées.
+- Ne reformule pas ce que l'utilisateur vient de dire — va directement à l'essentiel.
+- Adapte le niveau de détail à la question : question simple → réponse courte ; demande d'analyse → livrable complet.`
+
+  const msgs: LLMMessage[] = [
+    { role: "system", content: system },
+    ...params.history,
+    { role: "user", content: params.userMessage },
+  ]
+
+  try {
+    const { content } = await callLLMProxy(msgs, { maxTokens: 2048, temperature: 0.7, responseFormat: { type: "text" } })
+    return content
+  } catch (err) {
+    console.error("[invokeExpertDirect] error:", err)
+    return `Désolé, une erreur est survenue. Peux-tu reformuler ta demande ?`
   }
 }

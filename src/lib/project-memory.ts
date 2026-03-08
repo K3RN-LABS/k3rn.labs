@@ -39,7 +39,7 @@ export async function buildProjectMemory(dossierId: string): Promise<string> {
 
     if (!dossier) return ""
 
-    const [poleSessions, scoreSnapshot] = await Promise.all([
+    const [poleSessions, scoreSnapshot, lastKaelSession] = await Promise.all([
       prisma.poleSession.findMany({
         where: { dossierId, status: "COMPLETED" },
         orderBy: { updatedAt: "desc" },
@@ -49,6 +49,10 @@ export async function buildProjectMemory(dossierId: string): Promise<string> {
       prisma.scoreSnapshot.findFirst({
         where: { dossierId },
         orderBy: { createdAt: "desc" },
+      }),
+      prisma.kaelSession.findFirst({
+        where: { dossierId },
+        orderBy: { updatedAt: "desc" },
       }),
     ])
 
@@ -152,6 +156,19 @@ export async function buildProjectMemory(dossierId: string): Promise<string> {
         }
       }
       lines.push("")
+    }
+
+    // ── Notes KAEL post-session ───────────────────────────────────────────────
+    if (lastKaelSession) {
+      const kaelMessages = (lastKaelSession.messages ?? []) as Array<{ role: string; content: string }>
+      const kaelNotes = kaelMessages.filter((m) => m.role === "kael_note" || m.role === "kael_note")
+      if (kaelNotes.length > 0) {
+        lines.push("NOTES KAEL (synthèses post-session) :")
+        for (const note of kaelNotes.slice(-5)) {
+          lines.push(`  • ${truncate(note.content, 250)}`)
+        }
+        lines.push("")
+      }
     }
 
     const fullText = lines.join("\n")

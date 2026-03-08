@@ -2,8 +2,10 @@ import { NextRequest } from "next/server"
 import { verifySession } from "@/lib/auth"
 import { db as prisma } from "@/lib/db"
 import { apiError, apiSuccess, validateBody } from "@/lib/validate"
-import { env } from "@/lib/env"
 import { broadcastToChannel } from "@/lib/realtime"
+import { invokeExpertDirect } from "@/lib/claude"
+import { buildProjectMemory } from "@/lib/project-memory"
+import { checkMissionBudget, consumeMission } from "@/lib/mission-budget"
 import { z } from "zod"
 import { randomUUID } from "node:crypto"
 
@@ -17,6 +19,88 @@ const schema = z.object({
   briefFinal: z.string().min(1),
 })
 
+async function executeAutonomousMission(
+  missionId: string,
+  dossierId: string,
+  kaelSessionId: string,
+  systemPrompt: string,
+  managerName: string,
+  briefFinal: string,
+) {
+  try {
+    // 1. Marquer RUNNING + broadcast
+    await prisma.autonomousMission.update({
+      where: { id: missionId },
+      data: { status: "RUNNING" },
+    })
+    broadcastToChannel(dossierId, "mission", {
+      type: "mission_update",
+      missionId,
+      status: "RUNNING",
+      message: `${managerName} analyse le brief…`,
+    }).catch(() => undefined)
+
+    // 2. Construire la mémoire projet
+    const projectMemory = await buildProjectMemory(dossierId)
+
+    // 3. Appel LLM direct avec le systemPrompt de l'expert
+    const report = await invokeExpertDirect({
+      managerName,
+      systemPrompt,
+      userMessage: briefFinal,
+      history: [],
+      projectMemory,
+      labContext: "DISCOVERY",
+    })
+
+    // 4. Persister le résultat
+    await prisma.autonomousMission.update({
+      where: { id: missionId },
+      data: {
+        status: "DONE",
+        result: { summary: report, fullReport: report },
+        completedAt: new Date().toISOString() as any,
+      },
+    })
+
+    // 5. Injecter le résultat dans la KaelSession
+    const kaelSession = await prisma.kaelSession.findUnique({ where: { id: kaelSessionId } })
+    if (kaelSession) {
+      const messages = (kaelSession.messages ?? []) as Array<Record<string, unknown>>
+      messages.push({
+        id: randomUUID(),
+        role: "kael",
+        content: `**Mission terminée — ${managerName}**\n\n${report}`,
+        timestamp: new Date().toISOString(),
+        missionId,
+        isMissionResult: true,
+      })
+      await prisma.kaelSession.update({
+        where: { id: kaelSessionId },
+        data: { messages },
+      })
+    }
+
+    // 6. Broadcast DONE
+    broadcastToChannel(dossierId, "mission", {
+      type: "mission_done",
+      missionId,
+      status: "DONE",
+      summary: report.slice(0, 300),
+    }).catch(() => undefined)
+  } catch (err) {
+    await prisma.autonomousMission.update({
+      where: { id: missionId },
+      data: { status: "FAILED" },
+    }).catch(() => undefined)
+    broadcastToChannel(dossierId, "mission", {
+      type: "mission_failed",
+      missionId,
+      status: "FAILED",
+    }).catch(() => undefined)
+  }
+}
+
 export async function POST(req: NextRequest) {
   const session = await verifySession()
   if (!session) return apiError("Unauthorized", 401)
@@ -26,10 +110,10 @@ export async function POST(req: NextRequest) {
 
   const { dossierId, kaelSessionId, poleCode, managerName, objective, estimatedCost, briefFinal } = result.data
 
-  // Vérifier budget suffisant
-  const user = await prisma.user.findUnique({ where: { id: session.userId } })
-  if (!user || (user.missionBudget ?? 0) < estimatedCost) {
-    return apiError(`Budget insuffisant. Cette mission coûte ${estimatedCost} missions.`, 403)
+  // Vérifier budget suffisant (nouveau système hybride)
+  const budgetCheck = await checkMissionBudget(session.userId)
+  if (!budgetCheck.ok) {
+    return apiError(`Budget insuffisant. ${budgetCheck.reason}`, 403)
   }
 
   const dossier = await prisma.dossier.findUnique({ where: { id: dossierId } })
@@ -39,43 +123,37 @@ export async function POST(req: NextRequest) {
   const pole = await prisma.pole.findFirst({ where: { code: poleCode as any } })
   if (!pole) return apiError("Pole not found", 404)
 
-  // Transaction : créer la mission + débiter le budget
-  const mission = await prisma.$transaction(async (tx: any) => {
-    await tx.user.update({
-      where: { id: session.userId },
-      data: { missionBudget: { decrement: estimatedCost } },
-    })
+  // Débiter le budget avant création de la mission
+  await consumeMission(session.userId)
 
-    const m = await tx.autonomousMission.create({
-      data: {
-        dossierId,
-        kaelSessionId,
-        poleCode,
-        managerName,
-        objective,
-        estimatedCost,
-        actualCost: estimatedCost,
-        status: "PENDING",
-      },
-    })
+  // Créer la mission
+  const mission = await prisma.autonomousMission.create({
+    data: {
+      dossierId,
+      kaelSessionId,
+      poleCode,
+      managerName,
+      objective,
+      estimatedCost,
+      actualCost: estimatedCost,
+      status: "PENDING",
+    },
+  })
 
-    // Ajouter un message de confirmation dans la KaelSession
-    const kaelSession = await tx.kaelSession.findUnique({ where: { id: kaelSessionId } })
-    const messages = (kaelSession?.messages ?? []) as Array<Record<string, unknown>>
-    messages.push({
-      id: randomUUID(),
-      role: "kael",
-      content: `Mission lancée — **${managerName}** est en route. Je te tiendrai informé de sa progression.`,
-      timestamp: new Date().toISOString(),
-      missionId: m.id,
-      isMissionStatus: true,
-    })
-    await tx.kaelSession.update({
-      where: { id: kaelSessionId },
-      data: { messages },
-    })
-
-    return m
+  // Ajouter un message de confirmation dans la KaelSession
+  const kaelSession = await prisma.kaelSession.findUnique({ where: { id: kaelSessionId } })
+  const kaelMessages = (kaelSession?.messages ?? []) as Array<Record<string, unknown>>
+  kaelMessages.push({
+    id: randomUUID(),
+    role: "kael",
+    content: `Mission lancée — **${managerName}** est en route. Je te tiendrai informé de sa progression.`,
+    timestamp: new Date().toISOString(),
+    missionId: mission.id,
+    isMissionStatus: true,
+  })
+  await prisma.kaelSession.update({
+    where: { id: kaelSessionId },
+    data: { messages: kaelMessages },
   })
 
   // Broadcast Realtime : mission créée
@@ -86,31 +164,15 @@ export async function POST(req: NextRequest) {
     status: "PENDING",
   }).catch(() => undefined)
 
-  // Fire n8n async — ne bloque pas la réponse
-  const n8nWebhookUrl = pole.n8nWebhookUrl
-    ? `${pole.n8nWebhookUrl.replace("k3rn-pole-router", "k3rn-expert-mission")}`
-    : `${env.N8N_BASE_URL}/webhook/k3rn-expert-mission`
-
-  fetch(n8nWebhookUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      missionId: mission.id,
-      dossierId,
-      kaelSessionId,
-      poleCode,
-      managerName,
-      systemPrompt: pole.systemPrompt,
-      objective: briefFinal,
-      appCallbackUrl: env.NEXT_PUBLIC_APP_URL,
-    }),
-  }).catch(() => {
-    // Si n8n ne répond pas, on marque FAILED via un job séparé
-    prisma.autonomousMission.update({
-      where: { id: mission.id },
-      data: { status: "FAILED" },
-    }).catch(() => undefined)
-  })
+  // Fire-and-forget : exécution directe via LLM
+  executeAutonomousMission(
+    mission.id,
+    dossierId,
+    kaelSessionId,
+    pole.systemPrompt,
+    managerName,
+    briefFinal,
+  ).catch(() => undefined)
 
   return apiSuccess({ mission, status: "RUNNING" })
 }

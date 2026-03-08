@@ -17,6 +17,12 @@ enum Plan {
   PRO
 }
 
+enum SubscriptionTier {
+  FREE
+  SOLO
+  STUDIO
+}
+
 enum MacroState {
   SYSTEM_READY
   DASHBOARD
@@ -106,6 +112,23 @@ enum MissionStatus {
   CANCELLED
 }
 
+enum DocumentType {
+  ANALYSIS
+  REPORT
+  STACK
+  PROJECTION
+  RESEARCH
+  SOURCE_FILE
+}
+
+enum TaskStatus {
+  SUGGESTED
+  PLANNED
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
 enum CardType {
   IDEA
   DECISION
@@ -143,8 +166,19 @@ model User {
   goal                String?
   avatarUrl           String?
   onboardingCompleted Boolean @default(false)
-  missionBudget       Int     @default(30)
+  // Legacy — remplacé par le système hybride abonnement + top-up
+  missionBudget       Int     @default(5)
   plan                Plan    @default(FREE)
+
+  // Nouveau modèle économique
+  subscriptionTier        SubscriptionTier @default(FREE)
+  stripeCustomerId        String?          @unique
+  stripeSubscriptionId    String?          @unique
+  subscriptionStatus      String?          // "active" | "canceled" | "past_due"
+  monthlyMissionAllowance Int              @default(5)   // missions incluses dans l'abonnement (renouvelées chaque mois)
+  monthlyMissionsUsed     Int              @default(0)   // missions abonnement consommées ce mois
+  topUpMissions           Int              @default(0)   // missions achetées en top-up (permanentes, jamais expirées)
+  allowanceResetAt        DateTime?                      // prochain reset mensuel
   preferences         Json    @default("{}")
 
   referralCode    String? @unique
@@ -203,6 +237,8 @@ model Dossier {
   cardIngestionJobs    CardIngestionJob[]
   kaelSessions         KaelSession[]
   autonomousMissions   AutonomousMission[]
+  expertDocuments      ExpertDocument[]
+  tasks                Task[]
 
   @@index([ownerId])
   @@index([archived])
@@ -440,6 +476,7 @@ model AutonomousMission {
   id              String        @id @default(cuid())
   dossierId       String
   kaelSessionId   String
+  poleSessionId   String?
   poleCode        String
   managerName     String
   objective       String        @db.Text
@@ -560,6 +597,48 @@ model CardIngestionLog {
 
   @@unique([dossierId, messageId])
   @@index([idempotencyKey])
+}
+
+model ExpertDocument {
+  id          String       @id @default(cuid())
+  dossierId   String
+  type        DocumentType
+  title       String
+  producedBy  String
+  poleCode    String?
+  sourceKind  String       // "mission" | "session" | "upload"
+  sourceId    String?
+  content     Json         @default("{}")
+  metadata    Json         @default("{}")
+  createdAt   DateTime     @default(now())
+  validatedAt DateTime?
+
+  dossier Dossier @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+
+  @@index([dossierId])
+  @@index([poleCode])
+  @@index([type])
+}
+
+model Task {
+  id               String     @id @default(cuid())
+  dossierId        String
+  title            String
+  description      String?
+  status           TaskStatus @default(SUGGESTED)
+  origin           String     // "expert" | "mission" | "user" | "kael"
+  originId         String?
+  assignedPole     String?
+  relatedDocuments String[]   @default([])
+  relatedCards     String[]   @default([])
+  dueDate          DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime   @default(now())
+
+  dossier Dossier @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+
+  @@index([dossierId])
+  @@index([status])
 }
 
 model CardIngestionJob {

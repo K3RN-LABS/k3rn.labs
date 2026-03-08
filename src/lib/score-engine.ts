@@ -123,19 +123,35 @@ export async function computeAndPersistScore(
   let rawFinance = 0
   let rawValidation = 0
 
-  // ── 1. Onboarding aspects → Marché + Finance ─────────────────────────────
-  // problem + target → Marché (customer discovery / Problem×TAM)
-  // outcome + constraint → Finance (business viability)
+  // ── 1. Onboarding aspects → contribution croisée sur 4 dimensions ──────────
+  //
+  // Modèle cross-contribution : chaque aspect contribue là où il a du sens réel,
+  // pas juste dans une case préétablie.
+  //
+  // problem  → Marché (douleur = signal marché) + Validation (problème clair = traction signal)
+  // target   → Marché (cible = TAM faisable)   + Validation (segment précis = traction signal)
+  // outcome  → Produit (résultat = désirabilité produit) + Finance (direction viable = viabilité)
+  // constraint → Produit (obstacle = faisabilité tech) + Finance (obstacle = viabilité business)
+  //
   // quality: "weak" = 0.5×, "strong" = 1.0×
   if (dossier?.onboardingState) {
     const onboarding = deserializeState(dossier.onboardingState)
     const q = (aspect: { value: string; quality?: string } | undefined) =>
       aspect?.value ? (aspect.quality === "weak" ? 0.5 : 1.0) : 0
 
-    rawMarket += 10 * q(onboarding.confirmedAspects.problem)
-    rawMarket += 10 * q(onboarding.confirmedAspects.target)
-    rawFinance += 10 * q(onboarding.confirmedAspects.outcome)
-    rawFinance += 10 * q(onboarding.confirmedAspects.constraint)
+    const qProblem = q(onboarding.confirmedAspects.problem)
+    const qTarget = q(onboarding.confirmedAspects.target)
+    const qOutcome = q(onboarding.confirmedAspects.outcome)
+    const qConstraint = q(onboarding.confirmedAspects.constraint)
+
+    rawMarket += 10 * qProblem     // douleur = signal marché
+    rawMarket += 10 * qTarget      // cible précise = TAM faisable
+    rawProduct += 8 * qOutcome     // résultat attendu = désirabilité produit
+    rawProduct += 8 * qConstraint  // obstacle principal = faisabilité
+    rawFinance += 8 * qOutcome     // direction du résultat = viabilité économique
+    rawFinance += 8 * qConstraint  // obstacle = réalisme du modèle
+    rawValidation += 5 * qProblem  // problème clairement formulé = signal traction
+    rawValidation += 5 * qTarget   // segment identifié = signal traction
   }
 
   // ── 2. Validated cards → 4 dimensions ────────────────────────────────────

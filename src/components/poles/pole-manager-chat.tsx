@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Send, Mic, MicOff, Loader2, ChevronLeft, Sparkles, BookmarkPlus, Check } from "lucide-react"
+import { Send, Mic, MicOff, Loader2, ChevronLeft, Sparkles, BookmarkPlus, Check, Radio } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useSpeech } from "@/hooks/use-speech"
 import { useAutoResize } from "@/hooks/use-auto-resize"
@@ -45,17 +45,40 @@ export function PoleManagerChat({ pole, dossierId, currentLab, existingSession, 
   const [isStarting, setIsStarting] = useState(!existingSession)
   const [savedMsgIds, setSavedMsgIds] = useState<Set<string>>(new Set())
   const [savingMsgId, setSavingMsgId] = useState<string | null>(null)
+  const [activeMission, setActiveMission] = useState<{ id: string; objective: string; status: string } | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useAutoResize(input)
+  const initialScrollDone = useRef(false)
 
   const { mutateAsync: startSession } = useStartPoleSession()
   const { mutateAsync: sendMessage, isPending: sending } = useSendPoleMessage()
 
   const color = POLE_COLORS[pole.code] ?? "from-gray-600 to-gray-800"
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+  useLayoutEffect(() => {
+    if (!initialScrollDone.current && messages.length > 0) {
+      bottomRef.current?.scrollIntoView()
+      initialScrollDone.current = true
+    }
   }, [messages])
+
+  useEffect(() => {
+    if (initialScrollDone.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    }
+  }, [messages])
+
+  useEffect(() => {
+    fetch(`/api/kael/missions?dossierId=${dossierId}`)
+      .then((r) => r.json())
+      .then((missions: Array<{ id: string; poleCode: string; objective: string; status: string }>) => {
+        const active = missions.find(
+          (m) => m.poleCode === pole.code && (m.status === "RUNNING" || m.status === "PENDING")
+        )
+        setActiveMission(active ?? null)
+      })
+      .catch(() => {})
+  }, [dossierId, pole.code])
 
   useEffect(() => {
     if (!existingSession && isStarting) {
@@ -156,6 +179,15 @@ export function PoleManagerChat({ pole, dossierId, currentLab, existingSession, 
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0">
+        {activeMission && (
+          <div className="flex items-start gap-2.5 rounded-xl px-3.5 py-3 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs">
+            <Radio className="h-3.5 w-3.5 mt-0.5 shrink-0 animate-pulse" />
+            <div className="flex flex-col gap-0.5">
+              <span className="font-semibold uppercase tracking-wide text-[10px] text-blue-400">Mission en cours</span>
+              <span className="text-blue-200/80 leading-snug">{activeMission.objective}</span>
+            </div>
+          </div>
+        )}
         {messages.map((msg) => (
           <div key={msg.id} className={cn("flex group", msg.role === "user" ? "justify-end" : "justify-start")}>
             {msg.role === "manager" && (
@@ -175,7 +207,7 @@ export function PoleManagerChat({ pole, dossierId, currentLab, existingSession, 
                   {new Date(msg.timestamp).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                 </p>
               </div>
-              {msg.role === "manager" && (
+              {msg.role === "manager" && session && (
                 <button
                   onClick={() => handleSaveAsCard(msg)}
                   disabled={savingMsgId === msg.id || savedMsgIds.has(msg.id)}

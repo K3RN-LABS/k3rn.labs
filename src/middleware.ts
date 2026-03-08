@@ -40,11 +40,25 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname
   const isApiRoute = path.startsWith("/api/")
   const isAuthRoute = path.startsWith("/api/auth/")
-  const isWebhook = path.startsWith("/api/webhooks/")
+  const isWebhook = path.startsWith("/api/webhooks/") || path === "/api/billing/webhook"
   const isPublicCampaign = path.startsWith("/api/public/")
   const isOgRoute = path.startsWith("/api/og/")
   const isPublicInvest = path.startsWith("/invest/")
   const isAuthPage = path.startsWith("/auth/")
+
+  // Invite/referral — cookie set must happen in middleware, not in Server Component
+  const inviteMatch = path.match(/^\/invite\/([^/]+)$/)
+  if (inviteMatch) {
+    const code = inviteMatch[1]
+    const redirectUrl = new URL(`/?ref=${code}`, request.url)
+    const response = NextResponse.redirect(redirectUrl)
+    response.cookies.set("referral_code", code, {
+      maxAge: 60 * 60 * 24 * 30,
+      path: "/",
+      sameSite: "lax",
+    })
+    return response
+  }
 
   if (isWebhook || isPublicCampaign || isOgRoute) return supabaseResponse
 
@@ -53,7 +67,8 @@ export async function middleware(request: NextRequest) {
   }
 
   const isLandingPage = path === "/"
-  if (!isApiRoute && !isAuthPage && !isPublicInvest && !isLandingPage && !user) {
+  const isInvitePage = path.startsWith("/invite/")
+  if (!isApiRoute && !isAuthPage && !isPublicInvest && !isLandingPage && !isInvitePage && !user) {
     return NextResponse.redirect(new URL("/auth/login", request.url))
   }
 

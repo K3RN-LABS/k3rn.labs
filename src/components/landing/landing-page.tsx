@@ -1514,7 +1514,7 @@ export default function LandingPage() {
                                                     <svg className="w-4 h-4 group-hover/back:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
                                                 </button>
                                                 <button
-                                                    className="flex-1 h-14 rounded-xl text-sm font-semibold tracking-wide bg-primary text-white hover:bg-primary/90 transition-all shadow-[0_4px_24px_rgba(255,255,255,0.1)] flex items-center justify-center gap-3 group/btn relative overflow-hidden"
+                                                    className="flex-1 h-14 rounded-xl text-sm font-semibold tracking-wide bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-[0_4px_24px_rgba(255,255,255,0.1)] flex items-center justify-center gap-3 group/btn relative overflow-hidden"
                                                     onClick={handleSubmitApplication}
                                                     disabled={!formData.ambitionAndWhy || !formData.discovery}
                                                 >

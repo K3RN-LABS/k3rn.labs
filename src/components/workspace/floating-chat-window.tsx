@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react"
 import { cn } from "@/lib/utils"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
@@ -16,7 +16,7 @@ import {
     type PoleData,
     type PoleSessionData,
 } from "@/hooks/use-poles"
-import { Send, Mic, MicOff, Loader2, Sparkles, BookmarkPlus, Check, Minus, X } from "lucide-react"
+import { Send, Mic, MicOff, Loader2, Sparkles, BookmarkPlus, Check, Minus, X, Radio } from "lucide-react"
 import { useWorkspaceStore } from "@/store/workspace.store"
 
 const POLE_GRADIENTS: Record<string, string> = {
@@ -61,7 +61,9 @@ export function PoleChatWindow({
     const [input, setInput] = useState("")
     const [savedMsgIds, setSavedMsgIds] = useState<Set<string>>(new Set())
     const [savingMsgId, setSavingMsgId] = useState<string | null>(null)
+    const [activeMission, setActiveMission] = useState<{ id: string; objective: string } | null>(null)
     const bottomRef = useRef<HTMLDivElement>(null)
+    const initialScrollDone = useRef(false)
     const textareaRef = useAutoResize(input)
 
     const { mutateAsync: startSession } = useStartPoleSession()
@@ -91,9 +93,29 @@ export function PoleChatWindow({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isLoadingSession, activeSessionData?.session?.id, pole.managerName])
 
-    useEffect(() => {
-        if (!minimized) bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    useLayoutEffect(() => {
+        if (!minimized && !initialScrollDone.current && messages.length > 0) {
+            bottomRef.current?.scrollIntoView()
+            initialScrollDone.current = true
+        }
     }, [messages, minimized])
+
+    useEffect(() => {
+        if (!minimized && initialScrollDone.current) {
+            bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+        }
+    }, [messages, minimized])
+
+    useEffect(() => {
+        fetch(`/api/kael/missions?dossierId=${dossierId}`)
+            .then((r) => r.json())
+            .then((data: unknown) => {
+                const missions = Array.isArray(data) ? data as Array<{ id: string; poleCode: string; objective: string; status: string }> : []
+                const active = missions.find((m) => m.poleCode === pole.code && (m.status === "RUNNING" || m.status === "PENDING"))
+                setActiveMission(active ?? null)
+            })
+            .catch(() => {})
+    }, [dossierId, pole.code])
 
     async function handleSend() {
         const text = input.trim()
@@ -179,6 +201,15 @@ export function PoleChatWindow({
                     </div>
                 ) : (
                     <>
+                        {activeMission && (
+                            <div className="flex items-start gap-2 rounded-xl px-3 py-2.5 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-[11px]">
+                                <Radio className="h-3 w-3 mt-0.5 shrink-0 animate-pulse" />
+                                <div className="flex flex-col gap-0.5">
+                                    <span className="font-semibold uppercase tracking-wide text-[9px] text-blue-400">Mission en cours</span>
+                                    <span className="text-blue-200/80 leading-snug">{activeMission.objective}</span>
+                                </div>
+                            </div>
+                        )}
                         {messages.map((msg) => (
                             <div key={msg.id} className={cn("flex group", msg.role === "user" ? "justify-end" : "justify-start")}>
                                 {msg.role === "manager" && (
@@ -193,7 +224,7 @@ export function PoleChatWindow({
                                             {new Date(msg.timestamp).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                                         </p>
                                     </div>
-                                    {msg.role === "manager" && (
+                                    {msg.role === "manager" && session && (
                                         <button
                                             onClick={() => handleSaveAsCard(msg)}
                                             disabled={savingMsgId === msg.id || savedMsgIds.has(msg.id)}

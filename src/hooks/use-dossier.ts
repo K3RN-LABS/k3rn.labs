@@ -12,6 +12,13 @@ async function fetchDossier(id: string) {
   return res.json()
 }
 
+export class BudgetExhaustedError extends Error {
+  constructor() {
+    super("budget_exhausted")
+    this.name = "BudgetExhaustedError"
+  }
+}
+
 async function createDossier(name: string) {
   const res = await fetch("/api/dossiers", {
     method: "POST",

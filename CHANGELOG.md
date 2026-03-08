@@ -3,9 +3,127 @@
 All notable changes to this project are documented in this file.
 
 Format based on Keep a Changelog.
-Types: FEATURE, FIX, REFACTOR, CHORE.
+
+## 2026-03-09
+
+FEATURE: New autonomous mission flow — "Générer le brief" replaces "Envoyer en mission"; expert plan shown in PoleSlideUpPanel before budget debit
+FEATURE: POST /api/kael/missions/brief — creates PoleSession with brief as first message, calls expert for plan (isMissionPlan), creates AutonomousMission BRIEFING (no debit)
+FEATURE: POST /api/kael/missions/confirm — debits budget, executes mission via invokeExpertDirect, injects report in PoleSession, creates Task suggestions from next steps
+FEATURE: MissionConfirmCard in PoleSlideUpPanel — detects isMissionPlan messages, shows "Confirmer la mission — N missions" button
+FEATURE: onMissionBriefed callback chain — KaelSlideUpPanel → workspace page → PoleSlideUpPanel opens with briefedSessionId + briefedMissionId
+FEATURE: AutonomousMission.poleSessionId field added to schema and DB (migration applied)
+CHORE: Tasks auto-created from mission report next steps (SUGGESTED, origin "mission")
+
+## 2026-03-08
+
+FIX: invokeExpertDirect — add responseFormat text to callLLMProxy, fixing "Désolé une erreur" on autonomous missions (default was json_object, incompatible with free-text expert reports)
+FIX: POST /api/kael/missions — replace legacy missionBudget check with new checkMissionBudget/consumeMission system, fixing 403 with valid budget
+FEATURE: Unread badges for all expert poles on workspace mount — GET /api/kael/unread returns all unread keys (kael + poleIds), workspace page marks each as unread via markUnread
+FEATURE: Add GET /api/kael/unread route — returns unread message keys for KAEL and all active pole sessions
+
+REFACTOR: Settings page — refonte UI/UX alignée sur le dashboard (bg-background, header border-b + Logo identique, max-w-5xl, sidebar nav zinc, typographie standard, sans glassmorphism ni glows)
+
+## 2026-03-08 (suite)
+
+FIX: onboarding route — suppression checkMissionBudget + consumeMission (KAEL onboarding = gratuit comme KAEL workspace)
+FIX: settings/page.tsx — suppression bloc "Budget missions" dans l'onglet profil (doublon)
+REFACTOR: settings/page.tsx — onglet "Crédits & Accès" → "Plan & Missions"
+FEATURE: subscription-plans.ts — définition plans Solo/Studio (29€/60 missions, 79€/200 missions)
+FEATURE: api/billing/subscribe — POST crée checkout Stripe subscription ou redirige vers portal si abonnement existant
+FEATURE: api/billing/portal — POST génère lien Stripe Billing Portal (factures, annulation, paiement)
+FEATURE: billing/webhook — gestion customer.subscription.created/updated/deleted + invoice.payment_failed, mise à jour subscriptionTier + monthlyMissionAllowance en DB
+FEATURE: settings/page.tsx — section Crédits & Accès refaite : budget réel (allowance + top-up), grille 3 plans avec boutons, portail Stripe pour abonnés
+
+## 2026-03-08
+
+FEATURE: api/poles/sessions/[sessionId] — checkMissionBudget avant appel expert + consumeMission fire-and-forget après réponse
+FEATURE: api/dossiers/[id]/onboarding POST — checkMissionBudget avant appel KAEL + consumeMission après réponse LLM
+FEATURE: api/user/budget — GET route exposant allowanceLeft + topUpLeft + total
+FEATURE: use-mission-budget.ts — hook React avec cache 30s
+FEATURE: home-dock + workspace Dock — affichage budget réel (allowance + top-ups) via useMissionBudget
+FEATURE: mission-budget.ts — nouveau système hybride abonnement + top-up (checkMissionBudget, consumeMission, creditTopUpMissions, getMissionBudgetDisplay)
+FEATURE: prisma schema — ajout SubscriptionTier enum (FREE/SOLO/STUDIO) + champs subscription sur User (subscriptionTier, monthlyMissionAllowance, monthlyMissionsUsed, topUpMissions, allowanceResetAt, stripeCustomerId, stripeSubscriptionId)
+FEATURE: migration Supabase — subscription_tiers_and_mission_model appliquée
+FEATURE: credit-packs.ts — prix top-ups révisés (12€/30, 29€/100, 69€/300, 149€/1000)
+REFACTOR: billing/webhook — utilise creditTopUpMissions() au lieu d'incrémenter missionBudget directement
+REFACTOR: api/dossiers POST — création de dossier gratuite (suppression débit missionBudget à la création)
+REFACTOR: use-dossier.ts — suppression BudgetExhaustedError sur création dossier
+REFACTOR: dashboard-page.tsx — suppression catch BudgetExhaustedError sur handleCreate
+
+FIX: globals.css — --primary in dark mode was hsl(0 0% 98%) (white) causing white-on-white buttons; corrected to brand orange hsl(17 100% 45%) = #E84000 in both :root and .dark
+FIX: button.tsx — outline variant now includes explicit text-foreground to prevent invisible text in edge cases
+REFACTOR: wording — "Licence/Alpha Labs/K3RN Pro/Palier Actif" → "Accès/Early Access/Pro/Accès actuel" across settings + docks
+
+FEATURE: Billing — 4 credit packs (Bootstrapped/Funded/Series B/IPO Ready) via Stripe Checkout
+FEATURE: POST /api/billing/checkout — creates Stripe Checkout session for a credit pack
+FEATURE: POST /api/billing/webhook — handles checkout.session.completed, credits missionBudget
+FEATURE: CreditsModal — modal with 4 packs, opens on budget exhausted (dashboard) or from settings
+FEATURE: Settings subscription tab — shows missionBudget with color coding + Recharger button
+FEATURE: Dashboard — credits success banner after Stripe redirect (?credits=success)
+FIX: useCreateDossier — surfaces BudgetExhaustedError (HTTP 403) as typed error for UI handling
+FIX: POST /api/dossiers — missionBudget null treated as 0 (blocking creation for users created before column was added); now defaults to 30
+FIX: /invite/[code] server-side crash — cookies().set() moved from Server Component to middleware (Next.js 14 constraint)
+REFACTOR: score-engine — cross-contribution model: outcome+constraint now feed both Produit AND Finance; problem+target also feed Validation baseline
+FIX: FloatingWorkspaceInfo title "Mémoire du projet" → "Progression"
+FEATURE: KAEL workspace opener proactive — GET /api/kael/init creates opener session on workspace mount, badges KAEL button
+FIX: KAEL message duplication — POST route now appends to DB messages instead of trusting client history
+REFACTOR: invokeChefDeProjet — challenge max 4 (was 2), multi-question per message allowed, acquittements anti-generique, transitions directes
+FEATURE: KAEL session continuity — last 10 messages from previous session injected as context in new sessions
+FEATURE: KAEL direct answer rule — answers simple questions directly, missionProposal only for research/deep analysis tasks
+FEATURE: kael_notes (post-session synthesis) now injected into buildProjectMemory brief
+REFACTOR: invokeChefDeProjet prompt — ultra-personalization: questions must be anchored in user's exact words, generic/abstract questions forbidden
+FIX: Autonomous missions now execute via invokeExpertDirect fire-and-forget instead of broken n8n k3rn-expert-mission webhook
+FEATURE: executeAutonomousMission() — runs LLM directly, updates status RUNNING→DONE, injects result into KaelSession, broadcasts via Realtime
+FEATURE: invokeExpertDirect() — experts now respond via direct callLLMProxy with their systemPrompt, replacing broken n8n GuichetUnique routing
+REFACTOR: Pole session routes (create + send message) use invokeExpertDirect instead of invokeN8nPole
+FEATURE: Universal mission flow — ALL experts now go through missionProposal (brief + validation + budget) instead of direct routedPole
+FEATURE: Wire "Session interactive" button in MissionProposalCard → opens expert panel directly with routing context
+FIX: Remove KAEL auto-redirect — routing shows inline "Ouvrir session" button instead of closing KAEL immediately
+FEATURE: Auto-start pole session with KAEL routing context — expert responds via real LLM when opened from KAEL routing
+FIX: Remove hardcoded manager greeting — chat starts empty when no routing context, populated by real LLM when context exists
+FIX: Add polling (5s interval) for autonomous mission status — injects result as manager message when DONE
+FIX: Pass routingReason from KAEL response through to PoleSlideUpPanel via onRouteToPole callback
+
+## 2026-03-08
+
+FIX: KAEL routing — auto-open expert panel quand routedPole reçu (onRouteToPole callback)
+FIX: KAEL prompt — règle anti-répétition renforcée (si user dit "go" après routing → retourner routedPole immédiatement)
+FIX: FloatingWorkspaceInfo — redesign glassmorphism, collapsible, suppression Card shadcn
+FIX: ScoreMeter — redesign glassmorphism 4 dimensions (Marché/Produit/Finance/Validation), sans Card
+FIX: ForceGraph — dimensions initiales window.innerWidth, rebuild immédiat après fetch, poles via supabaseAdmin direct
+FIX: /api/dossiers/[id]/graph — poles fetch via supabaseAdmin (pas db.pole.findMany)
+FEATURE: Knowledge System — ExpertDocument + Task tables (migration Supabase)
+FEATURE: API /api/documents (GET/POST/PATCH/DELETE) — CRUD ExpertDocuments avec webhook n8n
+FEATURE: API /api/tasks (GET/POST/PATCH/DELETE) — CRUD tâches avec cycle de vie SUGGESTED→DONE
+FEATURE: triggerDocumentExtraction() — extraction async post-session pôle, fire-and-forget
+FEATURE: TaskPanel — panneau tâches flottant dans workspace (liste, création, avancement statut)
+FEATURE: Dock — bouton Tâches (CheckCircle2) ouvre TaskPanel
+FEATURE: Memory Graph — refonte complète en knowledge graph force-directed (react-force-graph-2d)
+FEATURE: ForceGraph.tsx — nœuds hubs pôles + cartes + documents + tâches, filtres viewMode/type/search
+FEATURE: NodeModal.tsx — modal au clic nœud : fiche expert / preview carte / document / tâche
+FEATURE: /api/dossiers/[id]/graph — retourne poles + cards + relations + documents + tasks
+REFACTOR: CanvasView.tsx — remplace ReactFlow par ForceGraph, conserve interface props
+
+FEATURE: pole-manager-chat — bandeau "Mission en cours" si mission RUNNING/PENDING pour cet expert+dossier
+FIX: notifications GET — sélect-puis-insert au lieu de upsert (Supabase upsert retourne null data sur row existante)
+FIX: kael/route — normalise missionProposal.initialObjective → objective avant persistance DB
+FIX: missions route — { decrement } remplacé par RPC SQL decrement_mission_budget (DbModel ne supporte pas l'opérateur)
+FIX: kael route — missionProposal et choices persistés dans les messages DB (carte mission visible à la réouverture)
+FIX: SlideUpPanel — "Invalid Date" sur messages sans timestamp (fallback vide)
+FIX: SlideUpPanel — proposal.objective → proposal.initialObjective (Zod 400 sur /api/kael/missions/estimate)
+FIX: estimate route — prompt LLM forcé à toujours générer briefFinal non null
+FIX: SlideUpPanel — fallback brief sur proposal.initialObjective si briefFinal null malgré tout
+FIX: GET /api/user/notifications — suppression ignoreDuplicates:true (upsert retournait null → 500)
+FIX: n8n TelegramGateway — CERVEAU KAEL gère /start seul → route menu
+FIX: n8n TelegramGateway — Config refactorisé (évite }} interprété comme expression)
+FIX: n8n TelegramGateway — Send Reply ajout operation:sendMessage (était invalide)
+FIX: n8n TelegramGateway — Build Session Body refactorisé avec $input.first().json
 
 ## 2026-03-07
+
+FIX: ProjectFolderCard — body rounded-[28px] partout (top-left inclus), overlap tab/corps réduit à 8px (pt-[20px])
+FEATURE: Settings Telegram — indicateur visuel connecté (dot pulsant, chat ID masqué, border verte, polling auto 5s)
+FIX: n8n K3RN__TelegramGateway__v1 — restauré et activé après corruption MCP (nodes Is Link?/Webhook Link/Link Reply mis à jour vers typeVersions compatibles)
 
 FIX: API /api/user/notifications + /api/user/telegram/link — DbModel.create() injectait id: newId() sur une table sans colonne id (userId = PK), remplacé par supabaseAdmin upsert direct
 FIX: Skeleton loading des dossiers — forme exacte de la vraie carte (tab content-driven + diagonal + body 90% + blocs hiérarchiques)

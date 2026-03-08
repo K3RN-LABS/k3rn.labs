@@ -3,9 +3,9 @@ import { verifySession } from "@/lib/auth"
 import { db as prisma } from "@/lib/db"
 import { apiError, apiSuccess, validateBody } from "@/lib/validate"
 import { buildProjectMemory } from "@/lib/project-memory"
-import { invokeN8nPole } from "@/lib/n8n"
-import { triggerKAELPostSessionNote } from "@/lib/claude"
+import { invokeExpertDirect, triggerKAELPostSessionNote, triggerDocumentExtraction } from "@/lib/claude"
 import { computeAndPersistScore } from "@/lib/score-engine"
+import { checkMissionBudget, consumeMission } from "@/lib/mission-budget"
 import { z } from "zod"
 import { randomUUID } from "node:crypto"
 
@@ -27,28 +27,27 @@ export async function POST(req: NextRequest, { params }: { params: { sessionId: 
   if (!poleSession) return apiError("Session not found", 404)
   if (poleSession.dossier.ownerId !== session.userId) return apiError("Forbidden", 403)
 
+  // Vérifier le budget avant d'invoquer l'expert
+  const budgetCheck = await checkMissionBudget(session.userId)
+  if (!budgetCheck.ok) return apiError(budgetCheck.reason, 403)
+
   const messages = poleSession.messages as Array<Record<string, any>>
   const projectMemory = await buildProjectMemory(poleSession.dossierId)
 
-  // Nettoyage de l'historique pour n8n (on ne garde que role et content)
+  // Historique propre pour le LLM
   const cleanHistory = messages.map((m) => ({
-    role: m.role === "manager" ? "assistant" : m.role,
+    role: (m.role === "manager" ? "assistant" : "user") as "user" | "assistant",
     content: (m.content as string) ?? "",
   }))
 
-  const n8nResult = await invokeN8nPole(
-    {
-      poleCode: poleSession.pole.code,
-      managerName: poleSession.pole.managerName,
-      systemPrompt: poleSession.pole.systemPrompt,
-      userMessage: result.data.userMessage,
-      history: cleanHistory,
-      projectMemory,
-      dossierId: poleSession.dossierId,
-      labContext: poleSession.labAtCreation,
-    },
-    poleSession.pole.n8nWebhookUrl
-  )
+  const expertResponse = await invokeExpertDirect({
+    managerName: poleSession.pole.managerName,
+    systemPrompt: poleSession.pole.systemPrompt,
+    userMessage: result.data.userMessage,
+    history: cleanHistory,
+    projectMemory,
+    labContext: poleSession.labAtCreation,
+  })
 
   const userMsg = {
     id: randomUUID(),
@@ -57,31 +56,27 @@ export async function POST(req: NextRequest, { params }: { params: { sessionId: 
     timestamp: new Date().toISOString(),
   }
 
-  const newMessages = [...messages, userMsg]
-
-  // Persister la réponse si elle est disponible immédiatement (COMPLETED ou FALLBACK)
-  if (n8nResult.messages && n8nResult.messages.length > 0) {
-    n8nResult.messages.forEach(msg => {
-      newMessages.push({
-        id: randomUUID(),
-        role: "manager",
-        content: msg.content,
-        timestamp: new Date().toISOString(),
-      })
-    })
+  const managerMsg = {
+    id: randomUUID(),
+    role: "manager",
+    content: expertResponse,
+    timestamp: new Date().toISOString(),
   }
+
+  const newMessages = [...messages, userMsg, managerMsg]
 
   const updated = await prisma.poleSession.update({
     where: { id: params.sessionId },
     data: {
       messages: newMessages,
-      n8nExecutionId: n8nResult.executionId ?? poleSession.n8nExecutionId,
-      n8nStatus: n8nResult.status,
+      n8nStatus: "COMPLETED",
     },
   })
 
-  // Récupérer le dernier message du manager pour la réponse API
-  const lastManagerMsg = [...newMessages].reverse().find((m) => m.role === "manager")
+  const lastManagerMsg = managerMsg
+
+  // Débiter la mission (appel expert consommé)
+  consumeMission(session.userId).catch(() => undefined)
 
   // Score recompute post-session — fire and forget
   computeAndPersistScore(poleSession.dossierId).catch(() => undefined)
@@ -100,11 +95,20 @@ export async function POST(req: NextRequest, { params }: { params: { sessionId: 
     ).catch(() => undefined)
   }
 
+  // Document extraction post-session — fire and forget
+  const allMessages = updated.messages as Array<{ role: string; content: string }>
+  triggerDocumentExtraction(
+    poleSession.dossierId,
+    poleSession.pole.code,
+    poleSession.pole.managerName,
+    poleSession.id,
+    allMessages
+  ).catch(() => undefined)
+
   return apiSuccess({
     session: updated,
-    managerResponse: lastManagerMsg ?? null,
-    n8nStatus: n8nResult.status,
-    executionId: n8nResult.executionId,
+    managerResponse: lastManagerMsg,
+    n8nStatus: "COMPLETED",
   })
 }
 

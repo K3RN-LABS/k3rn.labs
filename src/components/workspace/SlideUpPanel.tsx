@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react"
 import { cn } from "@/lib/utils"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
@@ -16,7 +16,7 @@ import {
     type PoleData,
     type PoleSessionData,
 } from "@/hooks/use-poles"
-import { Send, Mic, MicOff, Loader2, Sparkles, BookmarkPlus, Check, X, ChevronDown, Zap, ChevronRight, AlertTriangle } from "lucide-react"
+import { Send, Mic, MicOff, Loader2, Sparkles, BookmarkPlus, Check, X, ChevronDown, Zap, ChevronRight, AlertTriangle, Radio } from "lucide-react"
 import { useWorkspaceStore } from "@/store/workspace.store"
 import { normalizeManagerName, getExpertImage } from "@/lib/experts"
 import { subscribeToChannel } from "@/lib/realtime"
@@ -44,6 +44,11 @@ interface MissionProposalData {
     clarifyingQuestions?: string[]
 }
 
+interface MissionPlanData {
+    missionId: string
+    estimatedCost: number
+}
+
 interface MissionResultData {
     summary: string
     fullReport?: string
@@ -63,8 +68,14 @@ interface Msg {
     missionProposal?: MissionProposalData
     isMissionUpdate?: boolean
     isMissionStatus?: boolean
+    isMissionPlan?: boolean
+    isMissionResult?: boolean
     missionId?: string
+    estimatedCost?: number
     missionResult?: MissionResultData
+    routedPole?: string
+    routedManager?: string
+    routingReason?: string
 }
 
 // ─── Mission Proposal Card ────────────────────────────────────────────────────
@@ -75,12 +86,16 @@ function MissionProposalCard({
     kaelSessionId,
     disabled,
     onMissionLaunched,
+    onMissionBriefed,
+    onSessionInteractive,
 }: {
     proposal: MissionProposalData
     dossierId: string
     kaelSessionId: string
     disabled?: boolean
     onMissionLaunched: (missionId: string) => void
+    onMissionBriefed?: (poleCode: string, managerName: string, poleSessionId: string, poleId: string, missionId: string) => void
+    onSessionInteractive?: (poleCode: string, managerName: string, objective: string) => void
 }) {
     const [phase, setPhase] = useState<"idle" | "estimating" | "confirming" | "launching">("idle")
     const [brief, setBrief] = useState<string | null>(null)
@@ -90,7 +105,7 @@ function MissionProposalCard({
     const displayName = normalizeManagerName(proposal.managerName)
     const imgSrc = getExpertImage(proposal.managerName)
 
-    async function handleLaunch() {
+    async function handleGenerateBrief() {
         setError(null)
         setPhase("estimating")
         try {
@@ -106,13 +121,13 @@ function MissionProposalCard({
                 }),
             })
             const estData = await estRes.json()
-            if (!estRes.ok || !estData.briefFinal) {
+            if (!estRes.ok) {
                 setError("Impossible de générer le brief. Réessaie.")
                 setPhase("idle")
                 return
             }
-            setBrief(estData.briefFinal)
-            setConfirmedCost(estData.estimatedCost ?? proposal.estimatedCost)
+            setBrief(estData.data?.briefFinal ?? estData.briefFinal ?? proposal.objective)
+            setConfirmedCost(estData.data?.estimatedCost ?? estData.estimatedCost ?? proposal.estimatedCost)
             setPhase("confirming")
         } catch {
             setError("Erreur réseau. Réessaie.")
@@ -120,11 +135,11 @@ function MissionProposalCard({
         }
     }
 
-    async function handleConfirm() {
+    async function handleConfirmLaunch() {
         if (!brief) return
         setPhase("launching")
         try {
-            const res = await fetch("/api/kael/missions", {
+            const res = await fetch("/api/kael/missions/brief", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -143,7 +158,13 @@ function MissionProposalCard({
                 setPhase("confirming")
                 return
             }
-            onMissionLaunched(data.mission?.id ?? "")
+            const { poleSessionId, poleId, missionId } = data.data ?? data
+            // Notify parent: KAEL closes, pole panel opens
+            if (onMissionBriefed && poleSessionId && poleId) {
+                onMissionBriefed(proposal.poleCode, proposal.managerName, poleSessionId, poleId, missionId ?? "")
+            } else {
+                onMissionLaunched(missionId ?? "")
+            }
         } catch {
             setError("Erreur réseau. Réessaie.")
             setPhase("confirming")
@@ -177,7 +198,7 @@ function MissionProposalCard({
             {phase === "confirming" && brief && (
                 <div className="px-3 pb-2.5">
                     <p className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Brief généré</p>
-                    <p className="text-[11px] text-white/60 leading-relaxed line-clamp-3">{brief}</p>
+                    <p className="text-[11px] text-white/60 leading-relaxed max-h-[80px] overflow-y-auto">{brief}</p>
                     <p className="text-[10px] text-amber-400/70 mt-1.5">
                         Coût confirmé : {confirmedCost} mission{confirmedCost > 1 ? "s" : ""} débitées à la confirmation
                     </p>
@@ -198,16 +219,16 @@ function MissionProposalCard({
                     <>
                         <Button
                             size="sm"
-                            onClick={handleLaunch}
+                            onClick={handleGenerateBrief}
                             disabled={disabled}
                             className="h-7 text-[11px] px-3 bg-primary/90 hover:bg-primary border-0 rounded-lg"
                         >
-                            <Zap className="h-3 w-3 mr-1" />
-                            Envoyer en mission
+                            <Sparkles className="h-3 w-3 mr-1" />
+                            Générer le brief
                         </Button>
                         <button
-                            onClick={() => {}}
-                            disabled={disabled}
+                            onClick={() => onSessionInteractive?.(proposal.poleCode, proposal.managerName, proposal.objective)}
+                            disabled={disabled || !onSessionInteractive}
                             className="h-7 text-[11px] px-3 rounded-lg border border-white/[0.1] text-white/50 hover:text-white/80 hover:bg-white/[0.05] transition-colors disabled:opacity-40"
                         >
                             Session interactive
@@ -224,7 +245,7 @@ function MissionProposalCard({
                     <>
                         <Button
                             size="sm"
-                            onClick={handleConfirm}
+                            onClick={handleConfirmLaunch}
                             className="h-7 text-[11px] px-3 bg-emerald-600/90 hover:bg-emerald-600 border-0 rounded-lg"
                         >
                             <Check className="h-3 w-3 mr-1" />
@@ -241,7 +262,7 @@ function MissionProposalCard({
                 {phase === "launching" && (
                     <div className="flex items-center gap-2 text-white/40 text-[11px]">
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Lancement en cours…
+                        Préparation du plan…
                     </div>
                 )}
             </div>
@@ -372,6 +393,101 @@ function MissionResultBubble({
     )
 }
 
+// ─── Mission Confirm Card (in PoleSlideUpPanel — for isMissionPlan messages) ──
+
+function MissionConfirmCard({
+    missionId,
+    poleSessionId,
+    estimatedCost,
+    dossierId,
+    onConfirmed,
+    onCancelled,
+}: {
+    missionId: string
+    poleSessionId: string
+    estimatedCost: number
+    dossierId: string
+    onConfirmed: () => void
+    onCancelled: () => void
+}) {
+    const [phase, setPhase] = useState<"idle" | "confirming" | "done">("idle")
+    const [error, setError] = useState<string | null>(null)
+
+    async function handleConfirm() {
+        setPhase("confirming")
+        setError(null)
+        try {
+            const res = await fetch("/api/kael/missions/confirm", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ missionId, poleSessionId }),
+            })
+            const data = await res.json()
+            if (!res.ok) {
+                setError(data.error ?? "Erreur lors de la confirmation.")
+                setPhase("idle")
+                return
+            }
+            setPhase("done")
+            onConfirmed()
+        } catch {
+            setError("Erreur réseau. Réessaie.")
+            setPhase("idle")
+        }
+    }
+
+    if (phase === "done") {
+        return (
+            <div className="mt-2 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px]">
+                <Check className="h-3.5 w-3.5 shrink-0" />
+                Mission lancée — rapport en cours de préparation…
+            </div>
+        )
+    }
+
+    return (
+        <div className="mt-2 rounded-xl border border-amber-500/20 bg-amber-500/5 overflow-hidden">
+            <div className="px-3 py-2.5 border-b border-amber-500/10">
+                <p className="text-[10px] text-amber-400/70 uppercase tracking-wider mb-0.5">Confirmation requise</p>
+                <p className="text-[11px] text-white/70 leading-snug">
+                    Confirmer consomme <strong className="text-amber-400">{estimatedCost} mission{estimatedCost > 1 ? "s" : ""}</strong> de votre budget.
+                </p>
+            </div>
+            {error && (
+                <div className="px-3 py-1.5 flex items-center gap-1.5 text-red-400/80 text-[11px]">
+                    <AlertTriangle className="h-3 w-3 shrink-0" />
+                    <span>{error}</span>
+                </div>
+            )}
+            <div className="px-3 py-2.5 flex items-center gap-2">
+                {phase === "confirming" ? (
+                    <div className="flex items-center gap-2 text-white/40 text-[11px]">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Lancement en cours…
+                    </div>
+                ) : (
+                    <>
+                        <Button
+                            size="sm"
+                            onClick={handleConfirm}
+                            className="h-7 text-[11px] px-3 bg-emerald-600/90 hover:bg-emerald-600 border-0 rounded-lg"
+                        >
+                            <Zap className="h-3 w-3 mr-1" />
+                            Confirmer la mission — {estimatedCost} mission{estimatedCost > 1 ? "s" : ""}
+                        </Button>
+                        <button
+                            onClick={onCancelled}
+                            className="h-7 text-[11px] px-3 rounded-lg text-white/40 hover:text-white/70 transition-colors"
+                        >
+                            Annuler
+                        </button>
+                    </>
+                )}
+            </div>
+        </div>
+    )
+}
+
 // ─── Shared chat input ────────────────────────────────────────────────────────
 
 interface ChatInputProps {
@@ -460,7 +576,7 @@ function MessageBubble({
                 )}>
                     <p className="whitespace-pre-wrap">{msg.content}</p>
                     <p className={cn("text-[9px] mt-1 opacity-35", isUser ? "text-right" : "")}>
-                        {new Date(msg.timestamp).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                        {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : ""}
                     </p>
                 </div>
                 {!isUser && msg.choices && msg.choices.length > 0 && onChoiceSelect && (
@@ -531,13 +647,13 @@ interface PanelShellProps {
 function PanelShell({ header, children, onClose, className }: PanelShellProps) {
     return (
         <>
-            <div className="fixed inset-0 z-[65] bg-black/20 backdrop-blur-[2px]" onClick={onClose} />
+            <div className="fixed inset-0 bottom-[80px] z-[65] bg-black/20" onClick={onClose} />
             <div
                 className={cn(
-                    "fixed bottom-[80px] z-[66] w-[400px]",
+                    "fixed bottom-[116px] z-[66] w-[400px]",
                     "flex flex-col rounded-2xl overflow-hidden",
                     "border border-white/[0.08] bg-[#0d0d0d]",
-                    "shadow-[0_24px_60px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.06)]",
+                    
                     "animate-in slide-in-from-bottom-4 duration-250",
                     className
                 )}
@@ -558,15 +674,18 @@ interface KaelSlideUpProps {
     dossierId: string
     currentLab?: string
     onClose: () => void
+    onRouteToPole?: (poleCode: string, managerName: string, routingReason?: string) => void
+    onMissionBriefed?: (poleCode: string, managerName: string, poleSessionId: string, poleId: string, missionId: string) => void
 }
 
-export function KaelSlideUpPanel({ dossierId, currentLab, onClose }: KaelSlideUpProps) {
+export function KaelSlideUpPanel({ dossierId, currentLab, onClose, onRouteToPole, onMissionBriefed }: KaelSlideUpProps) {
     const { clearUnread } = useWorkspaceStore()
     const [messages, setMessages] = useState<Msg[]>([])
     const [sessionId, setSessionId] = useState<string | undefined>()
     const [input, setInput] = useState("")
     const [activeMissionId, setActiveMissionId] = useState<string | null>(null)
     const bottomRef = useRef<HTMLDivElement>(null)
+    const prevMsgCountRef = useRef(0)
     const { mutateAsync: kaelRoute, isPending: sending } = useKaelRoute()
     const { play: playSound } = useNotificationSound()
     const initDone = useRef(false)
@@ -587,6 +706,7 @@ export function KaelSlideUpPanel({ dossierId, currentLab, onClose }: KaelSlideUp
                             choices?: string[]; missionProposal?: MissionProposalData
                             isMissionUpdate?: boolean; isMissionStatus?: boolean; missionId?: string
                             missionResult?: MissionResultData
+                            routedPole?: string; routedManager?: string; routingReason?: string
                         }>)
                             .filter((m) => m.role !== "kael_note")
                             .map((m) => ({
@@ -595,11 +715,17 @@ export function KaelSlideUpPanel({ dossierId, currentLab, onClose }: KaelSlideUp
                                 content: m.content,
                                 timestamp: m.timestamp,
                                 choices: m.choices,
-                                missionProposal: m.missionProposal,
+                                missionProposal: m.missionProposal ? {
+                                    ...m.missionProposal,
+                                    objective: (m.missionProposal as any).initialObjective ?? m.missionProposal.objective ?? "",
+                                } : undefined,
                                 isMissionUpdate: m.isMissionUpdate,
                                 isMissionStatus: m.isMissionStatus,
                                 missionId: m.missionId,
                                 missionResult: m.missionResult,
+                                routedPole: m.routedPole,
+                                routedManager: m.routedManager,
+                                routingReason: m.routingReason,
                             }))
                     )
                 }
@@ -612,7 +738,16 @@ export function KaelSlideUpPanel({ dossierId, currentLab, onClose }: KaelSlideUp
         clearUnread("kael")
     }, [clearUnread])
 
+    // Instant scroll on initial load, smooth only for new incoming messages
+    useLayoutEffect(() => {
+        if (messages.length > 0 && prevMsgCountRef.current === 0) {
+            bottomRef.current?.scrollIntoView()
+        }
+    }, [messages])
     useEffect(() => {
+        const isFirst = prevMsgCountRef.current === 0
+        prevMsgCountRef.current = messages.length
+        if (isFirst || messages.length === 0) return
         bottomRef.current?.scrollIntoView({ behavior: "smooth" })
     }, [messages])
 
@@ -685,15 +820,23 @@ export function KaelSlideUpPanel({ dossierId, currentLab, onClose }: KaelSlideUp
                 : !res.routedPole && !res.missionProposal
                     ? ["Consulter un expert", "Voir l'état du projet", "Poser une autre question"]
                     : undefined
+            const resolvedManager = res.routedManager ?? res.routedPoleData?.managerName
             setMessages((prev) => [...prev, {
                 id: crypto.randomUUID(),
                 role: "kael",
                 content: responseMsg,
                 timestamp: new Date().toISOString(),
                 choices: responseChoices,
-                missionProposal: res.missionProposal,
+                missionProposal: res.missionProposal ? {
+                    ...res.missionProposal,
+                    objective: (res.missionProposal as any).initialObjective ?? res.missionProposal.objective ?? "",
+                } : undefined,
+                // Routing — store for button, do NOT auto-redirect
+                routedPole: res.routedPole ?? undefined,
+                routedManager: resolvedManager ?? undefined,
+                routingReason: res.routingReason ?? undefined,
             }])
-            // Play sound — panel is open so no badge, but still audible feedback
+            // Play sound
             playSound()
         } catch {
             setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "kael", content: "Une erreur est survenue.", timestamp: new Date().toISOString() }])
@@ -759,14 +902,32 @@ export function KaelSlideUpPanel({ dossierId, currentLab, onClose }: KaelSlideUp
                     }
                     const isLastKael = msg.role === "kael" && !sending && messages.slice(i + 1).every((m) => m.role !== "kael")
                     const hasProposal = isLastKael && !!msg.missionProposal
+                    const hasRouting = !!msg.routedPole && !!msg.routedManager
                     return (
                         <div key={msg.id}>
                             <MessageBubble
                                 msg={isLastKael ? msg : { ...msg, choices: undefined }}
                                 avatar={kaelAvatar}
-                                onChoiceSelect={isLastKael && !hasProposal ? (c) => handleSend(c) : undefined}
+                                onChoiceSelect={isLastKael && !hasProposal && !hasRouting ? (c) => handleSend(c) : undefined}
                                 choicesDisabled={sending}
                             />
+                            {hasRouting && onRouteToPole && (
+                                <div className="pl-8 mt-1.5">
+                                    <button
+                                        onClick={() => { onClose(); onRouteToPole(msg.routedPole!, msg.routedManager!, msg.routingReason) }}
+                                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/6 hover:bg-white/10 border border-white/8 hover:border-white/15 transition-all text-left w-full group"
+                                    >
+                                        <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 border border-white/10">
+                                            <img src={getExpertImage(msg.routedManager!)} alt="" className="w-full h-full object-cover" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[11px] text-white/40 uppercase tracking-wide">Ouvrir session</p>
+                                            <p className="text-xs font-semibold text-white/80 group-hover:text-white transition-colors">{normalizeManagerName(msg.routedManager!).toUpperCase()}</p>
+                                        </div>
+                                        <ChevronRight className="h-3.5 w-3.5 text-white/30 group-hover:text-white/60 transition-colors shrink-0" />
+                                    </button>
+                                </div>
+                            )}
                             {hasProposal && sessionId && (
                                 <div className="pl-8">
                                     <MissionProposalCard
@@ -785,6 +946,14 @@ export function KaelSlideUpPanel({ dossierId, currentLab, onClose }: KaelSlideUp
                                                 missionId: id,
                                             }])
                                         }}
+                                        onMissionBriefed={onMissionBriefed ? (poleCode, managerName, poleSessionId, poleId, missionId) => {
+                                            onClose()
+                                            onMissionBriefed(poleCode, managerName, poleSessionId, poleId, missionId)
+                                        } : undefined}
+                                        onSessionInteractive={onRouteToPole ? (poleCode, managerName, objective) => {
+                                            onClose()
+                                            onRouteToPole(poleCode, managerName, objective)
+                                        } : undefined}
                                     />
                                 </div>
                             )}
@@ -806,16 +975,23 @@ interface PoleSlideUpProps {
     dossierId: string
     currentLab?: string
     onClose: () => void
+    routingContext?: string // context from KAEL routing — auto-starts session with this as first message
+    briefedSessionId?: string // session created by /api/kael/missions/brief — load directly
+    briefedMissionId?: string // AutonomousMission to confirm in this session
 }
 
-export function PoleSlideUpPanel({ pole, dossierId, currentLab, onClose }: PoleSlideUpProps) {
+export function PoleSlideUpPanel({ pole, dossierId, currentLab, onClose, routingContext, briefedSessionId, briefedMissionId }: PoleSlideUpProps) {
     const { markUnread, clearUnread, notifSoundEnabled } = useWorkspaceStore()
     const [session, setSession] = useState<PoleSessionData | null>(null)
     const [messages, setMessages] = useState<Msg[]>([])
     const [input, setInput] = useState("")
     const [savedMsgIds, setSavedMsgIds] = useState<Set<string>>(new Set())
     const [savingMsgId, setSavingMsgId] = useState<string | null>(null)
+    const [activeMission, setActiveMission] = useState<{ id: string; objective: string } | null>(null)
+    // Track which mission plan has been confirmed (to hide the confirm card)
+    const [confirmedMissionIds, setConfirmedMissionIds] = useState<Set<string>>(new Set())
     const bottomRef = useRef<HTMLDivElement>(null)
+    const prevMsgCountRef = useRef(0)
     // Track if panel is visible (mounted = visible)
     const isVisibleRef = useRef(true)
 
@@ -828,25 +1004,43 @@ export function PoleSlideUpPanel({ pole, dossierId, currentLab, onClose }: PoleS
 
     const { data: activeSessionData, isLoading: isLoadingSession } = useActivePoleSession(pole.id, dossierId)
 
-    // Initial load from active session or greeting
+    const handleSendRef = useRef<(text?: string) => void>(() => {})
+    const autoSentRef = useRef(false)
+
+    // Load briefed session directly if provided (from /api/kael/missions/brief)
+    const briefedLoadDone = useRef(false)
     useEffect(() => {
-        if (session) return // Already explicitly set
+        if (!briefedSessionId || briefedLoadDone.current || session) return
+        briefedLoadDone.current = true
+        fetch(`/api/poles/sessions/${briefedSessionId}`)
+            .then((r) => r.json())
+            .then((data) => {
+                const s = data.data?.session ?? data.session
+                if (s) {
+                    setSession(s)
+                    setMessages((s.messages ?? []) as Msg[])
+                }
+            })
+            .catch(() => {})
+    }, [briefedSessionId, session])
+
+    // Initial load from active session
+    useEffect(() => {
+        if (session) return
+        if (briefedSessionId) return // briefed session loaded above
 
         if (!isLoadingSession) {
             if (activeSessionData?.session) {
                 setSession(activeSessionData.session)
                 setMessages(activeSessionData.session.messages as Msg[])
-            } else if (messages.length === 0) {
-                setMessages([{
-                    id: crypto.randomUUID(),
-                    role: "manager",
-                    content: getManagerGreeting(pole.managerName),
-                    timestamp: new Date().toISOString(),
-                }])
+            } else if (routingContext && !autoSentRef.current) {
+                // KAEL routed here — auto-send routing context through normal handleSend path
+                autoSentRef.current = true
+                setTimeout(() => handleSendRef.current(routingContext), 50)
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isLoadingSession, activeSessionData?.session?.id, pole.managerName])
+    }, [isLoadingSession, activeSessionData?.session?.id])
 
     // Clear unread when panel opens, mark not visible on unmount
     useEffect(() => {
@@ -855,14 +1049,63 @@ export function PoleSlideUpPanel({ pole, dossierId, currentLab, onClose }: PoleS
         return () => { isVisibleRef.current = false }
     }, [chatKey, clearUnread])
 
+    // First load → instant (before paint). prevMsgCountRef only updated in useEffect below.
+    useLayoutEffect(() => {
+        if (messages.length > 0 && prevMsgCountRef.current === 0) {
+            bottomRef.current?.scrollIntoView()
+        }
+    }, [messages])
+
+    // Subsequent new messages → smooth
     useEffect(() => {
+        const isFirst = prevMsgCountRef.current === 0
+        prevMsgCountRef.current = messages.length
+        if (isFirst || messages.length === 0) return
         bottomRef.current?.scrollIntoView({ behavior: "smooth" })
     }, [messages])
 
-    async function handleSend() {
-        const text = input.trim()
+    // Mission polling — fetch once then poll every 5s while RUNNING/PENDING
+    useEffect(() => {
+        type MissionData = { id: string; poleCode: string; objective: string; status: string; result?: { summary?: string } | null }
+
+        function fetchMissions() {
+            fetch(`/api/kael/missions?dossierId=${dossierId}`)
+                .then((r) => r.json())
+                .then((data: unknown) => {
+                    const missions = Array.isArray(data) ? data as MissionData[] : []
+                    const active = missions.find((m) => m.poleCode === pole.code && (m.status === "RUNNING" || m.status === "PENDING"))
+                    const done = missions.find((m) => m.poleCode === pole.code && m.status === "DONE" && m.result?.summary)
+
+                    setActiveMission(prev => {
+                        // Mission just completed → inject result as manager message
+                        if (prev && !active && done?.result?.summary) {
+                            setMessages(msgs => {
+                                const alreadyInjected = msgs.some(m => m.id === `mission-result-${done.id}`)
+                                if (alreadyInjected) return msgs
+                                return [...msgs, {
+                                    id: `mission-result-${done.id}`,
+                                    role: "manager" as const,
+                                    content: done.result!.summary!,
+                                    timestamp: new Date().toISOString(),
+                                }]
+                            })
+                            return null
+                        }
+                        return active ?? null
+                    })
+                })
+                .catch(() => {})
+        }
+
+        fetchMissions()
+        const interval = setInterval(fetchMissions, 5000)
+        return () => clearInterval(interval)
+    }, [dossierId, pole.code])
+
+    async function handleSend(textOverride?: string) {
+        const text = (textOverride ?? input).trim()
         if (!text || sending) return
-        setInput("")
+        if (!textOverride) setInput("")
         const userMsg: Msg = { id: crypto.randomUUID(), role: "user", content: text, timestamp: new Date().toISOString() }
         setMessages((prev) => [...prev, userMsg])
         try {
@@ -881,6 +1124,9 @@ export function PoleSlideUpPanel({ pole, dossierId, currentLab, onClose }: PoleS
             setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "manager", content: "Une erreur est survenue.", timestamp: new Date().toISOString() }])
         }
     }
+
+    // Keep ref in sync so the initial-load useEffect can call handleSend without stale closure
+    useEffect(() => { handleSendRef.current = handleSend })
 
     async function handleSaveAsCard(msg: Msg) {
         if (savingMsgId || savedMsgIds.has(msg.id)) return
@@ -940,15 +1186,40 @@ export function PoleSlideUpPanel({ pole, dossierId, currentLab, onClose }: PoleS
                     </div>
                 ) : (
                     <>
+                        {activeMission && (
+                            <div className="flex items-start gap-2.5 rounded-xl px-3.5 py-3 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs">
+                                <Radio className="h-3.5 w-3.5 mt-0.5 shrink-0 animate-pulse" />
+                                <div className="flex flex-col gap-0.5">
+                                    <span className="font-semibold uppercase tracking-wide text-[10px] text-blue-400">Mission en cours</span>
+                                    <span className="text-blue-200/80 leading-snug">{activeMission.objective}</span>
+                                </div>
+                            </div>
+                        )}
                         {messages.map((msg) => (
-                            <MessageBubble
-                                key={msg.id}
-                                msg={msg}
-                                avatar={managerAvatar}
-                                onSave={msg.role === "manager" ? () => handleSaveAsCard(msg) : undefined}
-                                saving={savingMsgId === msg.id}
-                                saved={savedMsgIds.has(msg.id)}
-                            />
+                            <div key={msg.id}>
+                                <MessageBubble
+                                    msg={msg}
+                                    avatar={managerAvatar}
+                                    onSave={msg.role === "manager" && session && !msg.isMissionPlan ? () => handleSaveAsCard(msg) : undefined}
+                                    saving={savingMsgId === msg.id}
+                                    saved={savedMsgIds.has(msg.id)}
+                                />
+                                {/* Mission plan confirmation card */}
+                                {msg.isMissionPlan && briefedMissionId && !confirmedMissionIds.has(briefedMissionId) && (
+                                    <MissionConfirmCard
+                                        missionId={briefedMissionId}
+                                        poleSessionId={session?.id ?? briefedSessionId ?? ""}
+                                        estimatedCost={msg.estimatedCost ?? 1}
+                                        dossierId={dossierId}
+                                        onConfirmed={() => {
+                                            setConfirmedMissionIds((prev) => { const next = new Set(prev); next.add(briefedMissionId!); return next })
+                                        }}
+                                        onCancelled={() => {
+                                            setConfirmedMissionIds((prev) => { const next = new Set(prev); next.add(briefedMissionId!); return next })
+                                        }}
+                                    />
+                                )}
+                            </div>
                         ))}
                         {sending && <TypingIndicator avatar={managerAvatar} />}
                         <div ref={bottomRef} />

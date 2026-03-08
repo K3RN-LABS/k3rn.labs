@@ -4,7 +4,7 @@ import { db as prisma } from "@/lib/db"
 import { prisma as prismaDirect } from "@/lib/prisma"
 import { apiError, apiSuccess, validateBody } from "@/lib/validate"
 import { buildProjectMemory } from "@/lib/project-memory"
-import { invokeN8nPole } from "@/lib/n8n"
+import { invokeExpertDirect } from "@/lib/claude"
 import { createAuditLog } from "@/lib/audit"
 import { z } from "zod"
 import { randomUUID } from "node:crypto"
@@ -42,26 +42,19 @@ export async function POST(req: NextRequest, { params }: { params: { poleId: str
 
   const projectMemory = await buildProjectMemory(dossierId)
 
-  const n8nResult = await invokeN8nPole(
-    {
-      poleCode: pole.code,
-      managerName: pole.managerName,
-      systemPrompt: pole.systemPrompt,
-      userMessage,
-      projectMemory,
-      dossierId,
-      labContext: currentLab,
-    },
-    pole.n8nWebhookUrl
-  )
+  const expertResponse = await invokeExpertDirect({
+    managerName: pole.managerName,
+    systemPrompt: pole.systemPrompt,
+    userMessage,
+    history: [],
+    projectMemory,
+    labContext: currentLab,
+  })
 
   const initialManagerMessage = {
     id: randomUUID(),
     role: "manager",
-    content:
-      n8nResult.status === "FALLBACK" && n8nResult.messages[0]
-        ? n8nResult.messages[0].content
-        : `Bonjour ! Je suis **${pole.managerName}**, ${getPoleRole(pole.code)}. ${getManagerGreeting(pole.managerName)}`,
+    content: expertResponse,
     timestamp: new Date().toISOString(),
     isManager: true,
   }
@@ -87,8 +80,7 @@ export async function POST(req: NextRequest, { params }: { params: { poleId: str
         dossierId,
         labAtCreation: currentLab as any,
         messages: [userMsgObj, initialManagerMessage],
-        n8nExecutionId: n8nResult.executionId,
-        n8nStatus: n8nResult.status,
+        n8nStatus: "COMPLETED",
         status: "ACTIVE",
       },
     })
@@ -140,28 +132,3 @@ export async function POST(req: NextRequest, { params }: { params: { poleId: str
   return apiSuccess({ session: poleSession, pole })
 }
 
-function getPoleRole(code: string): string {
-  const roles: Record<string, string> = {
-    P01_STRATEGIE: "Directeur Stratégie & Innovation",
-    P02_MARKET: "Directrice Market & Intelligence",
-    P03_PRODUIT_TECH: "Architecte Produit & Tech",
-    P04_FINANCE: "Directrice Financière",
-    P05_MARKETING: "Chief Marketing Officer",
-    P06_LEGAL: "Conseiller Juridique",
-    P07_TALENT_OPS: "Directrice des Opérations",
-  }
-  return roles[code] ?? code
-}
-
-function getManagerGreeting(name: string): string {
-  const greetings: Record<string, string> = {
-    AXEL: "Dis-moi quelle est l'idée ou le défi stratégique sur lequel tu veux travailler.",
-    MAYA: "Quel marché ou secteur veux-tu analyser en priorité ?",
-    KAI: "Décris-moi ce que tu veux construire — fonctionnalités, contraintes techniques, MVP visé.",
-    ELENA: "Parle-moi de ton modèle économique ou du projet à modéliser financièrement.",
-    SKY: "Quel est le message, la marque ou la stratégie marketing sur laquelle on travaille ?",
-    MARCUS: "Quel risque légal ou question de conformité veux-tu traiter ?",
-    NOVA: "Quels sont les besoins en ressources, coordination ou suivi opérationnel ?",
-  }
-  return greetings[name] ?? "Comment puis-je t'aider ?"
-}

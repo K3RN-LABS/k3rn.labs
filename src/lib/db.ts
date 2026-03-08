@@ -373,6 +373,8 @@ class DbClient {
   mission = new DbModel("Mission")
   autonomousMission = new DbModel("AutonomousMission")
   userNotificationSettings = new DbModel("UserNotificationSettings")
+  expertDocument = new DbModel("ExpertDocument")
+  task = new DbModel("Task")
 
   // Raw text search via Supabase textSearch (uses GIN index)
   async cardFullTextSearch(args: {

@@ -55,7 +55,7 @@ Réponds UNIQUEMENT en JSON valide :
   "clarifyingQuestions": []
 }
 
-Si des informations manquent encore pour rédiger un brief complet, liste les questions restantes dans "clarifyingQuestions" et mets "briefFinal" à null.`,
+IMPORTANT : Tu DOIS toujours remplir "briefFinal" avec le brief le plus complet possible d'après les informations disponibles. Ne retourne JAMAIS null pour "briefFinal". Si des informations manquent, génère un brief avec ce que tu as et liste les questions dans "clarifyingQuestions".`,
     },
     {
       role: "user",

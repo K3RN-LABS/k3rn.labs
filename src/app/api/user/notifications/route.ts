@@ -17,12 +17,19 @@ export async function GET() {
   const session = await verifySession()
   if (!session) return apiError("Unauthorized", 401)
 
+  // Try to fetch existing settings first
+  const { data: existing } = await supabaseAdmin
+    .from("UserNotificationSettings")
+    .select()
+    .eq("userId", session.userId)
+    .single()
+
+  if (existing) return apiSuccess(existing)
+
+  // Row doesn't exist — create with defaults
   const { data, error } = await supabaseAdmin
     .from("UserNotificationSettings")
-    .upsert(
-      { userId: session.userId, missionProgressUpdates: true, telegramOnComplete: true },
-      { onConflict: "userId", ignoreDuplicates: true }
-    )
+    .insert({ userId: session.userId, missionProgressUpdates: true, telegramOnComplete: true })
     .select()
     .single()
 

@@ -9,6 +9,7 @@ import { CanvasView } from "@/components/canvas/CanvasView"
 import { Dock } from "@/components/workspace/Dock"
 import { FloatingWorkspaceInfo } from "@/components/workspace/FloatingWorkspaceInfo"
 import { KaelSlideUpPanel, PoleSlideUpPanel } from "@/components/workspace/SlideUpPanel"
+import { TaskPanel } from "@/components/workspace/TaskPanel"
 import { MobileOrchestrator } from "@/components/workspace/MobileOrchestrator"
 import { KaelCommandBar } from "@/components/poles/kael-command-bar"
 import { PermissionGate } from "@/components/ui/permission-gate"
@@ -39,10 +40,14 @@ export default function WorkspacePage() {
     const { mutate: transitionLab, isPending: transitioning } = useTransitionLab()
     const { data: poles = [] } = usePoles()
 
-    const { setActiveDossier, activeSubFolderId, openPoleChat } = useWorkspaceStore()
+    const { setActiveDossier, activeSubFolderId, openPoleChat, markUnread } = useWorkspaceStore()
 
     // Active panel state — null | "kael" | pole id
     const [activePanel, setActivePanel] = useState<null | "kael" | string>(null)
+    const [poleRoutingContext, setPoleRoutingContext] = useState<string | undefined>(undefined)
+    const [taskPanelOpen, setTaskPanelOpen] = useState(false)
+    // Mission briefing — store briefed session + mission for PoleSlideUpPanel
+    const [briefedSession, setBriefedSession] = useState<{ poleId: string; sessionId: string; missionId: string } | null>(null)
 
     // Exclusive overlay state: only one of palette or kaelBar can be open at a time
     const closePaletteRef = useRef<(() => void) | null>(null)
@@ -54,6 +59,33 @@ export default function WorkspacePage() {
         setActiveDossier(dossierId)
         return () => setActiveDossier(null)
     }, [dossierId, setActiveDossier])
+
+    // Init KAEL opener proactively — creates session if none exists, badges the button
+    const kaelInitDone = useRef(false)
+    useEffect(() => {
+        if (kaelInitDone.current || !dossierId) return
+        // Wait until onboarding is confirmed complete before init
+        const onboardingStep = (dossier as any)?.onboardingState?.step
+        if (onboardingStep !== "COMPLETE") return
+        kaelInitDone.current = true
+        // Init KAEL session + badge
+        fetch(`/api/kael/init?dossierId=${dossierId}`)
+            .then((r) => r.json())
+            .then((data) => {
+                if (data.data?.isNew || data.data?.hasUnread) {
+                    markUnread("kael")
+                }
+            })
+            .catch(() => {})
+        // Fetch all unread keys (kael + poles) and badge them
+        fetch(`/api/kael/unread?dossierId=${dossierId}`)
+            .then((r) => r.json())
+            .then((data) => {
+                const keys: string[] = data.data?.unread ?? []
+                keys.forEach((key) => markUnread(key))
+            })
+            .catch(() => {})
+    }, [dossierId, dossier, markUnread])
 
     // Close panel on Escape
     useEffect(() => {
@@ -117,9 +149,19 @@ export default function WorkspacePage() {
         setActivePanel((prev) => prev === "kael" ? null : "kael")
     }
 
-    function handleOpenPole(poleId: string, poleCode: string, managerName: string) {
+    function handleOpenPole(poleId: string, poleCode: string, managerName: string, routingContext?: string) {
         openPoleChat(poleId, poleCode, managerName) // keep store in sync for Dock active state
+        setPoleRoutingContext(routingContext)
+        setBriefedSession(null) // clear briefed session when opening normally
         setActivePanel((prev) => prev === poleId ? null : poleId)
+    }
+
+    function handleMissionBriefed(poleCode: string, managerName: string, poleSessionId: string, poleId: string, missionId: string) {
+        openPoleChat(poleId, poleCode, managerName)
+        setPoleRoutingContext(undefined)
+        setBriefedSession({ poleId, sessionId: poleSessionId, missionId })
+        markUnread(`pole-${poleId}`)
+        setActivePanel(poleId)
     }
 
     // ── Mobile surface (< md) ──
@@ -232,6 +274,10 @@ export default function WorkspacePage() {
                     <CanvasView
                         dossierId={dossierId}
                         subFolderId={activeSubFolderId ?? undefined}
+                        onOpenPole={(poleCode) => {
+                            const pole = poles.find((p) => p.code === poleCode)
+                            if (pole) handleOpenPole(pole.id, pole.code, pole.managerName)
+                        }}
                     />
 
                     {/* Floating Workspace Info - Replaces Sidebar */}
@@ -252,6 +298,7 @@ export default function WorkspacePage() {
                         onOpenPole={handleOpenPole}
                         onPaletteChange={(open) => { if (open) closeKaelBarRef.current?.() }}
                         closePaletteRef={closePaletteRef}
+                        onOpenTasks={() => setTaskPanelOpen((v) => !v)}
                     />
                 </div>
 
@@ -261,6 +308,13 @@ export default function WorkspacePage() {
                         dossierId={dossierId}
                         currentLab={currentLab}
                         onClose={() => setActivePanel(null)}
+                        onRouteToPole={(poleCode, managerName, routingReason) => {
+                            const pole = poles.find((p) => p.code === poleCode)
+                            if (pole) handleOpenPole(pole.id, pole.code, managerName || pole.managerName, routingReason)
+                        }}
+                        onMissionBriefed={(poleCode, managerName, poleSessionId, poleId, missionId) => {
+                            handleMissionBriefed(poleCode, managerName, poleSessionId, poleId, missionId)
+                        }}
                     />
                 )}
                 {activePole && (
@@ -268,7 +322,16 @@ export default function WorkspacePage() {
                         pole={activePole}
                         dossierId={dossierId}
                         currentLab={currentLab}
-                        onClose={() => setActivePanel(null)}
+                        onClose={() => { setActivePanel(null); setPoleRoutingContext(undefined); setBriefedSession(null) }}
+                        routingContext={poleRoutingContext}
+                        briefedSessionId={briefedSession?.poleId === activePole.id ? briefedSession.sessionId : undefined}
+                        briefedMissionId={briefedSession?.poleId === activePole.id ? briefedSession.missionId : undefined}
+                    />
+                )}
+                {taskPanelOpen && (
+                    <TaskPanel
+                        dossierId={dossierId}
+                        onClose={() => setTaskPanelOpen(false)}
                     />
                 )}
             </div>

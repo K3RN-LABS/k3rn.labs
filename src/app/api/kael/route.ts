@@ -35,8 +35,32 @@ export async function POST(req: NextRequest) {
 
   const projectMemory = await buildProjectMemory(dossierId)
 
+  // Construire le contexte des sessions précédentes (continuité)
+  let previousSessionContext: string | undefined
+  const previousSession = activeSessionId
+    ? await prisma.kaelSession.findFirst({
+        where: { dossierId, id: { not: activeSessionId } },
+        orderBy: { updatedAt: "desc" },
+      })
+    : await prisma.kaelSession.findFirst({
+        where: { dossierId },
+        orderBy: { updatedAt: "desc" },
+      })
+
+  if (previousSession) {
+    const prevMessages = (previousSession.messages ?? []) as Array<{ role: string; content: string }>
+    const relevantPrev = prevMessages
+      .filter((m) => m.role === "user" || m.role === "kael")
+      .slice(-10)
+    if (relevantPrev.length > 0) {
+      previousSessionContext = relevantPrev
+        .map((m) => `${m.role === "user" ? "Utilisateur" : "KAEL"}: ${m.content.slice(0, 300)}`)
+        .join("\n")
+    }
+  }
+
   if (!activeSessionId) {
-    const opener = await generateKAELOpener(dossier.name, projectMemory)
+    const opener = await generateKAELOpener(dossier.name, projectMemory, previousSessionContext)
     const newSession = await prisma.kaelSession.create({
       data: {
         dossierId,
@@ -52,17 +76,26 @@ export async function POST(req: NextRequest) {
     dossier.name,
     history.map((m) => ({ ...m, id: randomUUID(), timestamp: new Date().toISOString() }) as any),
     message,
-    projectMemory
+    projectMemory,
+    previousSessionContext
   )
 
-  // Save the new interaction to the session
+  // Append to DB messages — never trust client history to avoid duplication
+  const currentSession = await prisma.kaelSession.findUnique({ where: { id: activeSessionId! } })
+  const currentMessages = (currentSession?.messages ?? []) as Array<Record<string, unknown>>
+
   await prisma.kaelSession.update({
     where: { id: activeSessionId },
     data: {
       messages: [
-        ...history,
+        ...currentMessages,
         { id: randomUUID(), role: "user", content: message, timestamp: new Date().toISOString() },
-        { id: randomUUID(), role: "kael", content: kaelResponse.message ?? "Réponse.", timestamp: new Date().toISOString() }
+        {
+          id: randomUUID(), role: "kael", content: kaelResponse.message ?? "Réponse.", timestamp: new Date().toISOString(),
+          ...(kaelResponse.missionProposal ? { missionProposal: { ...(kaelResponse.missionProposal as any), objective: (kaelResponse.missionProposal as any).initialObjective ?? (kaelResponse.missionProposal as any).objective ?? "" } } : {}),
+          ...(kaelResponse.choices?.length ? { choices: kaelResponse.choices } : {}),
+          ...(kaelResponse.routedPole ? { routedPole: kaelResponse.routedPole, routedManager: kaelResponse.routedManager ?? undefined, routingReason: kaelResponse.routingReason ?? undefined } : {})
+        }
       ]
     }
   })

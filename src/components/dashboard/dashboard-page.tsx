@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useRef, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useDossiers, useArchivedDossiers, useCreateDossier, useDeleteDossier, useArchiveDossier, useUnarchiveDossier, useUpdateDossierTags, useRenameDossier } from "@/hooks/use-dossier"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Logo } from "@/components/ui/logo"
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
-import { Plus, Trash2, ArrowRight, ArchiveRestore, Tag, X, Check, Pencil, MessageCircle } from "lucide-react"
+import { Plus, Trash2, ArrowRight, ArchiveRestore, Tag, X, Check, Pencil, MessageCircle, CheckCircle2 } from "lucide-react"
 import { HomeDock } from "@/components/dashboard/home-dock"
 import { cn } from "@/lib/utils"
 import { useNotificationSettings } from "@/hooks/use-notification-settings"
+import { CreditsModal } from "@/components/billing/CreditsModal"
 
 const LAB_LABELS: Record<string, string> = {
     DISCOVERY: "Discovery",
@@ -408,8 +409,20 @@ export default function DashboardPage() {
     const [filterStatus, setFilterStatus] = useState<"all" | "active" | "archived">("all")
     const [filterLab, setFilterLab] = useState<string | null>(null)
     const router = useRouter()
+    const searchParams = useSearchParams()
     const { settings: notifSettings } = useNotificationSettings()
     const [telegramBannerDismissed, setTelegramBannerDismissed] = useState(false)
+    const [creditsModalOpen, setCreditsModalOpen] = useState(false)
+    const [creditsBanner, setCreditsBanner] = useState(false)
+
+    // Show success banner after Stripe redirect
+    useEffect(() => {
+        if (searchParams.get("credits") === "success") {
+            setCreditsBanner(true)
+            const t = setTimeout(() => setCreditsBanner(false), 6000)
+            return () => clearTimeout(t)
+        }
+    }, [searchParams])
 
     // Onboarding redirect
     useEffect(() => {
@@ -460,13 +473,18 @@ export default function DashboardPage() {
             onSuccess: (data) => {
                 setNewName("")
                 setDialogOpen(false)
-                router.push(`/dossiers/${data.id}/onboarding`)
+                router.push(`/dossiers/${data.data?.id ?? data.id}/onboarding`)
+            },
+            onError: () => {
+                setDialogOpen(false)
             },
         })
     }
 
     return (
         <div className="min-h-screen bg-background pb-24">
+            <CreditsModal open={creditsModalOpen} onClose={() => setCreditsModalOpen(false)} />
+
             <header className="border-b px-6 py-4 flex items-center justify-between">
                 <Logo size="sm" />
                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -506,6 +524,17 @@ export default function DashboardPage() {
             </header>
 
             <main className="max-w-5xl mx-auto px-6 py-10">
+                {/* Credits success banner */}
+                {creditsBanner && (
+                    <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-2xl border border-green-500/20 bg-green-500/[0.06] backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-300">
+                        <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
+                        <p className="text-sm font-medium text-white/80">Missions créditées avec succès — vos crédits sont disponibles immédiatement.</p>
+                        <button onClick={() => setCreditsBanner(false)} className="ml-auto shrink-0 text-white/30 hover:text-white/60 transition-colors">
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
+                )}
+
                 {/* Telegram setup banner */}
                 {!telegramBannerDismissed && notifSettings !== null && !notifSettings?.telegramChatId && (
                     <div className={cn(

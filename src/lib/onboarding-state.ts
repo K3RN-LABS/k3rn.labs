@@ -195,14 +195,14 @@ export function applyLLMResponse(
     }
   }
 
-  // ── Guard serveur : force weak après 2 challenges ─────────────────────────
-  // Si le LLM a challengé 2 fois sans confirmer, on force la confirmation
+  // ── Guard serveur : force weak après 4 challenges ─────────────────────────
+  // Si le LLM a challengé 4 fois sans confirmer, on force la confirmation
   // en weak pour débloquer l'utilisateur — la valeur courante est acceptée
   const cq = existing.currentQuestion
   if (cq && !confirmed[cq] && trimmed) {
     const existingChallengeCount = existing.confirmedAspects[cq]?.challengeCount ?? 0
     const llmCount = llmChallengeCount?.[cq] ?? existingChallengeCount
-    if (llmCount >= 2) {
+    if (llmCount >= 4) {
       confirmed[cq] = {
         value: trimmed,
         confirmedAt: now,

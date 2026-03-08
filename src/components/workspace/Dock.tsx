@@ -6,9 +6,11 @@ import { cn } from "@/lib/utils"
 import { useWorkspaceStore } from "@/store/workspace.store"
 import type { PoleData } from "@/hooks/use-poles"
 import { normalizeManagerName, getExpertImage } from "@/lib/experts"
-import { Sparkles, Search, LayoutGrid, Layers, SlidersHorizontal, X, Volume2, VolumeX, Plus, Target, CheckCircle2, User, Settings, MessageCircle } from "lucide-react"
+import { Sparkles, Search, LayoutGrid, Layers, X, Volume2, VolumeX, Plus, Target, CheckCircle2, User, Settings, MessageCircle, Zap } from "lucide-react"
 import { useUserProfile } from "@/hooks/use-user-profile"
 import { useNotificationSettings } from "@/hooks/use-notification-settings"
+import { useMissionBudget } from "@/hooks/use-mission-budget"
+import { CreditsModal } from "@/components/billing/CreditsModal"
 
 // ─── Pole config ─────────────────────────────────────────────────────────────
 
@@ -55,6 +57,8 @@ interface DockProps {
     onOpenPole: (poleId: string, poleCode: string, managerName: string) => void
     onPaletteChange?: (open: boolean) => void
     closePaletteRef?: React.MutableRefObject<(() => void) | null>
+    onOpenTasks?: () => void
+    taskCount?: number
 }
 
 // ─── Tooltip ─────────────────────────────────────────────────────────────────
@@ -481,7 +485,7 @@ function CommandPalette({ subFolders, tab, onTabChange, onClose }: CommandPalett
 
 // ─── Dock ─────────────────────────────────────────────────────────────────────
 
-export function Dock({ dossierId, poles, subFolders, currentLab, onOpenKael, onOpenPole, onPaletteChange, closePaletteRef }: DockProps) {
+export function Dock({ dossierId, poles, subFolders, currentLab, onOpenKael, onOpenPole, onPaletteChange, closePaletteRef, onOpenTasks, taskCount }: DockProps) {
     const { openChats, canvasSearch, canvasFilterType, activeSubFolderId, unreadCounts } = useWorkspaceStore()
     const [paletteOpen, setPaletteOpen] = useState(false)
     const onPaletteChangeRef = useRef(onPaletteChange)
@@ -496,9 +500,11 @@ export function Dock({ dossierId, poles, subFolders, currentLab, onOpenKael, onO
     const [paletteTab, setPaletteTab] = useState<PaletteTab>("search")
     const [profileOpen, setProfileOpen] = useState(false)
     const profileRef = useRef<HTMLDivElement>(null)
+    const [creditsModalOpen, setCreditsModalOpen] = useState(false)
     const router = useRouter()
     const { profile } = useUserProfile()
     const { settings: notifSettings } = useNotificationSettings()
+    const { data: budget } = useMissionBudget()
 
     useEffect(() => {
         function onClickOutside(e: MouseEvent) {
@@ -600,9 +606,21 @@ export function Dock({ dossierId, poles, subFolders, currentLab, onOpenKael, onO
                                     : "bg-white/[0.06] border-white/[0.06] text-white/40 hover:text-white/70 hover:bg-white/[0.09]"
                             )}
                         >
-                            <SlidersHorizontal className="h-3.5 w-3.5" />
+                            <Layers className="h-3.5 w-3.5" />
                         </DockButton>
 
+                        {onOpenTasks && (
+                            <DockButton
+                                tooltip="Tâches"
+                                onClick={onOpenTasks}
+                                badge={taskCount && taskCount > 0 ? taskCount : undefined}
+                                className="border bg-white/[0.06] border-white/[0.06] text-white/40 hover:text-white/70 hover:bg-white/[0.09]"
+                            >
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                            </DockButton>
+                        )}
+
+                        <CreditsModal open={creditsModalOpen} onClose={() => setCreditsModalOpen(false)} currentBudget={budget?.total} />
 
                         <div ref={profileRef} className="relative flex flex-col items-center">
                             {profileOpen && (
@@ -632,39 +650,50 @@ export function Dock({ dossierId, poles, subFolders, currentLab, onOpenKael, onO
                                         </div>
                                     </div>
 
-                                    {/* Budget missions */}
-                                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 mb-3">
+                                    {/* Budget missions — cliquable */}
+                                    <button
+                                        onClick={() => { setProfileOpen(false); setCreditsModalOpen(true) }}
+                                        className="w-full rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/[0.10] p-3 mb-3 transition-all duration-150 group text-left"
+                                    >
                                         <div className="flex items-center justify-between mb-2">
-                                            <span className="text-[10px] font-jakarta tracking-widest text-white/30 uppercase">Missions</span>
-                                            <span className="text-sm font-jakarta font-bold text-white/80">
-                                                {profile?.missionBudget ?? "—"}
-                                                <span className="text-white/25 font-normal">
-                                                    /{Math.max(30, profile?.missionBudget ?? 30)}
+                                            <span className="text-[10px] font-jakarta tracking-widest text-white/30 uppercase group-hover:text-white/50 transition-colors">Missions</span>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-sm font-jakarta font-bold text-white/80">
+                                                    {budget?.total ?? "—"}
+                                                    <span className="text-white/25 font-normal">
+                                                        /{budget?.allowance ?? 5}
+                                                    </span>
                                                 </span>
-                                            </span>
+                                                <Zap className="h-3 w-3 text-primary/60 group-hover:text-primary transition-colors" />
+                                            </div>
                                         </div>
                                         <div className="h-[2px] w-full bg-white/[0.05] rounded-full overflow-hidden">
                                             <div
-                                                className="h-full bg-white/40 transition-all duration-700"
+                                                className={cn(
+                                                    "h-full transition-all duration-700",
+                                                    (budget?.total ?? 5) <= 2 ? "bg-red-400/70" :
+                                                    (budget?.total ?? 5) <= 5 ? "bg-amber-400/70" : "bg-white/40"
+                                                )}
                                                 style={{
-                                                    width: profile?.missionBudget != null
-                                                        ? `${Math.min(100, (profile.missionBudget / Math.max(30, profile.missionBudget)) * 100)}%`
+                                                    width: budget != null
+                                                        ? `${Math.min(100, (budget.allowanceLeft / budget.allowance) * 100)}%`
                                                         : "0%"
                                                 }}
                                             />
                                         </div>
-                                    </div>
+                                        <p className="text-[9px] text-white/20 group-hover:text-white/35 mt-1.5 transition-colors">Recharger les missions →</p>
+                                    </button>
 
-                                    {/* Plan badge */}
+                                    {/* Accès badge */}
                                     <div className="flex items-center justify-between mb-4">
-                                        <span className="text-[10px] font-jakarta tracking-widest text-white/30 uppercase">Plan</span>
+                                        <span className="text-[10px] font-jakarta tracking-widest text-white/30 uppercase">Accès</span>
                                         <span className={cn(
                                             "text-[10px] font-jakarta font-bold tracking-widest uppercase px-2 py-0.5 rounded-md",
                                             profile?.plan === "PRO"
                                                 ? "bg-primary/15 text-primary border border-primary/30"
                                                 : "bg-white/[0.06] text-white/40 border border-white/[0.08]"
                                         )}>
-                                            {profile?.plan === "PRO" ? "K3RN Pro" : "Alpha Labs"}
+                                            {profile?.plan === "PRO" ? "Pro" : "Early Access"}
                                         </span>
                                     </div>
 
